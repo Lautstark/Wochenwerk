@@ -16,6 +16,10 @@
 body { margin: 0; min-width: 980px; background: var(--ground); }
 #app { width: 100vw; height: 100vh; }
 .week { height: 100%; display: grid; }
+.nothing { display: grid; align-content: center; justify-items: center; gap: .6rem; height: 100%; margin: 0;
+  color: #b9b2ab; font-size: clamp(1rem, 1.8vw, 1.6rem); text-align: center; }
+.nothing small { font-size: .68em; color: #7d766f; }
+.nothing code { font-family: ui-monospace, monospace; }
 
 /* Weekday colours: one coherent row of the palette explorations, bold enough to
    carry a whole column. Saturday keeps the METACOM stone grey, warmed so it reads

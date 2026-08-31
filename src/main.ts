@@ -1,7 +1,7 @@
 import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, seed, week } from "./db.js";
+import { allCards, allPeople, week } from "./db.js";
 import { pictureFor, pictures, restore } from "./symbols.js";
 
 /* The board has no planning logic. It reads the week the calendar wrote and draws
@@ -171,6 +171,7 @@ async function build(at: Date): Promise<string> {
   const cells: string[] = dates.map((date, index) => column(draw, date, index, appointments.filter(appointment => appointment.date === date)));
   track.splice(draw.todayIndex, 0, "var(--rail)");
   cells.splice(draw.todayIndex, 0, rail);
+  if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>/kalender.html</code></small></p>`;
   return `<div class="week" style="grid-template-columns:${track.join(" ")}">${cells.join("")}</div>`;
 }
 
@@ -183,6 +184,5 @@ async function tick() {
   app.innerHTML = await build(at);
   setTimeout(tick, 60_000 - (at.getSeconds() * 1000 + at.getMilliseconds()) + 20);
 }
-await seed(new Date());
 await restore().catch(() => false);
 void tick();

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@lautstark/bildquelle": "github:Lautstark/bildquelle#v2.0.0",
-    "@lautstark/design": "github:Lautstark/design#v1.22.0",
+    "@lautstark/design": "github:Lautstark/design#v1.23.0",
     "idb": "^8.0.3"
   },
   "devDependencies": {

@@ -1,11 +1,12 @@
 import "./kalender.css";
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { announcer } from "@lautstark/design/toast";
-import { addDays, allDay, appointmentTone, board, bornOn, clock, dayLabel, derivedName, iso, lanesOf, minute, mondayOf,
+import { menuOn } from "@lautstark/design/menu";
+import { addDays, allDay, board, bornOn, clock, dayLabel, derivedName, iso, lanesOf, minute, mondayOf,
   occurrences, shownCards, snapped, titleOf, TONES, toneOf, undecided, weekdays, type Appointment, type Card,
   type Pattern, type Person, type Series, type SymbolRef } from "./model.js";
-import { allCards, allPeople, allSeries, createSeries, dropSeries, editSeries, put, putCard, putPerson,
-  reachOf, remove, removeCard, removePerson, seed, setBirthday, uuid, week } from "./db.js";
+import { allCards, allPeople, allSeries, clearAll, clearAppointments, createSeries, dropSeries, editSeries, put, putCard, putPerson,
+  reachOf, remove, removeCard, removePerson, setBirthday, uuid, week } from "./db.js";
 import { connect, foldGerman, forget, metacom, needsAttention, pictureFor, pictures, PROVIDER_IDS, rebuild,
   reconnect, refFor, restore, says, search, supportsPicker, useFolderFiles, useZip, type ProviderId } from "./symbols.js";
 
@@ -82,11 +83,11 @@ function render() {
     const mine = appointments.filter(appointment => appointment.date === date && allDay(appointment));
     return `<div class="whole-cell" data-new-whole="${date}">${mine.map(appointment => {
       const name = titleOf(appointment, cards);
-      return `<button class="whole" data-edit="${appointment.id}" style="--tone:${appointmentTone(appointment, cards)}">
+      const kind = [appointment.series ? "repeats" : "", appointment.options.length ? "choice" : ""].filter(Boolean).join(" ");
+      return `<button class="whole ${kind}" data-edit="${appointment.id}">
         ${facesOf(appointment).map(item => tile(item.symbol, item.name)).join("")}
         <span class="whole-name">${escape(name || appointment.people.map(id => personById(id)?.name).filter(Boolean).join(", ") || "Ganztägig")}</span>
         ${appointment.people.map(id => { const person = personById(id); return `${person && bornOn(person, date) ? "👑" : ""}${face(person, "sm")}`; }).join("")}
-        ${appointment.series ? `<span class="loop">↻</span>` : ""}
       </button>`;
     }).join("")}</div>`;
   }).join("");
@@ -101,14 +102,16 @@ function render() {
       const tall = Math.max(26, ((snapped(appointment.end!) - snapped(appointment.start!)) / 60) * HOUR);
       const width = 100 / lanes, left = lane * width;
       const name = titleOf(appointment, cards) || (undecided(appointment) ? "Auswahl" : "Termin");
-      const tone = appointmentTone(appointment, cards);
       const span = `${appointment.start}–${appointment.end}`;
       /* The time is not printed: where the block sits and how tall it is already
          says it. It stays in the tooltip for the case where that is not enough. */
-      return `<button class="event${undecided(appointment) ? " open" : ""}${tall < 40 ? " tight" : ""}" data-edit="${appointment.id}"
-        title="${escape(name)} · ${span}" style="--tone:${tone};top:${top}px;height:${tall - 2}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px)">
+      /* Three independent marks rather than one colour, because the three can
+         combine: a repeated choice has to look like both. */
+      const kind = [appointment.series ? "repeats" : "", appointment.options.length ? "choice" : ""].filter(Boolean).join(" ");
+      return `<button class="event ${kind}${tall < 40 ? " tight" : ""}" data-edit="${appointment.id}"
+        title="${escape(name)} · ${span}" style="top:${top}px;height:${tall - 2}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px)">
         <span class="event-name">${escape(name)}</span>
-        <span class="event-meta">${appointment.people.map(id => face(personById(id), "sm")).join("")}${appointment.series ? `<span class="loop">↻</span>` : ""}</span>
+        <span class="event-meta">${appointment.people.map(id => face(personById(id), "sm")).join("")}</span>
       </button>`;
     }).join("");
     const line = date === today && nowAt >= gridFrom && nowAt <= gridTo
@@ -133,6 +136,7 @@ function render() {
           <button class="btn sm" data-settings>Einstellungen</button>
         </div>
       </header>
+      ${appointments.length ? "" : `<p class="notice">Noch nichts geplant. Klick in eine Spalte, um einen Termin anzulegen.</p>`}
       <div class="cal">
         <div class="cal-head"><div class="corner"></div>${heads}</div>
         <div class="cal-whole"><div class="corner">ganztägig</div>${wholeRow}</div>
@@ -264,6 +268,32 @@ function editCard(card: Card, after: (id: string) => void) {
 }
 
 type Reach = "one" | "from" | "all";
+
+/* Which of a series an action applies to is asked at the moment of consequence,
+   not chosen in advance: it is a question about what is about to happen, and it
+   keeps three controls out of the dialog for the appointments that have no series. */
+function askScope(verb: "ändern" | "löschen", counts: { from: number; all: number }): Promise<Reach | null> {
+  return new Promise(resolve => {
+    let picked: Reach = "one";
+    const panel = el("div", "form");
+    const foot = el("div", "foot-actions");
+    let settled = false;
+    const done = (answer: Reach | null) => { if (!settled) { settled = true; resolve(answer); } };
+    const handle = openDialog({
+      title: `Wiederkehrender Termin ${verb}`, closeLabel: "Schließen", body: [panel], footer: [foot],
+      onClose: () => done(null),
+    });
+    panel.innerHTML = `
+      <label class="check"><input type="radio" name="scope" value="one" checked /> Nur diesen Termin</label>
+      <label class="check"><input type="radio" name="scope" value="from" /> Diesen und alle folgenden <span class="muted">(${counts.from})</span></label>
+      <label class="check"><input type="radio" name="scope" value="all" /> Alle Termine der Serie <span class="muted">(${counts.all})</span></label>`;
+    panel.addEventListener("change", event => { picked = (event.target as HTMLInputElement).value as Reach; });
+    foot.replaceChildren(el("span", "spacer"),
+      button("Abbrechen", "quiet", () => handle.close()),
+      button(verb === "löschen" ? "Löschen" : "Sichern", verb === "löschen" ? "destructive filled" : "primary",
+        () => { done(picked); handle.close(); }));
+  });
+}
 function edit(appointment: Appointment, existing: boolean) {
   const draft: Appointment = structuredClone(appointment);
   let mode: "fixed" | "choice" = draft.options.length ? "choice" : "fixed";
@@ -275,13 +305,15 @@ function edit(appointment: Appointment, existing: boolean) {
   let findWho = "";
   let source: ProviderId = "metacom";
   let results: SymbolRef[] = [];
-  let reach: Reach = "one";
+  let moreOpen = false;
   let counts = { from: 0, all: 0 };
   const mine = () => series.find(item => item.id === draft.series);
 
   const panel = el("div", "form");
   const foot = el("div", "foot-actions");
-  const handle = openDialog({ title: existing ? "Termin" : "Neuer Termin", closeLabel: "Schließen", body: [panel], footer: [foot], wide: true });
+  const handle = openDialog({ title: titleOf(draft, cards) || "Neuer Termin", closeLabel: "Schließen", body: [panel], footer: [foot], wide: true });
+  const heading = handle.dialog.querySelector("h2");
+  const retitle = () => { if (heading) heading.textContent = titleOf(draft, cards) || "Neuer Termin"; };
 
   const read = () => {
     const data = new FormData(panel.querySelector("form")!);
@@ -305,8 +337,7 @@ function edit(appointment: Appointment, existing: boolean) {
     const known = await pictures([...draft.symbols, ...results]);
     const whoOffered = people.filter(person => !draft.people.includes(person.id) && (!findWho || matches(person.name, findWho))).slice(0, 8);
     panel.innerHTML = `<form>
-      <label><span class="lbl">Name <span class="muted">— leer heißt: nach der Aktivität</span></span>
-        <input class="field" name="title" value="${escape(draft.title ?? "")}" placeholder="${escape(derivedName(draft, cards) || "z. B. Elternabend")}" autocomplete="off" /></label>
+      <input class="field title" name="title" value="${escape(draft.title ?? "")}" placeholder="${escape(derivedName(draft, cards) || "Name — leer heißt: wie das Symbol")}" autocomplete="off" />
       <div class="pair">
         <label><span class="lbl">Tag</span><input class="field" type="date" name="date" value="${draft.date}" /></label>
         ${whole
@@ -316,14 +347,7 @@ function edit(appointment: Appointment, existing: boolean) {
       </div>
       <label class="check"><input type="checkbox" name="whole"${whole ? " checked" : ""} /> Ganztägig</label>
       ${existing ? (draft.series ? `
-        <div class="card">
-          <p class="hint">↻ ${escape(patternSays(mine()))}${mine() ? ` · ${dayLabel(mine()!.from)} bis ${dayLabel(mine()!.until)}` : ""}</p>
-          <div class="segmented">
-            <button type="button" class="btn sm${reach === "one" ? " primary" : ""}" data-reach="one">Nur dieser</button>
-            <button type="button" class="btn sm${reach === "from" ? " primary" : ""}" data-reach="from">Ab hier (${counts.from})</button>
-            <button type="button" class="btn sm${reach === "all" ? " primary" : ""}" data-reach="all">Ganze Serie (${counts.all})</button>
-          </div>
-        </div>` : "") : `
+        <p class="small muted">↻ ${escape(patternSays(mine()))}${mine() ? ` · ${dayLabel(mine()!.from)} bis ${dayLabel(mine()!.until)}` : ""}</p>` : "") : `
         <div class="pair">
           <label><span class="lbl">Wiederholen</span><select class="field" name="repeat">
             <option value="none"${repeat === "none" ? " selected" : ""}>einmalig</option>
@@ -369,6 +393,7 @@ function edit(appointment: Appointment, existing: boolean) {
           `<button type="button" class="chip" data-take-card="${card.id}">${cardTile(card.id, known)}${escape(card.name)}</button>`).join("")}
           <button type="button" class="btn sm" data-new-card>＋ Neue Karte</button></div>`}
 
+      <details class="more"${moreOpen ? " open" : ""}><summary>Weitere Optionen</summary>
       <span class="lbl">Personen</span>
       <div class="chips">${draft.people.map(id => {
         const person = personById(id);
@@ -380,7 +405,8 @@ function edit(appointment: Appointment, existing: boolean) {
       <div class="chips">${whoOffered.map(person =>
         `<button type="button" class="chip" data-person-on="${person.id}">${face(person, "sm")}${escape(person.name)}</button>`).join("")
         || `<span class="empty">niemand offen</span>`}</div>
-      <label class="check"><input type="checkbox" name="showPeople"${draft.showPeople ? " checked" : ""} /> Am Board zeigen</label>
+      ${draft.people.length ? `<label class="check"><input type="checkbox" name="showPeople"${draft.showPeople ? " checked" : ""} /> Am Board zeigen</label>` : ""}
+      </details>
     </form>`;
     foot.replaceChildren(...[
       ...(existing ? [button("Löschen", "destructive", () => void erase())] : []),
@@ -392,17 +418,23 @@ function edit(appointment: Appointment, existing: boolean) {
 
   const erase = async () => {
     read();
-    if (draft.series && reach !== "one") {
-      const many = reach === "from" ? counts.from : counts.all;
-      const sure = await confirmDialog({
-        title: "Serie löschen", body: `${count(many, "Termin", "Termine")} werden gelöscht. Das lässt sich nicht rückgängig machen.`,
-        confirmLabel: `${count(many, "Termin", "Termine")} löschen`, cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
-      });
-      if (!sure) return;
-      const gone = await dropSeries(draft.series, reach === "from" ? draft.date : undefined);
-      handle.close(); await load(); note(`${count(gone, "Termin", "Termine")} gelöscht.`);
+    if (draft.series) {
+      const scope = await askScope("löschen", counts);
+      if (!scope) return;
+      if (scope !== "one") {
+        const gone = await dropSeries(draft.series, scope === "from" ? draft.date : undefined);
+        handle.close(); await load(); note(`${count(gone, "Termin", "Termine")} gelöscht.`);
+        return;
+      }
+      await remove(draft.id);
+      handle.close(); await load(); note("Termin gelöscht.");
       return;
     }
+    const sure = await confirmDialog({
+      title: "Termin löschen", body: `„${titleOf(draft, cards) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
+      confirmLabel: "Löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+    });
+    if (!sure) return;
     await remove(draft.id);
     handle.close(); await load(); note("Termin gelöscht.");
   };
@@ -411,10 +443,14 @@ function edit(appointment: Appointment, existing: boolean) {
     read();
     if (!whole && minute(draft.end!) <= minute(draft.start!)) draft.end = clock(minute(draft.start!) + board.snap);
     if (mode === "fixed") draft.options = []; else { draft.symbols = []; draft.chosen = undefined; }
-    if (existing && draft.series && reach !== "one") {
-      const changed = await editSeries(draft.series, shape(), reach === "from" ? draft.date : undefined);
-      handle.close(); await load(); note(`${count(changed, "Termin", "Termine")} geändert.`);
-      return;
+    if (existing && draft.series) {
+      const scope = await askScope("ändern", counts);
+      if (!scope) return;
+      if (scope !== "one") {
+        const changed = await editSeries(draft.series, shape(), scope === "from" ? draft.date : undefined);
+        handle.close(); await load(); note(`${count(changed, "Termin", "Termine")} geändert.`);
+        return;
+      }
     }
     if (!existing) {
       const data = new FormData(panel.querySelector("form")!);
@@ -441,7 +477,9 @@ function edit(appointment: Appointment, existing: boolean) {
   panel.addEventListener("input", event => {
     const target = event.target as HTMLInputElement;
     read();
+    if (target.name === "title") { retitle(); return; }
     if (["whole", "repeat", "endBy", "source", "findWho"].includes(target.name)) {
+      moreOpen = !!panel.querySelector("details.more[open]");
       void paint().then(() => {
         const again = panel.querySelector<HTMLInputElement>(`[name="${target.name}"]`);
         if (again && target.name === "findWho") { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
@@ -459,11 +497,11 @@ function edit(appointment: Appointment, existing: boolean) {
     }, 250);
   });
   panel.addEventListener("click", async event => {
-    const target = (event.target as HTMLElement).closest("[data-mode],[data-take],[data-drop-symbol],[data-take-card],[data-drop],[data-new-card],[data-person-on],[data-person-off],[data-weekday],[data-reach]") as HTMLElement | null;
+    const target = (event.target as HTMLElement).closest("[data-mode],[data-take],[data-drop-symbol],[data-take-card],[data-drop],[data-new-card],[data-person-on],[data-person-off],[data-weekday]") as HTMLElement | null;
     if (!target) return;
     read();
+    moreOpen = !!panel.querySelector("details.more[open]");
     if (target.dataset.mode) mode = target.dataset.mode as typeof mode;
-    else if (target.dataset.reach) reach = target.dataset.reach as Reach;
     else if (target.dataset.weekday) {
       const day = Number(target.dataset.weekday);
       weekly = weekly.includes(day) ? weekly.filter(other => other !== day) : [...weekly, day];
@@ -484,6 +522,7 @@ function edit(appointment: Appointment, existing: boolean) {
     } else if (target.dataset.personOn) draft.people = [...draft.people, target.dataset.personOn];
     else if (target.dataset.personOff) draft.people = draft.people.filter(other => other !== target.dataset.personOff);
     await paint();
+    retitle();
   });
   void paint();
 }
@@ -504,6 +543,59 @@ function pickFile(accept: string, folder: boolean, take: (files: FileList) => vo
   else input.accept = accept;
   input.addEventListener("change", () => { if (input.files?.length) take(input.files); });
   input.click();
+}
+
+/* Everything about a person is edited here rather than in the row it lives in. A
+   row carrying a date field and four buttons is what made the settings sheet
+   scroll sideways; a row is a name and a state, and the rest is one step away. */
+function editPerson(person: Person, after: () => void) {
+  const draft: Person = structuredClone(person);
+  const panel = el("div", "form");
+  const foot = el("div", "foot-actions");
+  const handle = openDialog({ title: draft.name || "Neue Person", closeLabel: "Schließen", body: [panel], footer: [foot] });
+
+  const read = () => {
+    const data = new FormData(panel.querySelector("form")!);
+    draft.name = String(data.get("name") || "").trim();
+    draft.birthday = String(data.get("birthday") || "") || undefined;
+  };
+  const paint = () => {
+    panel.innerHTML = `<form>
+      <div class="portrait">
+        ${face(draft)}
+        <div class="chips">
+          <button type="button" class="btn sm quiet" data-photo>${draft.photo ? "Foto ändern" : "Foto wählen"}</button>
+          ${draft.photo ? `<button type="button" class="btn sm quiet" data-unphoto>Foto entfernen</button>` : ""}
+        </div>
+      </div>
+      <label><span class="lbl">Name</span><input class="field" name="name" value="${escape(draft.name)}" placeholder="z. B. Oma" autocomplete="off" /></label>
+      <label><span class="lbl">Geburtstag <span class="muted">— legt die Termine dafür an, ein Jahrhundert weit</span></span>
+        <input class="field" type="date" name="birthday" value="${draft.birthday ?? ""}" /></label>`;
+    foot.replaceChildren(el("span", "spacer"),
+      button("Abbrechen", "quiet", () => handle.close()),
+      button("Sichern", "primary", () => void save()));
+  };
+  const save = async () => {
+    read();
+    if (!draft.name) { note("Die Person braucht einen Namen."); return; }
+    draft.initials = draft.name.slice(0, 2).toUpperCase();
+    if (!draft.tone) draft.tone = TONES[people.length % TONES.length];
+    const before = personById(draft.id);
+    await putPerson({ ...draft, birthday: before?.birthday, birthdaySeries: before?.birthdaySeries });
+    if (draft.birthday !== before?.birthday) {
+      await setBirthday({ ...draft, birthday: before?.birthday, birthdaySeries: before?.birthdaySeries }, draft.birthday);
+    }
+    handle.close();
+    after();
+  };
+  panel.addEventListener("click", event => {
+    const target = (event.target as HTMLElement).closest("[data-photo],[data-unphoto]") as HTMLElement | null;
+    if (!target) return;
+    read();
+    if (target.dataset.unphoto !== undefined) { draft.photo = undefined; paint(); return; }
+    pickFile("image/*", false, async files => { draft.photo = await shrink(files[0]); paint(); });
+  });
+  paint();
 }
 
 /* One settings panel is open at a time: `<details name="settings">` is the
@@ -550,49 +642,75 @@ function settings() {
           <p class="hint">Karten sind das, was zur Wahl steht: ein laminiertes Bild mit NFC-Tag, das du hinlegst. Jede hat eine Ansage und eine Nummer, an der das Board sie erkennt. Gewöhnliche Termine brauchen keine.</p>
           <div class="rows">${cardList.map(card => `
             <div class="row-item">
-              <span class="dot" style="--tone:${toneOf(card)}"></span>
               ${cardTile(card.id)}
-              <span>${escape(card.name)}${card.speech ? `<i class="muted"> · „${escape(card.speech)}“</i>` : ""}</span>
-              <span class="spacer"></span>
-              <code class="nfc${card.nfc ? "" : " none"}">${escape(card.nfc ?? "keine Nummer")}</code>
-              <button type="button" class="btn quiet sm" data-edit-card="${card.id}">Bearbeiten</button>
-              <button type="button" class="btn destructive sm" data-drop-card="${card.id}">Entfernen</button>
+              <span class="row-name">${escape(card.name)}</span>
+              <span class="row-state">${card.nfc ? `<code class="nfc">${escape(card.nfc)}</code>` : `<span class="muted">keine NFC-Nummer</span>`}</span>
+              <button type="button" class="btn icon quiet more" data-card-menu="${card.id}" aria-label="Mehr">⋯</button>
             </div>`).join("") || `<p class="empty">noch keine</p>`}</div>
           <button type="button" class="btn sm" data-new-card>＋ Neue Karte</button>
+        </div>
+      </details>
+      <details class="panel" name="settings" data-panel="calendar"${open === "calendar" ? " open" : ""}>
+        <summary><span class="section">Kalender</span><span class="state">${count(appointments.length, "Termin", "Termine")} in dieser Woche</span></summary>
+        <div class="panel-body">
+          <p class="hint">Leert den ganzen Kalender, nicht nur diese Woche.</p>
+          <button type="button" class="btn destructive sm" data-clear>Alle Termine löschen</button>
+          <p class="hint">Und alles: Termine, Karten und Personen.</p>
+          <button type="button" class="btn destructive sm" data-clear-all>Alle Daten löschen</button>
         </div>
       </details>
       <details class="panel" name="settings" data-panel="people"${open === "people" ? " open" : ""}>
         <summary><span class="section">Personen</span><span class="state">${count(people.length, "Person", "Personen")}</span></summary>
         <div class="panel-body">
-          <p class="hint">Ein Geburtstag ist keine eigene Terminart: er ist ein Datum an der Person, und die Termine dafür entstehen daraus — ein Jahrhundert im Voraus, mit Krone am Tag.</p>
+          <p class="hint">Ein Geburtstag ist keine eigene Terminart: er ist ein Datum an der Person, und die Termine dafür entstehen daraus — ein Jahrhundert weit, mit Krone am Tag.</p>
           <div class="rows">${people.map(person => `
             <div class="row-item">
               ${face(person)}
-              <span>${escape(person.name)}</span>
-              <span class="spacer"></span>
-              <label class="birthday"><span class="muted">Geburtstag</span>
-                <input class="field sm" type="date" data-birthday="${person.id}" value="${person.birthday ?? ""}" /></label>
-              <button type="button" class="btn quiet sm" data-photo="${person.id}">${person.photo ? "Foto ändern" : "Foto"}</button>
-              ${person.photo ? `<button type="button" class="btn quiet sm" data-unphoto="${person.id}">Foto weg</button>` : ""}
-              <button type="button" class="btn destructive sm" data-drop-person="${person.id}">Entfernen</button>
+              <span class="row-name">${escape(person.name)}</span>
+              <span class="row-state">${person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : `<span class="muted">kein Geburtstag</span>`}</span>
+              <button type="button" class="btn icon quiet more" data-person-menu="${person.id}" aria-label="Mehr">⋯</button>
             </div>`).join("") || `<p class="empty">noch niemand</p>`}</div>
-          <form class="pair">
-            <label><span class="lbl">Neue Person</span><input class="field" name="name" placeholder="z. B. Oma" autocomplete="off" /></label>
-            <button type="button" class="btn sm" data-add-person>Hinzufügen</button>
-          </form>
+          <button type="button" class="btn sm" data-add-person>＋ Neue Person</button>
         </div>
       </details>`;
     foot.replaceChildren(el("span", "spacer"), button("Fertig", "primary", () => { handle.close(); void load(); }));
+    /* Row actions live behind `⋯` — conventions §3.6 — which is what keeps a row
+       to a name and a state and the sheet to its own width. */
+    panel.querySelectorAll<HTMLElement>("[data-person-menu]").forEach(trigger => {
+      const person = personById(trigger.dataset.personMenu!);
+      if (!person) return;
+      menuOn(trigger, add => {
+        add("Bearbeiten", () => editPerson(person, () => void refresh()));
+        add("Entfernen", () => void erasePerson(person), { danger: true });
+      });
+    });
+    panel.querySelectorAll<HTMLElement>("[data-card-menu]").forEach(trigger => {
+      const card = cards.get(trigger.dataset.cardMenu!);
+      if (!card) return;
+      menuOn(trigger, add => {
+        add("Bearbeiten", () => editCard(card, () => paint()));
+        add("Entfernen", () => void eraseCard(card), { danger: true });
+      });
+    });
+  };
+  const refresh = async () => { [people, cardList] = await Promise.all([allPeople(), allCards()]); cards = new Map(cardList.map(item => [item.id, item])); paint(); };
+  const erasePerson = async (person: Person) => {
+    const sure = await confirmDialog({
+      title: "Person entfernen", body: `${person.name} wird entfernt. Termine bleiben, verlieren aber diese Person.`,
+      confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+    });
+    if (sure) await run(() => removePerson(person.id), "Person entfernt.");
+  };
+  const eraseCard = async (card: Card) => {
+    const sure = await confirmDialog({
+      title: "Karte entfernen", body: `„${card.name}“ wird entfernt. Termine, die sie zur Wahl stellen, verlieren sie.`,
+      confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+    });
+    if (sure) await run(() => removeCard(card.id), "Karte entfernt.");
   };
 
-  panel.addEventListener("change", event => {
-    const field = event.target as HTMLInputElement;
-    if (!field.dataset.birthday) return;
-    const person = personById(field.dataset.birthday);
-    if (person) void run(() => setBirthday(person, field.value || undefined), field.value ? "Geburtstag eingetragen." : "Geburtstag entfernt.");
-  });
   panel.addEventListener("click", async event => {
-    const target = (event.target as HTMLElement).closest("[data-pick],[data-zip],[data-again],[data-reindex],[data-forget],[data-photo],[data-unphoto],[data-drop-person],[data-add-person],[data-new-card],[data-edit-card],[data-drop-card]") as HTMLElement | null;
+    const target = (event.target as HTMLElement).closest("[data-pick],[data-zip],[data-again],[data-reindex],[data-forget],[data-add-person],[data-new-card],[data-clear],[data-clear-all]") as HTMLElement | null;
     if (!target) return;
     if (target.dataset.pick !== undefined) {
       if (supportsPicker) return void run(() => connect(), "Ordner gelesen.");
@@ -602,48 +720,24 @@ function settings() {
     if (target.dataset.again !== undefined) return void run(() => reconnect(), "Erlaubnis wieder da.");
     if (target.dataset.reindex !== undefined) return void run(() => rebuild(), "Neu eingelesen.");
     if (target.dataset.forget !== undefined) return void run(() => forget(), "Ordner vergessen.");
-    if (target.dataset.newCard !== undefined) return editCard({ id: uuid(), name: "", updatedAt: 0 }, () => paint());
-    if (target.dataset.editCard) {
-      const card = cards.get(target.dataset.editCard);
-      if (card) editCard(card, () => paint());
-      return;
-    }
-    if (target.dataset.dropCard) {
-      const card = cards.get(target.dataset.dropCard);
+    if (target.dataset.clear !== undefined) {
       const sure = await confirmDialog({
-        title: "Karte entfernen", body: `„${card?.name ?? "Diese Karte"}“ wird entfernt. Termine, die sie zur Wahl stellen, verlieren sie.`,
-        confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+        title: "Alle Termine löschen", body: "Der ganze Kalender wird geleert. Karten, Personen und Geburtstage bleiben. Das lässt sich nicht rückgängig machen.",
+        confirmLabel: "Alle löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
       });
-      if (sure) await run(() => removeCard(target.dataset.dropCard!), "Karte entfernt.");
+      if (sure) await run(async () => { const gone = await clearAppointments(); note(`${count(gone, "Termin", "Termine")} gelöscht.`); }, "Kalender geleert.");
       return;
     }
-    if (target.dataset.photo) {
-      const id = target.dataset.photo;
-      return pickFile("image/*", false, files => void run(async () => {
-        const person = personById(id);
-        if (person) await putPerson({ ...person, photo: await shrink(files[0]) });
-      }, "Foto gesichert."));
-    }
-    if (target.dataset.unphoto) {
-      const person = personById(target.dataset.unphoto);
-      return void run(async () => { if (person) await putPerson({ ...person, photo: undefined }); }, "Foto entfernt.");
-    }
-    if (target.dataset.dropPerson) {
-      const person = personById(target.dataset.dropPerson);
+    if (target.dataset.clearAll !== undefined) {
       const sure = await confirmDialog({
-        title: "Person entfernen", body: `${person?.name ?? "Diese Person"} wird entfernt. Termine bleiben, verlieren aber diese Person.`,
-        confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+        title: "Alle Daten löschen", body: "Termine, Karten und Personen werden gelöscht. Danach ist Wochenwerk leer. Das lässt sich nicht rückgängig machen.",
+        confirmLabel: "Alles löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
       });
-      if (sure) await run(() => removePerson(target.dataset.dropPerson!), "Person entfernt.");
+      if (sure) await run(() => clearAll(), "Alles gelöscht.");
       return;
     }
-    if (target.dataset.addPerson !== undefined) {
-      const field = panel.querySelector<HTMLInputElement>('[name="name"]')!;
-      const name = field.value.trim();
-      if (!name) return;
-      const tones = ["#b8460f", "#1d5fb0", "#7b3fa0", "#0f6b62", "#a3630c", "#2d5c2a"];
-      await run(() => putPerson({ id: uuid(), name, initials: name.slice(0, 2).toUpperCase(), tone: tones[people.length % tones.length] }), `${name} hinzugefügt.`);
-    }
+    if (target.dataset.newCard !== undefined) return editCard({ id: uuid(), name: "", updatedAt: 0 }, () => void refresh());
+    if (target.dataset.addPerson !== undefined) return editPerson({ id: uuid(), name: "", initials: "", tone: "" }, () => void refresh());
   });
   paint();
 }
@@ -671,6 +765,5 @@ app.addEventListener("click", event => {
 });
 metacom.subscribe(() => { void load(); });
 
-await seed(new Date());
 await restore().catch(() => false);
 await load();

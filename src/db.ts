@@ -96,6 +96,27 @@ export async function put(appointment: Appointment): Promise<void> {
   await (await db()).put("appointments", { ...appointment, updatedAt: Date.now() });
 }
 export const remove = async (id: string) => (await db()).delete("appointments", id);
+
+/** Empty the calendar. Cards, people and their birthdays stay. */
+export async function clearAppointments(): Promise<number> {
+  const database = await db();
+  const many = await database.count("appointments");
+  await database.clear("appointments");
+  await database.clear("series");
+  const everyone = await database.getAll("people");
+  await Promise.all(everyone.filter(person => person.birthdaySeries)
+    .map(person => database.put("people", { ...person, birthdaySeries: undefined })));
+  return many;
+}
+
+/** Everything: the calendar, the cards and the people. Nothing is left behind. */
+export async function clearAll(): Promise<void> {
+  const database = await db();
+  await Promise.all([
+    database.clear("appointments"), database.clear("series"),
+    database.clear("cards"), database.clear("people"),
+  ]);
+}
 export const putPerson = async (person: Person) => { await (await db()).put("people", person); };
 export const removePerson = async (id: string) => (await db()).delete("people", id);
 export const allCards = async () => (await db()).getAll("cards");
@@ -176,82 +197,3 @@ const symbols = {
   book: metacom("Buch_Zeitung/bilderbuch.png", "Bilderbuch"),
   ball: metacom("Spielen/ballspielen.png", "Ball"),
 } as const;
-
-/* A household routine, written once so an empty database still shows a week — and
-   written as activities and series, because that is how a household actually plans.
-   Real planning replaces it; nothing else in the app knows this exists. */
-export async function seed(around: Date): Promise<void> {
-  const database = await db();
-  if (await database.count("appointments")) return;
-  const people: Person[] = [
-    { id: "bente", name: "Testperson", initials: "BE", tone: "#b8460f" },
-    { id: "mika", name: "Testperson", initials: "MI", tone: "#1d5fb0" },
-    { id: "mama", name: "Mama", initials: "MA", tone: "#7b3fa0" },
-    { id: "papa", name: "Papa", initials: "PA", tone: "#0f6b62" },
-    { id: "oma", name: "Oma", initials: "OM", tone: "#a3630c" },
-    { id: "opa", name: "Opa", initials: "OP", tone: "#2d5c2a" },
-  ];
-  await Promise.all(people.map(person => database.put("people", person)));
-
-  /* Ordinary appointments carry their symbols directly. */
-  const sym = (path: string, label: string): SymbolRef => ({ source: "metacom", id: path, label });
-  const breakfast = sym("Lebensmittel_Essen/fruehstueck2.png", "Frühstück");
-  const clothes = sym("Verben/anziehen1.png", "Anziehen");
-  const bike = sym("Fahrzeuge/fahrrad.png", "Fahrrad fahren");
-  const kita = sym("Berufe/kindergaertnerin.png", "Kita");
-  const shop = sym("Einkaufen/einkaufen.png", "Einkaufen");
-  const lunch = sym("Lebensmittel_Essen/mittagessen.png", "Essen");
-  const cook = sym("Lebensmittel_Essen/abendessen.png", "Kochen");
-  const pajamas = sym("Kleidung_Accessoires/schlafanzug.png", "Schlafanzug");
-  const teeth = sym("Koerperpflege/zaehneputzen.png", "Zähne putzen");
-  const sleep = sym("Verben/schlafen1.png", "Schlafen");
-  const logo = sym("Therapie/sprachtherapielogopaedie.png", "Logopädie");
-  const early = sym("Therapie/fruehfoerderung.png", "Frühförderung");
-
-  /* What a choice offers is a set of cards: household objects with an NFC tag, a
-     symbol and something to say when they are laid out. */
-  let next = 0;
-  const card = async (name: string, path: string, speech: string, nfc: string) => {
-    const id = uuid();
-    await database.put("cards", { id, name, symbol: sym(path, name), speech, nfc, tone: TONES[next++ % TONES.length], updatedAt: Date.now() });
-    return id;
-  };
-  const playCard = await card("Spielplatz", "Spielen/spielplatz.png", "Wir gehen auf den Spielplatz.", "04A1B2C3");
-  const bikeCard = await card("Fahrrad fahren", "Fahrzeuge/fahrrad.png", "Wir fahren Fahrrad.", "04A1B2C4");
-  const bricksCard = await card("Bausteine", "Spielen/bausteinespielen.png", "Wir bauen mit Bausteinen.", "04A1B2C5");
-  const bookCard = await card("Bilderbuch", "Buch_Zeitung/bilderbuch.png", "Wir schauen ein Buch an.", "04A1B2C6");
-
-  type Shape = Omit<Appointment, "id" | "date" | "series" | "updatedAt">;
-  const timed = (start: string, end: string, fixed: SymbolRef[], extra: Partial<Shape> = {}): Shape =>
-    ({ start, end, symbols: fixed, options: [], people: [], showPeople: false, ...extra });
-  const whole = (fixed: SymbolRef[], who: string[]): Shape =>
-    ({ symbols: fixed, options: [], people: who, showPeople: true });
-
-  const monday = mondayOf(around);
-  const from = iso(monday), until = iso(addDays(monday, 55));
-  const on = (...weekdays: number[]): Pattern => ({ kind: "weekly", weekdays });
-  const workdays = on(0, 1, 2, 3, 4), weekend = on(5, 6), twice = on(1, 3), daily = on(0, 1, 2, 3, 4, 5, 6);
-
-  await Promise.all([
-    createSeries(workdays, from, until, timed("07:15", "07:45", [breakfast])),
-    createSeries(workdays, from, until, timed("07:45", "08:25", [clothes])),
-    createSeries(workdays, from, until, timed("08:30", "08:45", [bike])),
-    createSeries(workdays, from, until, timed("08:45", "14:00", [kita])),
-    createSeries(workdays, from, until, timed("14:00", "18:00", [sym("Spielen/spielplatz.png", "Spielplatz")])),
-    createSeries(twice, from, until, timed("11:00", "11:45", [logo], { people: ["bente"], showPeople: true })),
-    createSeries(on(3), from, until, timed("12:00", "13:15", [early], { people: ["bente"], showPeople: true })),
-    createSeries(weekend, from, until, timed("08:00", "08:40", [breakfast])),
-    createSeries(weekend, from, until, timed("08:40", "09:20", [clothes])),
-    createSeries(weekend, from, until, timed("12:00", "13:00", [lunch])),
-    createSeries(weekend, from, until, timed("14:00", "18:00", [], { options: [playCard, bikeCard] })),
-    createSeries(on(5), from, until, timed("10:00", "11:30", [shop], { people: ["mama", "bente"], showPeople: true })),
-    createSeries(on(6), from, until, timed("10:00", "12:00", [], { options: [bricksCard, bookCard, playCard] })),
-    createSeries(daily, from, until, timed("18:00", "18:30", [cook])),
-    createSeries(daily, from, until, timed("18:30", "19:15", [lunch])),
-    createSeries(daily, from, until, timed("19:30", "20:15", [pajamas, teeth, sleep])),
-    /* A visit is an ordinary all-day appointment carrying the guests. */
-    createSeries({ kind: "daily" }, iso(addDays(monday, 5)), iso(addDays(monday, 6)), whole([], ["oma", "opa"])),
-  ]);
-  /* A birthday is a date on a person; the appointments follow from it. */
-  await setBirthday(people[1], iso(addDays(monday, 6)));
-}

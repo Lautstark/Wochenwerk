@@ -2,15 +2,21 @@
    buttons, fields, chips, notices and dialogs, and what is left here is the week
    grid itself. The board does not and must not — it is a display with no chrome,
    so it keeps its own stylesheet and none of this. See ADR 002. */
-@import "@lautstark/design/tokens/vorlaut.css";
+@import "@lautstark/design/tokens/wochenwerk.css";
 @import "@lautstark/design/components.css";
 
-/* Borrowed tokens: those values are generated from one accent with contrast
-   guarantees checked at generation time, so hand-writing a Wochenwerk file would
-   drop them silently. Wochenwerk needs its own entry in design/products/ when the
-   repository moves into the organisation; until then it wears vorlaut's. */
+/* The tokens are generated from one accent — #3B6FF5, the blue between druckwerk's
+   teal and vorlaut's violet — with the contrast pairings checked at generation
+   time. To change a value here, change the rule that produces it, in Lautstark/design. */
 
 * { box-sizing: border-box; }
+
+/* A native <dialog> sizes itself to its content, so a sheet whose contents happen
+   to be narrow arrives narrow. components.css sets the ceiling; this sets the
+   width, and gives `wide: true` — which the package marks but does not style —
+   something to mean. */
+dialog.sheet { width: min(620px, 92vw); }
+dialog.sheet.wide { width: min(900px, 94vw); max-width: none; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font, ui-sans-serif, system-ui, sans-serif); }
 /* The week fills the window: the grid is the page, not a box on it. */
 html, body { height: 100%; }
@@ -40,9 +46,10 @@ a.btn { text-decoration: none; }
 .whole-cell { display: flex; flex-wrap: wrap; align-content: start; gap: 3px; padding: 5px; border-left: 1px solid var(--line); cursor: pointer; }
 .whole-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .whole { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 9px 3px 5px;
-  border: 0; border-radius: var(--radius-pill, 999px); color: var(--text);
-  background: color-mix(in oklab, var(--tone, var(--accent)) 30%, var(--surface));
-  font: inherit; font-size: 12px; cursor: pointer; }
+  border: 1px solid transparent; border-radius: var(--radius-pill, 999px); color: var(--text);
+  background: var(--accent-soft); font: inherit; font-size: 12px; cursor: pointer; }
+
+.whole.choice { border-style: dashed; border-color: var(--line); background: var(--surface-2); }
 .whole .tile { width: 22px; height: 22px; border-radius: 50%; }
 
 /* The padding moves labels, rules and events together, so the topmost hour
@@ -59,15 +66,24 @@ a.btn { text-decoration: none; }
 .now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px;
   border-radius: 50%; background: var(--danger); }
 
-/* An appointment wears the colour of what happens in it: the tone tints the
-   surface and states itself on the leading edge, which reads on a light ground and
-   a dark one without needing a contrast rule per colour. */
+/* Every appointment wears the same surface. What differs between them is not which
+   activity they hold — that is the name's job — but what kind of entry they are,
+   and there are three of those which can combine: repeated, offered as a choice,
+   or neither. Three marks rather than one colour, because a colour cannot say two
+   things at once. */
 .event { position: absolute; z-index: 2; overflow: hidden; display: flex; align-items: flex-start; gap: 5px;
-  padding: 3px 6px 3px 7px; border: 1px solid transparent;
-  border-left: 3px solid var(--tone, var(--accent)); border-radius: var(--radius-sm, 8px);
-  background: color-mix(in oklab, var(--tone, var(--accent)) 26%, var(--surface));
+  padding: 3px 6px 3px 8px; border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm, 8px); background: var(--accent-soft);
   color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.event:hover { background: color-mix(in oklab, var(--tone, var(--accent)) 44%, var(--surface)); }
+.event:hover { background: color-mix(in oklab, var(--accent) 34%, var(--surface)); }
+/* Most of a household repeats, so a series is the quiet default and a one-off is
+   the thing that earns a mark: its leading edge is solid and full strength. */
+.event { border-left-color: color-mix(in oklab, var(--accent) 45%, var(--surface)); }
+.event.repeats { border-left-style: dashed; }
+.event:not(.repeats) { border-left-color: var(--accent); border-left-width: 4px; }
+/* A choice: the card is not finished, and its outline says so. */
+.event.choice { border-style: dashed; border-left-width: 3px; background: var(--surface-2); }
+.event.choice.repeats { border-left-style: dashed; }
 .event-name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis; }
 .event-meta { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
@@ -75,8 +91,7 @@ a.btn { text-decoration: none; }
 .event.tight { align-items: center; padding-block: 0; }
 .event.tight .event-name { font-size: 11.5px; white-space: nowrap; }
 .event:hover { background: var(--accent); color: var(--accent-ink); }
-.event.open { border: 1px dashed var(--line); border-left: 3px dashed var(--tone, var(--line));
-  background: color-mix(in oklab, var(--tone, var(--accent)) 12%, var(--surface)); }
+
 .event-time { font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .event:hover .event-time { color: inherit; }
 
@@ -92,13 +107,15 @@ a.btn { text-decoration: none; }
 .face img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Inside a dialog: components.css draws the sheet, this is only what it holds. */
-.form { display: grid; gap: 12px; }
+.form { display: grid; gap: 12px; min-width: 0; }
+.panels, .panel-body, .rows { min-width: 0; }
 .form form { display: contents; }
 .pair { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .pair label { display: grid; min-width: 8rem; flex: 1 1 8rem; }
 .pair.find label:first-child { flex: 2 1 14rem; }
 .card { display: grid; gap: 8px; padding: 11px 12px; border-radius: var(--radius-sm, 8px); background: var(--surface-2); }
-.hint { margin: 0; font-size: 12.5px; color: var(--text-dim); }
+.small { font-size: 13.5px; }
+.hint { margin: 0; font-size: 13.5px; color: var(--text-dim); }
 .segmented { display: flex; gap: 6px; flex-wrap: wrap; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .chip { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
@@ -113,9 +130,14 @@ a.btn { text-decoration: none; }
 .panels { display: grid; }
 .panel-body { display: grid; gap: 10px; padding: 0 16px 16px; }
 .rows { display: grid; gap: 6px; }
-.row-item { display: flex; align-items: center; gap: 9px; padding: 7px 10px; font-size: 14px;
-  border-radius: var(--radius-sm, 8px); background: var(--surface-2); }
-.row-item > span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-item { display: flex; align-items: center; gap: 9px; padding: 7px 8px 7px 10px; font-size: 14px;
+  border-radius: var(--radius-sm, 8px); background: var(--surface-2); min-width: 0; }
+.row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--text-dim); }
+.more { margin-left: auto; }
+.portrait { display: flex; align-items: center; gap: 12px; }
+.portrait .face { width: 56px; height: 56px; font-size: 20px; }
 .muted { color: var(--text-faint); font-style: normal; }
 .tones { display: flex; gap: 7px; flex-wrap: wrap; }
 .tone { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
@@ -125,8 +147,16 @@ a.btn { text-decoration: none; }
 .nfc { padding: 2px 7px; border-radius: var(--radius-pill, 999px); background: var(--surface-3);
   font: 500 11px var(--mono, ui-monospace, monospace); color: var(--text-dim); }
 .nfc.none { background: transparent; color: var(--text-faint); font-style: italic; }
-.birthday { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.field.sm { width: auto; padding: 5px 8px; font-size: 13px; }
+.field.title { font-size: 19px; font-weight: 600; padding: 12px 13px; }
+details.more { margin: 0; border-top: 1px solid var(--line); padding-top: 10px; }
+details.more > summary { cursor: pointer; font-size: 13.5px; color: var(--text-dim); list-style: none; padding: 2px 0 8px; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary { display: flex; align-items: center; gap: 8px; }
+details.more > summary::after { content: ""; width: 7px; height: 7px; margin-left: 6px;
+  border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim);
+  transform: translateY(-2px) rotate(45deg); transition: transform .12s ease; }
+details.more[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+details.more[open] { display: grid; gap: 12px; }
 .foot-actions { display: flex; align-items: center; gap: 8px; width: 100%; }
 .spacer { flex: 1; }
 .line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
