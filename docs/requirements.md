@@ -2,7 +2,7 @@
 
 Wochenwerk is a calendar-driven family planner. The calendar is authoritative and resolves everything before the board renders; the weekly board is a child-friendly projection of seven concrete dates and derives no state of its own.
 
-A day holds exactly two things. Appointments with a time support one-time and recurring planning, a configurable snap grid (currently 15 minutes), optional people, optional participant avatars as photo or initials, one or multiple METACOM symbols, and parallel appointments. There is only one kind of them: an appointment's symbol is either fixed or not decided yet, and an undecided one carries the parent-defined options that the NFC slot picks from. Entries without a time are visit and birthday — one person each, possibly spanning several days.
+A day holds appointments and nothing else. One kind of record: it either has a time or lasts all day, and its symbol is either fixed or not decided yet, in which case it carries the parent-defined options an input picks from. Planning supports a configurable snap grid (currently 15 minutes), optional people, optional participant avatars as photo or initials, one or multiple symbols, and parallel appointments. Visit, birthday and day facts such as a holiday are all-day appointments, not a second kind. Repetition writes many concrete appointments at once, bounded by a date or a count, tagged with the batch they came from; no rule is ever stored in their place.
 
 The child view must work for non-reading two- to six-year-olds: symbols first, minimal text, no adult controls, no empty-slot management, and no contradictory choice states. Appointment duration is visible through the height of the card, mapped exactly and without a minimum; one grid step is the smallest card.
 

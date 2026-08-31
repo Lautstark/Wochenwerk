@@ -8,16 +8,24 @@ Parents plan real appointments with dates, times, repetition, people, symbols, a
 
 The calendar resolves everything. The board receives seven concrete dates with concrete appointments — no repetition rules, no states it has to derive itself. Everything difficult (series, exceptions, moves) has already happened by the time the board renders.
 
-A day then holds exactly two things:
+A day then holds appointments, and only appointments. One kind of record, with two properties that decide how it is drawn:
 
-1. **an appointment with a time** — a card in the column, its height the duration, carrying one or more symbols and optionally people;
-2. **an entry without a time** — an avatar at the top of the day, exactly one person, with or without a crown.
+1. **it has a time** — a card in the column, its height the duration;
+2. **it lasts all day** — at the top of the day instead, as the people it concerns wearing the symbol it carries.
+
+Visit and birthday are the second shape, not a second kind. A day fact with nobody on it — a holiday, a closed Kita — is the same record with a symbol and no people.
 
 And time itself follows a single rule: over is grey, now is bright, ahead keeps its colour but stays quieter. The same rule for days and for appointments, so it has to be learned once.
 
+## What an appointment shows, and what a card is
+
+An ordinary appointment carries its symbols directly, and may carry a name of its own. That is everything it needs: it is written once, usually as a series, and a picture is all the board asks of it.
+
+A choice is where that stops being enough, and the reason is physical. What may be picked is a set of cards that exist in the household — a laminated picture with an NFC tag, laid out on the table when the choice is offered. A card has a name, a symbol, something to say when it is offered, and the tag identifier the board recognises it by. So a card is a record and an appointment's symbol is not: one is an object, the other is a picture.
+
 ## One kind of timed appointment
 
-There is no separate choice appointment. There is one appointment, and its symbol is either fixed or not decided yet — in which case it carries the options its parents allow, and the NFC slot picks one. Once picked, it is an ordinary appointment and nothing about it differs.
+There is no separate choice appointment. There is one appointment, and it either shows its own symbols or offers cards — in which case an input picks one. Once picked, it is an ordinary appointment and nothing about it differs.
 
 An undecided appointment shows its options rather than a question mark, so the child sees on the board the same symbols that are on the physical cards. Its edge is dashed: the card is visibly unfinished.
 
@@ -60,9 +68,15 @@ The strip carries four flat marks drawn from the METACOM daypart symbols: the th
 
 An appointment may carry people, and may or may not show them. Where it does, they appear as stacked circles in the top right corner of the card — a photo where there is one, the person's initials otherwise. Three avatars is what a narrow column can carry; beyond that the rest becomes a count.
 
-## Visit and birthday
+## Repetition
 
-Both belong to whole days rather than to a time, and both are shown as the person they concern at the top of the day, not as an appointment symbol. One person per entry: two guests are two visits. A visit that runs over several days shows its avatar on every day it covers. A birthday adds a small crown above the avatar.
+A repetition is a way of writing many appointments at once, never a rule stored instead of them. Creating one asks for a pattern and where it stops — a date, or a number of times — and writes exactly that many concrete appointments.
+
+Each carries the id of the batch it came from. That is what makes a series listable, extendable and clearable, and it is all the series is for: the appointments stand on their own, and the board never sees it.
+
+Everything that is otherwise hard falls out of this. A Kita day that falls away is one record deleted. A choice resolved on Monday is written to Monday's own record and does not follow the child to Tuesday. Last month's board keeps showing what was actually planned, because nothing is derived.
+
+What it costs: an action over a series is a bulk write, so it says how many records it will touch before it touches them — including how many carry edits of their own that it would overwrite. And "until further notice" does not exist; a batch is extended instead.
 
 ## Visual constraints
 

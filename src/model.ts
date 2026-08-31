@@ -11,33 +11,144 @@ export const board = { from: "07:00", to: "20:30", snap: 15 };
 export type Source = "metacom" | "arasaac";
 export type SymbolRef = { source: Source; id: string; label: string };
 
-/* One appointment, one record, one UUID: a conflict then needs two people editing
-   the same appointment rather than the same evening. See ADR 002. */
+/* An ordinary appointment carries its symbols directly. It needs nothing else: it
+   is written once — as a series, usually — and a picture is all the board asks of
+   it.
+
+   A choice appointment is the exception, and the reason is physical. What may be
+   picked is a set of laminated cards that exist in the household, each with a
+   symbol, something to say when it is offered, and an NFC tag to be recognised by.
+   That is an object, so it is a record: a `Card`. Cards are made once and used by
+   every choice appointment that offers them. */
+export type Card = { id: string; name: string; symbol?: SymbolRef; speech?: string; nfc?: string; tone?: string; updatedAt: number };
+
+/* Ten tones that stay apart from each other on a light and a dark ground. Colour is
+   what makes a week readable: without it seven columns of the same routine are one
+   grey block, and the forty-five minutes that must not be missed look exactly like
+   the five hours that repeat. */
+export const TONES = ["#4f8fd6", "#59a36c", "#d1913c", "#c4604f", "#8a6bc4", "#3fa3a0", "#c2679b", "#7d8f4a", "#a8703c", "#6f7683"];
+export const toneOf = (card: Card | undefined, fallback = "") => card?.tone ?? hashTone(fallback);
+/* A colour without a record behind it: the same symbol is always the same colour,
+   so the week reads as a pattern and nothing has to be stored or chosen. */
+export function hashTone(seed: string): string {
+  let sum = 0;
+  for (let index = 0; index < seed.length; index++) sum = (sum * 31 + seed.charCodeAt(index)) >>> 0;
+  return TONES[sum % TONES.length];
+}
+
+/* One appointment, one record, one UUID, one day: a conflict then needs two people
+   editing the same appointment rather than the same evening. See ADR 002.
+
+   An appointment is always concrete — a date, and a time span unless it lasts all
+   day. No rule is ever stored, so the board reads what was planned and never has
+   to work anything out. That also means a change to what happens from October
+   cannot rewrite what September's board showed. */
 export type Appointment = {
   id: string;
   date: string;
-  start: string;
-  end: string;
-  /* An appointment's symbol is either fixed or not decided yet. Undecided, it
-     carries the options the parents allow, and an input picks one of them. */
+  /** Absent on both means all day. */
+  start?: string;
+  end?: string;
+  /** A name of its own. Without one the appointment is called after what happens. */
+  title?: string;
+  /** What happens: the symbols this appointment shows. */
   symbols: SymbolRef[];
-  options: SymbolRef[];
+  /** Or what may happen: the cards offered, and which one an input picked. */
+  options: string[];
   chosen?: string;
   people: string[];
   showPeople: boolean;
+  /** Which batch this was created in, if any. A label, never a rule. */
+  series?: string;
   updatedAt: number;
 };
-export type Person = { id: string; name: string; initials: string; tone: string };
-/* Visit and birthday belong to whole days and carry one person each, so two guests
-   are two visits and a visit may cover a range of days. */
-export type Special = { id: string; kind: "visit" | "birthday"; person: string; from: string; to: string };
+export const allDay = (appointment: Appointment) => !appointment.start;
+
+/* A series records how a batch of appointments was made — the pattern and how far
+   it ran — so they can be listed, extended and cleared away together. It is not
+   authoritative: losing it loses those three conveniences and nothing else, and the
+   board never sees it. A visit over a weekend is the same mechanism as a weekly
+   Kita, only shorter. */
+export type Pattern =
+  | { kind: "daily" }
+  | { kind: "weekly"; weekdays: number[] }
+  | { kind: "yearly" };
+export type Series = { id: string; pattern: Pattern; from: string; until: string; allDay: boolean; createdAt: number };
+
+/* A birthday is not a kind of appointment. It is a date on a person, and the
+   appointments it produces are ordinary all-day ones carrying that person. The
+   crown is then derived rather than stored: any day that is somebody's birthday
+   wears one, and nothing in the appointment has to say so. */
+export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string };
+export const bornOn = (person: Person, date: string) => !!person.birthday && person.birthday.slice(5) === date.slice(5);
+
+/* Appointments that run at the same time share the width of their day. Both routes
+   lay them out the same way, so the board and the calendar never disagree about
+   what is parallel to what. */
+export type Laid = { appointment: Appointment; lane: number; lanes: number };
+export function lanesOf(appointments: Appointment[]): Laid[] {
+  const laid: Laid[] = [...appointments]
+    .sort((a, b) => snapped(a.start ?? "00:00") - snapped(b.start ?? "00:00") || snapped(b.end ?? "00:00") - snapped(a.end ?? "00:00"))
+    .map(appointment => ({ appointment, lane: 0, lanes: 1 }));
+  let cluster: Laid[] = [], ends: number[] = [], clusterEnd = -Infinity;
+  const close = () => {
+    const lanes = cluster.reduce((most, item) => Math.max(most, item.lane + 1), 1);
+    cluster.forEach(item => { item.lanes = lanes; });
+    cluster = []; ends = []; clusterEnd = -Infinity;
+  };
+  laid.forEach(item => {
+    const start = snapped(item.appointment.start ?? "00:00"), end = snapped(item.appointment.end ?? "00:00");
+    if (start >= clusterEnd) close();
+    const free = ends.findIndex(taken => taken <= start);
+    item.lane = free === -1 ? ends.length : free;
+    ends[item.lane] = end;
+    cluster.push(item);
+    clusterEnd = Math.max(clusterEnd, end);
+  });
+  close();
+  return laid;
+}
+
+/** Which dates a pattern covers between its bounds. Monday is 0. */
+export function occurrences(pattern: Pattern, from: string, until: string): string[] {
+  const start = new Date(`${from}T00:00`), stop = new Date(`${until}T00:00`);
+  const dates: string[] = [];
+  /* A yearly pattern steps by years. Walking it a day at a time would need thirty
+     thousand iterations for a century and hit the guard below long before. */
+  if (pattern.kind === "yearly") {
+    for (let year = start.getFullYear(); year <= stop.getFullYear(); year++) {
+      const at = new Date(year, start.getMonth(), start.getDate());
+      if (at >= start && at <= stop) dates.push(iso(at));
+    }
+    return dates;
+  }
+  for (let at = start; at <= stop && dates.length < 4000; at = addDays(at, 1)) {
+    const weekday = (at.getDay() + 6) % 7;
+    if (pattern.kind === "daily" || pattern.weekdays.includes(weekday)) dates.push(iso(at));
+  }
+  return dates;
+}
 
 export const undecided = (appointment: Appointment) => appointment.options.length > 0 && !appointment.chosen;
-export const shownSymbols = (appointment: Appointment): SymbolRef[] => {
-  if (!appointment.options.length) return appointment.symbols;
-  const picked = appointment.options.find(option => option.id === appointment.chosen);
-  return picked ? [picked] : appointment.options;
+/** Which cards an appointment offers: the one that was picked, or all of them. */
+export const shownCards = (appointment: Appointment): string[] => {
+  if (!appointment.options.length) return [];
+  return appointment.chosen && appointment.options.includes(appointment.chosen) ? [appointment.chosen] : appointment.options;
 };
+/* What an appointment is called: its own name where it has one, otherwise what
+   happens in it. Naming every Kita morning by hand would be work for nothing, and a
+   parents' evening is not called after its symbol — so both, in that order. */
+export const derivedName = (appointment: Appointment, byId: Map<string, Card>) =>
+  (appointment.options.length
+    ? shownCards(appointment).map(id => byId.get(id)?.name)
+    : appointment.symbols.map(symbol => symbol.label)).filter(Boolean).join(" · ");
+export const titleOf = (appointment: Appointment, byId: Map<string, Card>) =>
+  appointment.title?.trim() || derivedName(appointment, byId);
+/** The colour an appointment wears: its card's, or one derived from its symbol. */
+export const appointmentTone = (appointment: Appointment, byId: Map<string, Card>) =>
+  appointment.options.length
+    ? toneOf(byId.get(shownCards(appointment)[0]!), appointment.options[0] ?? "")
+    : hashTone(appointment.symbols[0] ? `${appointment.symbols[0].source}:${appointment.symbols[0].id}` : appointment.title ?? "");
 
 export const minute = (time: string) => { const [hour, rest] = time.split(":").map(Number); return hour * 60 + rest; };
 export const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;

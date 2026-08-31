@@ -1,7 +1,8 @@
 # ADR 002: Browser only, and the calendar lives in a folder
 
 **Status: proposed; partly built.** The browser-only half is done — two routes, no
-server, symbols through `bildquelle`, one record per appointment under a UUID. The
+server, symbols through `bildquelle`, one record per appointment under a UUID, and
+repetition as a way of writing many of them rather than a rule stored instead. The
 store is IndexedDB for now: the folder waits on the licence question below and on
 `sicherung`'s own ADR, and a per-record store is the shape that moves there without
 a rewrite. Replaces the server half of [ADR 001](001-dates-and-sse.md):
@@ -64,6 +65,11 @@ How the folder works, and what it replaces:
 
 - The folder is opened through the File System Access API and kept as a handle,
   the way `sicherung` keeps its own. Both routes open the same folder.
+- **Repetition writes appointments rather than storing a rule.** Bounded by a date
+  or a count, tagged with the batch. A rule as the stored truth would need an
+  override record for every exception, an identity for every occurrence to hang a
+  resolved choice on, and a version so that changing October does not rewrite
+  September. Concrete records need none of that, and a week stays a range query.
 - **One file per appointment**, named by UUID, not one file per calendar. Sync
   clients do not merge; they write a conflicted copy. Per appointment, a conflict
   needs two people editing the same appointment at the same time, which does not

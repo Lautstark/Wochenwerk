@@ -14,11 +14,11 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 ## METACOM symbols
 
-Nothing licensed is served by this app. Symbols are read from your own folder in the browser through [`@lautstark/bildquelle`](https://github.com/Lautstark/bildquelle), which hands them to the page as object URLs and transmits nothing. Open **Kalender → Einstellungen → Ordner verbinden** and point it at your **unframed** set — `Symbole_PNG/PNG_ohne_Rahmen`. The framed one carries a black border and a printed caption, neither of which the board wants.
+Nothing licensed is served by this app. Symbols are read from your own folder in the browser through [`@lautstark/bildquelle`](https://github.com/Lautstark/bildquelle), which hands them to the page as object URLs and transmits nothing. Open **Kalender → Einstellungen → Ordner wählen** and point it at your **unframed** set — `Symbole_PNG/PNG_ohne_Rahmen`. The framed one carries a black border and a printed caption, neither of which the board wants.
 
 Until a folder is connected the board draws each symbol's name instead of its picture. That state is for whoever is setting it up, not for the child.
 
-Chromium on a desktop only: `showDirectoryPicker` is absent from Safari, from Firefox and from every browser on Android.
+Chromium on a desktop only for the folder picker: `showDirectoryPicker` is absent from Safari, from Firefox and from every browser on Android. Where it is missing the same panel reads a folder as an upload instead, and either browser can read a ZIP.
 
 ## Quick Start
 
@@ -31,7 +31,7 @@ npm run build
 ## Routes
 
 - `/` — the board: the symbol view of the week, for the child
-- `/kalender.html` — the calendar: where appointments are kept, for parents
+- `/kalender.html` — the calendar: a week grid of hours and columns, for parents
 
 Both read and write the same IndexedDB store, so a change in the calendar reaches the board within a minute. The board runs on the real wall clock: the current weekday, the dates of the week and the now state come from the system time, and it redraws on every minute boundary.
 

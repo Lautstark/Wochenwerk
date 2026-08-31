@@ -4,15 +4,17 @@
 
 The adult-facing administration is a calendar of appointments. The child-facing board is a visualisation of that calendar; it is not a separate routine editor or a collection of manually filled day slots. The calendar resolves everything before the board renders: the board receives seven concrete dates with concrete appointments and derives no state of its own.
 
-A day holds exactly two things: appointments with a time, and entries without one.
+A day holds appointments, and only appointments. One kind of record: it either has a time or lasts all day, and its symbol is either fixed or still to be chosen.
 
-**Appointments with a time** may be one-off or recurring, and have a start and an end on a configurable planning grid (currently 15 minutes). The board displays a configurable visible day range, currently a floor of 07:00–20:30 that stretches when a week contains something earlier or later. Duration is visualised by the height of the card, exactly and without a minimum. Appointments that run in parallel share the width of the day in lanes.
+**An appointment with a time** has a start and an end on a configurable planning grid (currently 15 minutes). The board displays a configurable visible day range, currently a floor of 07:00–20:30 that stretches when a week contains something earlier or later. Duration is visualised by the height of the card, exactly and without a minimum. Appointments that run in parallel share the width of the day in lanes.
 
 There is only one kind of them. An appointment's symbol is either fixed or not decided yet; in the second case it carries the options its parents allow, shows those options on the board, and the NFC slot picks one. A decided choice is an ordinary appointment.
 
 An appointment may have zero or more people assigned. People are not shown by default; the appointment can opt into showing participant avatars, which are photos or initials. Multiple METACOM symbols assigned to one appointment are arranged horizontally in the same card.
 
-**Entries without a time** are visit and birthday. They belong to whole days, carry exactly one person each, and appear as that person's avatar at the top of every day they cover — a birthday with a small crown.
+**An appointment that lasts all day** appears at the top of the day rather than in the column, as the people it concerns wearing the symbol it carries. Visit and birthday are that shape — a guest is a person with no symbol, a birthday a person with the birthday symbol — and so is a holiday, which is a symbol with nobody on it.
+
+**Repetition writes appointments; it does not replace them.** Planning a recurring appointment asks for a pattern and where it stops, and writes that many concrete appointments at once. They carry the id of the batch so it can be listed, extended and cleared together, but each stands on its own: a single day can be changed or dropped without the others noticing, and what was planned last month stays what last month showed.
 
 ## Child board
 
