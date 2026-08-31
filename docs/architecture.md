@@ -1,5 +1,11 @@
 # Minimal architecture
 
+> **Under revision.** [ADR 002](decisions/002-browser-only-and-a-shared-folder.md)
+> proposes dropping the NAS app, SQLite, SSE and the PC/SC bridge described below
+> in favour of a static page over a synced folder, which is what every other
+> Lautstark project already does. The sections after "After UI validation" stand
+> until that ADR is accepted or rejected.
+
 ## Now: prototype only
 
 One browser UI with mock appointments. The clock is real — weekday, dates and the now state come from the system time and the board redraws each minute — so the prototype can be left running on a monitor for a day. It intentionally has no NFC, server, persistence, or authentication.
