@@ -1,164 +1,148 @@
 /* The calendar is an editor and looks like its siblings: components.css draws the
-   buttons, fields, chips, notices and dialogs, and what is left here is the week
-   grid itself. The board does not and must not — it is a display with no chrome,
-   so it keeps its own stylesheet and none of this. See ADR 002. */
+   buttons, fields, chips, notices, panels and dialogs. What is left here is the
+   week grid, which no product had, and the handful of names bildhaft uses for the
+   same parts. Nothing here shadows a name components.css owns.
+
+   The board does not and must not take any of this — it is a display with no
+   chrome and keeps its own stylesheet. See ADR 002. */
 @import "@lautstark/design/tokens/wochenwerk.css";
 @import "@lautstark/design/components.css";
 
-/* The tokens are generated from one accent — #3B6FF5, the blue between druckwerk's
-   teal and vorlaut's violet — with the contrast pairings checked at generation
-   time. To change a value here, change the rule that produces it, in Lautstark/design. */
-
 * { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font, ui-sans-serif, system-ui, sans-serif); }
+#app { height: 100%; }
 
-/* A native <dialog> sizes itself to its content, so a sheet whose contents happen
-   to be narrow arrives narrow. components.css sets the ceiling; this sets the
-   width, and gives `wide: true` — which the package marks but does not style —
-   something to mean. */
+/* A native <dialog> sizes to its content, so a sheet whose contents happen to be
+   narrow arrives narrow. components.css sets the ceiling; this sets the width and
+   gives `wide` — which the package marks but does not style — something to mean. */
 dialog.sheet { width: min(620px, 92vw); }
 dialog.sheet.wide { width: min(900px, 94vw); max-width: none; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font, ui-sans-serif, system-ui, sans-serif); }
-/* The week fills the window: the grid is the page, not a box on it. */
-html, body { height: 100%; }
-#app { height: 100%; }
-.shell { --gutter: 3.6rem; height: 100%; max-width: 1700px; margin: 0 auto; padding: 14px 18px 10px;
-  display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-height: 0; }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.nav { display: flex; align-items: center; gap: 8px; }
-.nav b { font-size: 16px; margin-left: 6px; }
+
+.shell { --gutter: 3.6rem; height: 100%; max-width: 1700px; margin: 0 auto; padding: 14px 18px 8px;
+  display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; min-height: 0; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.topbar__nav { display: flex; align-items: center; gap: 8px; }
+.topbar__nav b { font-size: 16px; margin-left: 6px; }
 a.btn { text-decoration: none; }
-.linklike { font: inherit; }
+.line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
+[hidden] { display: none !important; }
 
-/* One week: a row of day heads, a row for what lasts all day, and the hours. */
+/* ------------------------------------------------------------------ the week */
 .cal { display: grid; grid-template-rows: auto auto 1fr; min-height: 0;
-  border: 1px solid var(--line); border-radius: var(--radius, 12px); overflow: hidden; background: var(--surface); }
-.cal-head, .cal-whole, .cal-body { display: grid; grid-template-columns: var(--gutter) repeat(7, minmax(0, 1fr)); }
-.cal-head { border-bottom: 1px solid var(--line); }
-.head { display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 9px 4px; border-left: 1px solid var(--line); }
-.head b { font-size: 12px; letter-spacing: .06em; color: var(--text-dim); }
-.head span { font-size: 19px; font-weight: 700; }
-.head.today span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.cal__head, .cal__whole, .cal__body { display: grid; grid-template-columns: var(--gutter) repeat(7, minmax(0, 1fr)); }
+.cal__head { border-bottom: 1px solid var(--line); }
+.cal__day { display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 9px 4px; border-left: 1px solid var(--line); }
+.cal__day b { font-size: 12px; letter-spacing: .06em; color: var(--text-dim); }
+.cal__day span { font-size: 19px; font-weight: 700; }
+.cal__day--today span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
   background: var(--accent); color: var(--accent-ink); }
-
-.cal-whole { border-bottom: 1px solid var(--line); background: var(--surface-2); min-height: 40px; }
-.corner { display: grid; align-items: center; padding: 0 6px; font-size: 10px; line-height: 1.15;
+.cal__corner { display: grid; align-items: center; padding: 0 6px; font-size: 10px; line-height: 1.15;
   color: var(--text-faint); overflow: hidden; }
-.whole-cell { display: flex; flex-wrap: wrap; align-content: start; gap: 3px; padding: 5px; border-left: 1px solid var(--line); cursor: pointer; }
-.whole-name { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.whole { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 9px 3px 5px;
-  border: 1px solid transparent; border-radius: var(--radius-pill, 999px); color: var(--text);
-  background: var(--accent-soft); font: inherit; font-size: 12px; cursor: pointer; }
-
-.whole.choice { border-style: dashed; border-color: var(--line); background: var(--surface-2); }
-.whole .tile { width: 22px; height: 22px; border-radius: 50%; }
-
-/* The padding moves labels, rules and events together, so the topmost hour
-   label has room instead of being clipped by the scroll edge. */
-.cal-body { min-height: 0; overflow-y: auto; padding-top: 9px; align-content: start; }
-.gutter { border-right: 0; }
-.hour { position: relative; }
-.hour span { position: absolute; top: -7px; right: 7px; font-size: 11px; color: var(--text-faint);
+.cal__whole { border-bottom: 1px solid var(--line); background: var(--surface-2); min-height: 40px; }
+.cal__whole-cell { display: flex; flex-wrap: wrap; align-content: start; gap: 3px; padding: 5px;
+  border-left: 1px solid var(--line); cursor: pointer; }
+/* The padding moves labels, rules and events together, so the topmost hour label
+   has room instead of being clipped by the scroll edge. */
+.cal__body { min-height: 0; overflow-y: auto; padding-top: 9px; align-content: start; }
+.cal__hour { position: relative; }
+.cal__hour span { position: absolute; top: -7px; right: 7px; font-size: 11px; color: var(--text-faint);
   font-variant-numeric: tabular-nums; }
-.col { position: relative; border-left: 1px solid var(--line); cursor: crosshair; }
-.col.today { background: color-mix(in oklab, var(--accent) 7%, transparent); }
-.rule { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); opacity: .45; }
-.now { position: absolute; left: 0; right: 0; height: 2px; background: var(--danger); z-index: 3; }
-.now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px;
+.cal__col { position: relative; border-left: 1px solid var(--line); cursor: crosshair; }
+.cal__col--today { background: color-mix(in oklab, var(--accent) 7%, transparent); }
+.cal__rule { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); opacity: .45; }
+.cal__now { position: absolute; left: 0; right: 0; height: 2px; background: var(--danger); z-index: 3; }
+.cal__now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px;
   border-radius: 50%; background: var(--danger); }
 
-/* Every appointment wears the same surface. What differs between them is not which
-   activity they hold — that is the name's job — but what kind of entry they are,
-   and there are three of those which can combine: repeated, offered as a choice,
-   or neither. Three marks rather than one colour, because a colour cannot say two
-   things at once. */
+/* Every appointment wears one surface. What differs is what kind of entry it is,
+   and the three kinds combine: a one-off is marked because most of a household
+   repeats, a choice is dashed because it is not finished. */
 .event { position: absolute; z-index: 2; overflow: hidden; display: flex; align-items: flex-start; gap: 5px;
-  padding: 3px 6px 3px 8px; border: 1px solid var(--line); border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm, 8px); background: var(--accent-soft);
-  color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  padding: 3px 6px 3px 8px; border: 1px solid var(--line);
+  border-left: 3px solid color-mix(in oklab, var(--accent) 45%, var(--surface));
+  border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; }
 .event:hover { background: color-mix(in oklab, var(--accent) 34%, var(--surface)); }
-/* Most of a household repeats, so a series is the quiet default and a one-off is
-   the thing that earns a mark: its leading edge is solid and full strength. */
-.event { border-left-color: color-mix(in oklab, var(--accent) 45%, var(--surface)); }
-.event.repeats { border-left-style: dashed; }
-.event:not(.repeats) { border-left-color: var(--accent); border-left-width: 4px; }
-/* A choice: the card is not finished, and its outline says so. */
+.event.once { border-left-color: var(--accent); border-left-width: 4px; }
 .event.choice { border-style: dashed; border-left-width: 3px; background: var(--surface-2); }
-.event.choice.repeats { border-left-style: dashed; }
-.event-name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25;
+.event__name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25;
   overflow: hidden; text-overflow: ellipsis; }
-.event-meta { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
-/* Too short for two lines: one line, clipped, still legible. */
-.event.tight { align-items: center; padding-block: 0; }
-.event.tight .event-name { font-size: 11.5px; white-space: nowrap; }
-.event:hover { background: var(--accent); color: var(--accent-ink); }
+.event__who { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.event--tight { align-items: center; padding-block: 0; }
+.event--tight .event__name { font-size: 11.5px; white-space: nowrap; }
 
-.event-time { font-size: 10px; color: var(--text-dim); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.event:hover .event-time { color: inherit; }
+.whole { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 9px 3px 5px;
+  border: 1px solid transparent; border-radius: var(--radius-pill); color: var(--text);
+  background: var(--accent-soft); font: inherit; font-size: 12px; cursor: pointer; }
+.whole.choice { border-style: dashed; border-color: var(--line); background: var(--surface-2); }
+.whole__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whole__who { position: relative; display: inline-flex; }
+.crown { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 9px; }
 
-.loop { font-size: 10px; color: var(--text-faint); }
-
-.tile { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 auto;
+/* ---------------------------------------------------------- shared furniture */
+.thumb { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 auto;
   border-radius: 5px; background: var(--surface); overflow: hidden; }
-.tile img { width: 100%; height: 100%; object-fit: contain; }
-.gap { padding: 0 2px; font-size: 7px; line-height: 1.05; color: var(--text-faint); text-align: center; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb__gap { padding: 0 2px; font-size: 7px; line-height: 1.05; color: var(--text-faint); text-align: center; overflow: hidden; }
 .face { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; overflow: hidden;
   border-radius: 50%; background: var(--tone); color: #fff; font-size: 12px; font-weight: 800; }
 .face.sm { width: 18px; height: 18px; font-size: 8.5px; }
 .face img { width: 100%; height: 100%; object-fit: cover; }
-
-/* Inside a dialog: components.css draws the sheet, this is only what it holds. */
-.form { display: grid; gap: 12px; min-width: 0; }
-.panels, .panel-body, .rows { min-width: 0; }
-.form form { display: contents; }
-.pair { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
-.pair label { display: grid; min-width: 8rem; flex: 1 1 8rem; }
-.pair.find label:first-child { flex: 2 1 14rem; }
-.card { display: grid; gap: 8px; padding: 11px 12px; border-radius: var(--radius-sm, 8px); background: var(--surface-2); }
 .small { font-size: 13.5px; }
-.hint { margin: 0; font-size: 13.5px; color: var(--text-dim); }
-.segmented { display: flex; gap: 6px; flex-wrap: wrap; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
-.chip.on { border-color: var(--accent); color: var(--accent-strong); }
-.hits { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 6px; max-height: 210px; overflow: auto; }
-.hits:empty { display: none; }
-.hit { display: grid; place-items: center; aspect-ratio: 1; padding: 4px; border: 1px solid var(--line);
-  border-radius: var(--radius-sm, 8px); background: var(--surface-2); cursor: pointer; overflow: hidden; }
-.hit:hover { border-color: var(--accent); }
-.hit img { width: 100%; height: 100%; object-fit: contain; }
-.check { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--text-dim); }
-.panels { display: grid; }
-.panel-body { display: grid; gap: 10px; padding: 0 16px 16px; }
-.rows { display: grid; gap: 6px; }
-.row-item { display: flex; align-items: center; gap: 9px; padding: 7px 8px 7px 10px; font-size: 14px;
-  border-radius: var(--radius-sm, 8px); background: var(--surface-2); min-width: 0; }
-.row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row-state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 12px; color: var(--text-dim); }
-.more { margin-left: auto; }
+.muted { color: var(--text-dim); }
+.nfc { padding: 2px 7px; border-radius: var(--radius-pill); background: var(--surface-3);
+  font: 500 11px var(--mono, ui-monospace, monospace); color: var(--text-dim); }
+
+/* ------------------------------------------------------------ inside a sheet */
+.stack { display: grid; gap: 12px; min-width: 0; }
+.stack > [hidden] { display: none; }
+.row-of { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.row-of > [hidden] { display: none; }
+.field-row { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; }
+.choice { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.search { display: grid; gap: 10px; }
+.search__row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+.search__row .field-row:first-child { flex: 2 1 14rem; }
+
+/* Square, because what is being chosen is. bildhaft's picker, at this size. */
+.picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.picker__grid--tight { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+.picker__item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 6px;
+  border: none; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text);
+  font: inherit; cursor: pointer; transition: background .13s, box-shadow .13s; }
+.picker__item:hover { background: var(--surface-3); }
+.picker__item--active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.picker__item .thumb { width: 52px; height: 52px; }
+.picker__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker__grid--tight .picker__item .thumb { display: none; }
+
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row--line { display: flex; align-items: center; gap: 9px; padding: 7px 8px 7px 10px;
+  border-radius: var(--radius-sm); background: var(--surface-2); min-width: 0; }
+.row__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.row__state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row__actions { display: flex; gap: 2px; }
 .portrait { display: flex; align-items: center; gap: 12px; }
 .portrait .face { width: 56px; height: 56px; font-size: 20px; }
-.muted { color: var(--text-faint); font-style: normal; }
-.tones { display: flex; gap: 7px; flex-wrap: wrap; }
-.tone { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
+.portrait__acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
   background: var(--tone); cursor: pointer; padding: 0; }
-.tone.on { border-color: var(--text); }
-.dot { width: 11px; height: 11px; border-radius: 50%; background: var(--tone); flex: 0 0 auto; }
-.nfc { padding: 2px 7px; border-radius: var(--radius-pill, 999px); background: var(--surface-3);
-  font: 500 11px var(--mono, ui-monospace, monospace); color: var(--text-dim); }
-.nfc.none { background: transparent; color: var(--text-faint); font-style: italic; }
-.field.title { font-size: 19px; font-weight: 600; padding: 12px 13px; }
-details.more { margin: 0; border-top: 1px solid var(--line); padding-top: 10px; }
-details.more > summary { cursor: pointer; font-size: 13.5px; color: var(--text-dim); list-style: none; padding: 2px 0 8px; }
-details.more > summary::-webkit-details-marker { display: none; }
-details.more > summary { display: flex; align-items: center; gap: 8px; }
-details.more > summary::after { content: ""; width: 7px; height: 7px; margin-left: 6px;
+.swatch--active { border-color: var(--text); }
+.tones { display: flex; gap: 7px; flex-wrap: wrap; }
+.chosen { min-width: 0; }
+.panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
+
+/* The fold uses the panel's chevron, not a text arrow. */
+.more { border-top: 1px solid var(--line); }
+.more > summary { display: flex; align-items: center; cursor: pointer; list-style: none;
+  padding: 10px 0 8px; font-size: 13.5px; color: var(--text-dim); }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary::after { content: ""; width: 7px; height: 7px; margin-left: 8px;
   border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim);
   transform: translateY(-2px) rotate(45deg); transition: transform .12s ease; }
-details.more[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
-details.more[open] { display: grid; gap: 12px; }
-.foot-actions { display: flex; align-items: center; gap: 8px; width: 100%; }
-.spacer { flex: 1; }
-.line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
+.more[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 
 @media (max-width: 900px) { .shell { --gutter: 2.8rem; height: auto; } }

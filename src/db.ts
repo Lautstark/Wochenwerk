@@ -91,7 +91,9 @@ export async function week(monday: Date): Promise<Appointment[]> {
 }
 export const allPeople = async () => (await db()).getAll("people");
 export const allSeries = async () => (await db()).getAll("series");
-export const inSeries = async (id: string) => (await db()).getAllFromIndex("appointments", "series", id);
+/** A batch in the order it runs. The index answers by key, which is a UUID. */
+export const inSeries = async (id: string) =>
+  (await (await db()).getAllFromIndex("appointments", "series", id)).sort((a, b) => a.date.localeCompare(b.date));
 export async function put(appointment: Appointment): Promise<void> {
   await (await db()).put("appointments", { ...appointment, updatedAt: Date.now() });
 }

@@ -9,7 +9,9 @@
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "start": "node ./node_modules/vite/bin/vite.js preview",
-    "test": "npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@lautstark/bildquelle": "github:Lautstark/bildquelle#v2.0.0",
@@ -17,8 +19,11 @@
     "idb": "^8.0.3"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "5.9.3",
-    "vite": "8.0.13"
+    "vite": "8.0.13",
+    "vitest": "^4.1.11"
   },
   "type": "module"
 }
