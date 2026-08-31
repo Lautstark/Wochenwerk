@@ -41,3 +41,6 @@ yarn-error.log*
 
 # Unused starter sample; Wochenwerk's design decisions live in docs/.
 /examples/
+
+# Locally licensed METACOM symbols are deliberately never committed.
+/public/metacom-local

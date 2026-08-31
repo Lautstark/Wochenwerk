@@ -1,23 +1,23 @@
-# Product scope
+# Wochenwerk product requirements
 
-Wochenwerk answers: **what day is it, where are we in the day, what happens now, and what is coming soon?** It is a visual weekly planner, not a routine, chore, reward, completion, or adult-calendar product.
+## Core model
 
-## Decisions for V1
+The adult-facing administration is a calendar of appointments. The child-facing board is a visualisation of that calendar; it is not a separate routine editor or a collection of manually filled day slots.
 
-- Use calendar dates rather than stored `Week` objects; parents can plan any week.
-- Start with four household-configured dayparts: morning, midday, afternoon, evening. Their boundaries derive the `now` state.
-- A daypart contains an ordered list of entries. Target three visible symbol cards; test four only as overflow.
-- A choice is an entry with parent-defined allowed options. It can be scheduled in advance and explicitly opened from the parent UI. One physical slot resolves the currently active choice, then the card is removed for the next one.
-- The full week stays visible. Today and the current daypart are strong; past content is muted, not hidden.
-- Symbols lead, with optional short labels to disambiguate and support parents.
+Appointments may be one-off or recurring. Each appointment has a start and end time on a 15-minute grid. The board displays a configurable visible day range, currently 07:00–20:30. Duration is visualised by the height/length of the appointment surface.
 
-## Questions for the real-monitor session
+An appointment may have zero or more people assigned. People are not shown by default; the appointment can opt into showing participant avatars. Multiple METACOM symbols assigned to one appointment are arranged horizontally in the same surface.
 
-1. Are three cards per daypart recognisable across the room? If not, cap at two plus a calm count.
-2. Is the equal seven-column overview preferable to a today-led view?
-3. Do the proposed boundaries (06:00 / 11:30 / 14:30 / 18:00) feel right in the household?
-4. Are labels also needed on physical cards?
+Special appointment types include choice appointments with parent-defined options, all-day appointments rendered as a small badge at the top of the day, and overlapping appointments that split horizontally only during the overlap.
 
-## Symbol assets
+## Child board
 
-The prototype deliberately uses emoji. The future model uses an abstract `Symbol` mapping (`source`, `key`, `localAssetPath`, `label`), so licensed METACOM files can remain local and uncommitted.
+The board is designed for children aged two to three and viewed from across a room. It uses licensed METACOM symbols with as little text as possible. The week remains visible as seven uninterrupted day columns. The current day is wider and clearer; other days are muted but still legible. The current date and a small current time appear in the current-day header.
+
+The four METACOM time-of-day symbols (morgens, mittags, nachmittags, abends) form a narrow rail directly beside the current day. A soft circular focus and a one-hour light area indicate where the family is now without a hard line or clock grid.
+
+The visual system is flat and modern: no rounded day cards, no gaps between columns, no dashboard chrome, no bottom tray, no legend, and no instructional text. Wochentag colours are bold but harmonious, with the current day most prominent.
+
+## Current example data
+
+Weekdays include breakfast, getting ready, leaving for Kita, Kita (08:45–14:00), free afternoon, cooking, dinner, and evening routine. Saturday and Sunday include open choice appointments. Testperson has speech therapy Tuesday 11:00–11:45 and Thursday 11:00–11:45, followed by early intervention Thursday 12:00–13:15.
