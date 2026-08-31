@@ -11,7 +11,11 @@
     "start": "node ./node_modules/vite/bin/vite.js preview",
     "test": "npm run build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@lautstark/bildquelle": "github:Lautstark/bildquelle#v2.0.0",
+    "@lautstark/design": "github:Lautstark/design#v1.22.0",
+    "idb": "^8.0.3"
+  },
   "devDependencies": {
     "typescript": "5.9.3",
     "vite": "8.0.13"

@@ -14,11 +14,11 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 ## METACOM symbols
 
-The board expects the licensed symbols under `public/metacom-local`, which is git-ignored. Link the **unframed** set — the framed one carries a black border and a printed caption, both of which the board does not want:
+Nothing licensed is served by this app. Symbols are read from your own folder in the browser through [`@lautstark/bildquelle`](https://github.com/Lautstark/bildquelle), which hands them to the page as object URLs and transmits nothing. Open **Kalender → Einstellungen → Ordner verbinden** and point it at your **unframed** set — `Symbole_PNG/PNG_ohne_Rahmen`. The framed one carries a black border and a printed caption, neither of which the board wants.
 
-```bash
-ln -s "<METACOM>/Symbole_PNG/PNG_ohne_Rahmen" public/metacom-local
-```
+Until a folder is connected the board draws each symbol's name instead of its picture. That state is for whoever is setting it up, not for the child.
+
+Chromium on a desktop only: `showDirectoryPicker` is absent from Safari, from Firefox and from every browser on Android.
 
 ## Quick Start
 
@@ -28,10 +28,13 @@ npm run dev
 npm run build
 ```
 
-## Prototype routes
+## Routes
 
-- `/` — child-facing weekly board
-- `/palette.html` — ten weekday colour palettes with bold/muted toggle
-- `/symbols.html` — METACOM symbol treatment comparisons
+- `/` — the board: the symbol view of the week, for the child
+- `/kalender.html` — the calendar: where appointments are kept, for parents
 
-The board runs on the real wall clock: the current weekday, the dates of the week and the now state are derived from the system time, and the board redraws on every minute boundary. Everything else is intentionally static — the appointments are a mock household routine, and there is no authentication, persistence, NFC implementation, or server-side planning logic yet.
+Both read and write the same IndexedDB store, so a change in the calendar reaches the board within a minute. The board runs on the real wall clock: the current weekday, the dates of the week and the now state come from the system time, and it redraws on every minute boundary.
+
+An empty database seeds itself with a mock household routine for the current week, so there is something to look at before anything has been planned.
+
+Still missing: the shared folder that [ADR 002](docs/decisions/002-browser-only-and-a-shared-folder.md) proposes as the store, any NFC input, and speech. There is no server, no account and no authentication, and there is not meant to be.

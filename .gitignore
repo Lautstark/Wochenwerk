@@ -43,4 +43,5 @@ yarn-error.log*
 /examples/
 
 # Locally licensed METACOM symbols are deliberately never committed.
-/public/metacom-local
+# Nothing licensed is served from here any more: bildquelle reads the
+# household's own folder through the File System Access API. See ADR 002.

@@ -1,6 +1,10 @@
 # ADR 002: Browser only, and the calendar lives in a folder
 
-**Status: proposed.** Replaces the server half of [ADR 001](001-dates-and-sse.md):
+**Status: proposed; partly built.** The browser-only half is done — two routes, no
+server, symbols through `bildquelle`, one record per appointment under a UUID. The
+store is IndexedDB for now: the folder waits on the licence question below and on
+`sicherung`'s own ADR, and a per-record store is the shape that moves there without
+a rewrite. Replaces the server half of [ADR 001](001-dates-and-sse.md):
 the date model there stands, the SSE channel does not.
 
 ## Context
