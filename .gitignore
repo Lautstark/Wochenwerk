@@ -38,3 +38,6 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# Unused starter sample; Wochenwerk's design decisions live in docs/.
+/examples/
