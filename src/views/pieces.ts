@@ -1,3 +1,4 @@
+import { menuOn } from "@lautstark/design/menu";
 import { el } from "../ui.js";
 import { pictureFor } from "../symbols.js";
 import { type Card, type Person, type SymbolRef } from "../model.js";
@@ -29,13 +30,38 @@ export function pickerItem(label: string, thumb: Node, active: boolean, onClick:
 
 export const grid = (...items: (Node | null)[]) => el("div", { class: "picker__grid" }, ...items);
 
-/** A row in a list: what it is, what it is set to, and what can be done with it. */
+/** A row in a list: what it is, what it is set to, and what can be done with it.
+    The actions sit in a `.menu-anchor`, which is where `menuOn` puts the menu and
+    what its click-outside guard looks for — without it a menu closes on the click
+    that opened it. */
 export function row(lead: Node | null, title: string, state: string | Node, actions: HTMLElement) {
   return el("div", { class: "row row--line" },
     lead,
     el("span", { class: "row__title", text: title }),
     typeof state === "string" ? el("span", { class: "row__state small muted", text: state }) : state,
-    el("div", { class: "row__actions" }, actions));
+    el("div", { class: "row__actions menu-anchor" }, actions));
+}
+
+/* A source is picked the way the family picks things: a button that says what is
+   chosen and opens a menu. A native <select> wearing a text field's style was
+   never one of this system's parts. */
+export function dropdown(label: () => string, build: (add: (item: string, run: () => void, opts?: { checked?: boolean }) => void) => void) {
+  const trigger = el("button", { class: "btn dropdown", attrs: { type: "button" },
+    on: { click: () => menuOn(trigger, build) } });
+  const node = el("span", { class: "menu-anchor" }, trigger);
+  const sync = () => { trigger.textContent = label(); };
+  sync();
+  return { node, sync };
+}
+
+/* `menuOn` opens a menu; it does not register one. Calling it while building a
+   row opened a menu and the next click closed it again, which looked exactly
+   like a menu that does not work. */
+export function overflow(build: (add: (label: string, run: () => void, opts?: { danger?: boolean }) => void) => void) {
+  const trigger = el("button", { class: "btn icon quiet", text: "⋯",
+    attrs: { type: "button", "aria-label": "Mehr" },
+    on: { click: () => menuOn(trigger, build) } });
+  return trigger;
 }
 
 export const cardThumb = (card: Card | undefined, known = shown().pictures) =>

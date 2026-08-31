@@ -1,11 +1,10 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
-import { menuOn } from "@lautstark/design/menu";
 import { button, el, fill, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
 import { load, shown } from "../store.js";
-import { cardThumb, face, row } from "./pieces.js";
+import { cardThumb, face, overflow, row } from "./pieces.js";
 import { editCard } from "./card-dialog.js";
 import { editPerson, pickFile } from "./person-dialog.js";
 
@@ -40,11 +39,7 @@ export function openSettings(say: (line: string) => void) {
     await load();
     sync();
   };
-  const actions = (build: (add: (label: string, run: () => void, opts?: { danger?: boolean }) => void) => void) => {
-    const trigger = el("button", { class: "btn icon quiet", text: "⋯", attrs: { type: "button", "aria-label": "Mehr" } });
-    menuOn(trigger, build);
-    return trigger;
-  };
+
 
   function sync() {
     const status = metacom.status();
@@ -68,7 +63,7 @@ export function openSettings(say: (line: string) => void) {
       el("p", { class: "small muted", text: "Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst." }),
       el("div", { class: "rows" }, ...cardList.map(card => row(cardThumb(card), card.name,
         card.nfc ? el("code", { class: "nfc", text: card.nfc }) : el("span", { class: "row__state small muted", text: "keine Nummer" }),
-        actions(add => {
+        overflow(add => {
           add("Bearbeiten", () => editCard(card, async () => { await load(); sync(); }));
           add("Entfernen", () => void eraseCard(card), { danger: true });
         })))),
@@ -79,7 +74,7 @@ export function openSettings(say: (line: string) => void) {
     fill(people.body,
       el("div", { class: "rows" }, ...shown().people.map(person => row(face(person), person.name,
         person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag",
-        actions(add => {
+        overflow(add => {
           add("Bearbeiten", () => editPerson(person, async () => { await load(); sync(); }));
           add("Entfernen", () => void erasePerson(person), { danger: true });
         })))),

@@ -31,7 +31,7 @@ a.btn { text-decoration: none; }
 /* ------------------------------------------------------------------ the week */
 .cal { display: grid; grid-template-rows: auto auto 1fr; min-height: 0;
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
-.cal__head, .cal__whole, .cal__body { display: grid; grid-template-columns: var(--gutter) repeat(7, minmax(0, 1fr)); }
+.cal__head, .cal__whole, .cal__body { display: grid; grid-template-columns: var(--gutter) repeat(var(--days, 7), minmax(0, 1fr)); }
 .cal__head { border-bottom: 1px solid var(--line); }
 .cal__day { display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 9px 4px; border-left: 1px solid var(--line); }
 .cal__day b { font-size: 12px; letter-spacing: .06em; color: var(--text-dim); }
@@ -78,8 +78,11 @@ a.btn { text-decoration: none; }
   background: var(--accent-soft); font: inherit; font-size: 12px; cursor: pointer; }
 .whole.choice { border-style: dashed; border-color: var(--line); background: var(--surface-2); }
 .whole__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.whole__who { position: relative; display: inline-flex; }
-.crown { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 9px; }
+.whole__who { display: inline-flex; }
+.whole__who .whole__face + .whole__face { margin-left: -6px; }
+.whole__face { position: relative; display: inline-flex; }
+.crown { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 9px; pointer-events: none; }
+.whole .thumb { width: 20px; height: 20px; border-radius: 50%; }
 
 /* ---------------------------------------------------------- shared furniture */
 .thumb { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 auto;
@@ -125,6 +128,9 @@ a.btn { text-decoration: none; }
 .row__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .row__state { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row__actions { display: flex; gap: 2px; }
+/* The menu is appended beside its trigger, so the anchor is what positions it. */
+.menu-anchor { position: relative; display: inline-flex; }
+.menu-anchor > .menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; }
 .portrait { display: flex; align-items: center; gap: 12px; }
 .portrait .face { width: 56px; height: 56px; font-size: 20px; }
 .portrait__acts { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -133,7 +139,13 @@ a.btn { text-decoration: none; }
 .swatch--active { border-color: var(--text); }
 .tones { display: flex; gap: 7px; flex-wrap: wrap; }
 .chosen { min-width: 0; }
+.slot__filled { display: inline-flex; align-items: center; gap: 9px; padding: 8px 12px 8px 8px;
+  border-radius: var(--radius-sm); background: var(--surface-2); }
+.slot__filled .thumb { width: 52px; height: 52px; }
 .panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
+/* components.css closes the column with a line under the last panel, and the
+   sheet's foot draws its own above the buttons. One of them is enough. */
+.sheet > .body > .panel:last-of-type { border-bottom: none; }
 
 /* The fold uses the panel's chevron, not a text arrow. */
 .more { border-top: 1px solid var(--line); }
@@ -145,4 +157,12 @@ a.btn { text-decoration: none; }
   transform: translateY(-2px) rotate(45deg); transition: transform .12s ease; }
 .more[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 
-@media (max-width: 900px) { .shell { --gutter: 2.8rem; height: auto; } }
+@media (max-width: 900px) { .shell { --gutter: 2.8rem; } }
+@media (max-width: 700px) {
+  .shell { padding: 10px 10px 6px; }
+  .topbar { gap: 8px; }
+  .topbar__nav b { font-size: 15px; margin-left: 2px; }
+  dialog.sheet, dialog.sheet.wide { width: min(96vw, 620px); }
+  .row-of { gap: 8px; }
+  .field-row { flex-basis: 100%; }
+}

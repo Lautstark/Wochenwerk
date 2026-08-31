@@ -1,6 +1,6 @@
 import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
-import { addDays, dayLabel, iso } from "./model.js";
+import { addDays, dayLabel, iso, weekdays } from "./model.js";
 import { el, fill, button } from "./ui.js";
 import { load, shown, subscribe } from "./store.js";
 import { metacom, restore } from "./symbols.js";
@@ -23,13 +23,34 @@ const grid = weekGrid(
   (date, start) => editAppointment(blankAppointment(date, start), false, () => void load()),
 );
 
-const step = (by: number) => void load(by === 0 ? 0 : shown().offset + by);
+/* A phone has no room for seven columns, so it shows the day being looked at and
+   the arrows walk days instead of weeks — across a week boundary when they run
+   off the end. */
+const narrow = matchMedia("(max-width: 700px)");
+let day = (new Date().getDay() + 6) % 7;
+
+function apply() {
+  grid.show(narrow.matches ? [shown().dates[day]] : null);
+  grid.draw(shown());
+  label.textContent = narrow.matches
+    ? `${weekdays[day]} ${dayLabel(shown().dates[day])}`
+    : `${dayLabel(iso(shown().monday))} – ${dayLabel(iso(addDays(shown().monday, 6)))} ${shown().monday.getFullYear()}`;
+}
+async function step(by: number) {
+  if (by === 0) { day = (new Date().getDay() + 6) % 7; await load(0); return; }
+  if (!narrow.matches) return void load(shown().offset + by);
+  const next = day + by;
+  if (next < 0 || next > 6) { day = next < 0 ? 6 : 0; await load(shown().offset + by); return; }
+  day = next;
+  apply();
+}
+narrow.addEventListener("change", apply);
 fill(app, el("div", { class: "shell" },
   el("header", { class: "topbar" },
     el("div", { class: "topbar__nav" },
-      button("‹", "quiet icon", () => step(-1)),
-      button("›", "quiet icon", () => step(1)),
-      button("Heute", "quiet sm", () => step(0)),
+      button("‹", "quiet icon", () => void step(-1)),
+      button("›", "quiet icon", () => void step(1)),
+      button("Heute", "quiet sm", () => void step(0)),
       label),
     el("div", { class: "topbar__nav" },
       el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: "/", target: "_blank", rel: "noopener" } }),
@@ -37,9 +58,8 @@ fill(app, el("div", { class: "shell" },
   empty, grid.node, line));
 
 subscribe(current => {
-  label.textContent = `${dayLabel(iso(current.monday))} – ${dayLabel(iso(addDays(current.monday, 6)))} ${current.monday.getFullYear()}`;
   empty.hidden = current.appointments.length > 0;
-  grid.draw(current);
+  apply();
 });
 metacom.subscribe(() => void load());
 

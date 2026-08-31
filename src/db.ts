@@ -18,7 +18,7 @@ type OldSpecial = { id: string; kind: "visit" | "birthday"; person: string; from
 const cake: SymbolRef = { source: "metacom", id: "Feste/geburtstag.png", label: "Geburtstag" };
 
 let opening: Promise<IDBPDatabase<Wochenwerk>> | null = null;
-const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 4, {
+const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 5, {
   async upgrade(database, from, _to, transaction) {
     if (from < 1) {
       const appointments = database.createObjectStore("appointments", { keyPath: "id" });
@@ -78,6 +78,13 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 4, {
         }
         if (from === 3) database.deleteObjectStore("activities" as never);
       }
+    }
+    /* Version 5 empties what version 4 and earlier were seeded with. The mock
+       household routine is gone from the code, and a database still holding it
+       cannot be told apart from one somebody filled — so the one that predates
+       the removal is cleared and the household starts on its own week. */
+    if (from > 0 && from < 5) {
+      for (const store of ["appointments", "series", "cards", "people"] as const) transaction.objectStore(store).clear();
     }
   },
 }));
@@ -172,6 +179,26 @@ export async function dropSeries(series: string, from?: string): Promise<number>
   if (!from || !(await inSeries(series)).length) await database.delete("series", series);
   return touched.length;
 }
+/** Move where a batch stops: write what is missing, drop what is now past the end. */
+export async function reboundSeries(series: string, until: string): Promise<{ added: number; dropped: number }> {
+  const database = await db();
+  const record = await database.get("series", series);
+  if (!record) return { added: 0, dropped: 0 };
+  const existing = await inSeries(series);
+  const wanted = new Set(occurrences(record.pattern, record.from, until));
+  const shape = existing[0];
+  const gone = existing.filter(appointment => !wanted.has(appointment.date));
+  const missing = [...wanted].filter(date => !existing.some(appointment => appointment.date === date));
+  const writing = database.transaction("appointments", "readwrite");
+  await Promise.all([
+    ...gone.map(appointment => writing.store.delete(appointment.id)),
+    ...(shape ? missing.map(date => writing.store.put({ ...shape, id: uuid(), date, series, updatedAt: Date.now() })) : []),
+    writing.done,
+  ]);
+  await database.put("series", { ...record, until });
+  return { added: missing.length, dropped: gone.length };
+}
+
 export async function editSeries(series: string, change: Partial<Appointment>, from?: string): Promise<number> {
   const database = await db();
   const touched = await reachOf(series, from);

@@ -2,7 +2,7 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { addDays, allDay, board, clock, dayLabel, derivedName, iso, minute, titleOf,
   weekdays, type Appointment, type Pattern } from "../model.js";
-import { createSeries, dropSeries, editSeries, put, reachOf, remove, uuid } from "../db.js";
+import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
@@ -59,22 +59,34 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const untilRow = field("Bis", until);
   const repeatRow = el("div", { class: "stack" }, el("div", { class: "row-of" }, field("Wiederholen", repeatPick), untilRow), days);
 
+  const removeButton = button("Löschen", "destructive", () => void erase());
+  const saveButton = button("Sichern", "primary", () => void save());
+  const wantMore = el("p", { class: "notice bad" });
+  /* Only for a batch that already exists: where it stops is the series' own, and
+     changing it is how "until further notice" is answered. */
+  const seriesUntil = input("date");
+  const seriesUntilField = field("Serie läuft bis", seriesUntil);
+
   const who = el("div", { class: "picker__grid" });
   const showPeople = input("checkbox");
   const showRow = el("label", { class: "choice" }, showPeople, el("span", { text: "Am Board zeigen" }));
   showPeople.checked = draft.showPeople;
   const more = el("details", { class: "more" },
     el("summary", { text: "Weitere Optionen" }),
-    el("div", { class: "stack" }, existing ? el("span") : repeatRow, el("span", { class: "lbl", text: "Personen" }), who, showRow));
+    el("div", { class: "stack" }, existing ? seriesUntilField : repeatRow,
+      el("span", { class: "lbl", text: "Personen" }), who, showRow));
 
-  const removeButton = button("Löschen", "destructive", () => void erase());
   const handle = openDialog({
     title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
-    body: [el("div", { class: "stack" }, title, timeRow, wholeRow, seriesLine, kinds, chosen, search.node, offer, more)],
+    body: [el("div", { class: "stack" }, title, timeRow, wholeRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
-      button("Abbrechen", "quiet", () => handle.close()), button("Sichern", "primary", () => void save())],
+      button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
+  /* The name field is the heading. A second copy of it above, which cannot be
+     typed in, says the same thing twice — so the sheet keeps its accessible name
+     and loses the visible one. */
   const heading = handle.dialog.querySelector("h2");
+  heading?.setAttribute("hidden", "");
 
   const read = () => {
     draft.title = title.value.trim() || undefined;
@@ -87,7 +99,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   async function sync() {
     read();
     if (existing && draft.series) counts = { from: (await reachOf(draft.series, draft.date)).length, all: (await reachOf(draft.series)).length };
-    if (heading) heading.textContent = titleOf(draft, shown().cards) || "Neuer Termin";
+    handle.dialog.setAttribute("aria-label", titleOf(draft, shown().cards) || "Neuer Termin");
     title.placeholder = derivedName(draft, shown().cards) || "Name";
 
     fromField.hidden = whole.checked;
@@ -97,6 +109,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     spanTo.min = draft.date;
 
     const series = draft.series ? shown().series.get(draft.series) : undefined;
+    seriesUntilField.hidden = !series;
+    if (series && !seriesUntil.value) seriesUntil.value = series.until;
     seriesLine.hidden = !draft.series;
     seriesLine.textContent = !draft.series ? "" : series
       ? `↻ ${series.pattern.kind === "daily" ? "jeden Tag" : series.pattern.kind === "yearly" ? "jedes Jahr"
@@ -139,6 +153,15 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         void sync();
       })));
     showRow.hidden = !draft.people.length;
+
+    /* A choice with one card is not a choice, and one with none is empty. Saying
+       so where it is decided beats a message after the fact. */
+    const short = mode === "choice" && draft.options.length < 2;
+    saveButton.disabled = short;
+    wantMore.hidden = !short;
+    wantMore.textContent = draft.options.length === 0
+      ? "Wähl mindestens zwei Karten aus, zwischen denen das Kind entscheiden kann."
+      : "Noch eine Karte: zwischen einer allein gibt es nichts zu wählen.";
   }
 
   const erase = async () => {
@@ -166,6 +189,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     const shape = { title: draft.title, start: draft.start, end: draft.end, symbols: draft.symbols,
       options: draft.options, chosen: draft.chosen, people: draft.people, showPeople: draft.showPeople };
 
+    const series = draft.series ? shown().series.get(draft.series) : undefined;
+    if (series && seriesUntil.value && seriesUntil.value !== series.until) {
+      await reboundSeries(series.id, seriesUntil.value);
+    }
     if (existing && draft.series) {
       const scope = await askScope("ändern", counts);
       if (!scope) return;

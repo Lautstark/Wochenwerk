@@ -1,7 +1,7 @@
 import { el, field, fill, input } from "../ui.js";
 import { PROVIDER_IDS, pictures, refFor, search, type ProviderId } from "../symbols.js";
 import type { SymbolRef } from "../model.js";
-import { picture, grid, pickerItem } from "./pieces.js";
+import { picture, grid, pickerItem, dropdown } from "./pieces.js";
 
 /* Searching for a symbol is one widget, built once and used by both the dialogs
    that need it. The field is never replaced — only the results are — which is why
@@ -11,11 +11,13 @@ export function symbolSearch(onPick: (ref: SymbolRef) => void) {
   let typing = 0;
 
   const query = input("search", { attrs: { placeholder: "z. B. Spielplatz", autocomplete: "off" } });
-  const where = el("select", { class: "field", on: { change: () => { source = where.value as ProviderId; run(); } } },
-    ...PROVIDER_IDS.map(id => el("option", { text: id === "metacom" ? "METACOM" : "ARASAAC", attrs: { value: id } })));
+  const named = (id: ProviderId) => (id === "metacom" ? "METACOM" : "ARASAAC");
+  const where = dropdown(() => named(source), add => {
+    for (const id of PROVIDER_IDS) add(named(id), () => { source = id; where.sync(); run(); }, { checked: source === id });
+  });
   const results = grid();
   const node = el("div", { class: "search" },
-    el("div", { class: "search__row" }, field("Symbol suchen", query), field("Quelle", where)),
+    el("div", { class: "search__row" }, field("Symbol suchen", query), field("Quelle", where.node)),
     results);
 
   const run = () => {

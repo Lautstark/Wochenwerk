@@ -12,6 +12,10 @@ const HOUR = 46;
    three of those which combine. Three marks, because a colour cannot say two
    things at once. */
 export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (date: string, start?: string) => void) {
+  /* Which of the week's days are drawn. Seven of them side by side needs width
+     nobody has on a phone, so a narrow screen shows the one day being looked at
+     and the same grid draws it. */
+  let visible: string[] | null = null;
   const head = el("div", { class: "cal__head" });
   const whole = el("div", { class: "cal__whole" });
   const body = el("div", { class: "cal__body" });
@@ -22,6 +26,8 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
     [appointment.series ? "" : "once", undecided(appointment) ? "choice" : ""].filter(Boolean).join(" ");
 
   function draw(current: Week) {
+    const days = visible ?? current.dates;
+    node.style.setProperty("--days", String(days.length));
     const today = iso(new Date());
     const now = new Date(), at = now.getHours() * 60 + now.getMinutes();
     const times = current.appointments.filter(item => !allDay(item)).flatMap(item => [snapped(item.start!), snapped(item.end!)]);
@@ -31,27 +37,34 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
     };
     const hours = Array.from({ length: (span.to - span.from) / 60 }, (_, index) => span.from + index * 60);
 
-    fill(head, el("div", { class: "cal__corner" }), ...current.dates.map((date, index) =>
+    fill(head, el("div", { class: "cal__corner" }), ...days.map(date =>
       el("div", { class: `cal__day${date === today ? " cal__day--today" : ""}` },
-        el("b", { text: weekdays[index] }), el("span", { text: String(Number(date.slice(8))) }))));
+        el("b", { text: weekdays[current.dates.indexOf(date)] }), el("span", { text: String(Number(date.slice(8))) }))));
 
-    fill(whole, el("div", { class: "cal__corner", text: "ganztägig" }), ...current.dates.map(date =>
+    fill(whole, el("div", { class: "cal__corner", text: "ganztägig" }), ...days.map(date =>
       el("div", { class: "cal__whole-cell", on: { click: event => { if (event.target === event.currentTarget) onCreate(date); } } },
         ...current.appointments.filter(item => item.date === date && allDay(item)).map(item =>
           el("button", { class: `whole ${kindOf(item)}`.trim(), attrs: { type: "button" }, on: { click: () => onOpen(item) } },
-            ...shownCards(item).map(id => cardThumb(cardById(id))),
-            ...item.symbols.map(symbol => picture(symbol, symbol.label)),
+            /* One pill: at most one picture, the name, then who it concerns. A
+               row of symbols beside a row of avatars was two lists in a chip. */
+            (() => {
+              const card = shownCards(item)[0];
+              const symbol = item.symbols[0];
+              return card ? cardThumb(cardById(card)) : symbol ? picture(symbol, symbol.label) : null;
+            })(),
             el("span", { class: "whole__name", text: titleOf(item, current.cards) || "Ganztägig" }),
-            ...item.people.map(id => {
-              const person = personById(id);
-              return el("span", { class: "whole__who" },
-                person && bornOn(person, date) ? el("span", { class: "crown", text: "👑" }) : null, face(person, "sm"));
-            }))))));
+            item.people.length ? el("span", { class: "whole__who" },
+              ...item.people.slice(0, 3).map(id => {
+                const person = personById(id);
+                return el("span", { class: "whole__face" },
+                  face(person, "sm"),
+                  person && bornOn(person, date) ? el("span", { class: "crown", text: "👑" }) : null);
+              })) : null)))));
 
     fill(body,
       el("div", { class: "cal__gutter" }, ...hours.map(hour =>
         el("div", { class: "cal__hour", style: { height: `${HOUR}px` } }, el("span", { text: clock(hour) })))),
-      ...current.dates.map(date => {
+      ...days.map(date => {
         const column = el("div", {
           class: `cal__col${date === today ? " cal__col--today" : ""}`,
           style: { height: `${((span.to - span.from) / 60) * HOUR}px` },
@@ -84,7 +97,7 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
       }));
   }
 
-  return { node, draw };
+  return { node, draw, show: (dates: string[] | null) => { visible = dates; } };
 }
 export const minutesOf = minute;
 export const shownWeek = shown;
