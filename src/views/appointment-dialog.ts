@@ -71,14 +71,16 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const showPeople = input("checkbox");
   const showRow = el("label", { class: "choice" }, showPeople, el("span", { text: "Am Board zeigen" }));
   showPeople.checked = draft.showPeople;
+  /* How often is as much part of planning as when, so it stands beside the time
+     rather than under a fold. Where an existing batch stops is rarer, and folds. */
   const more = el("details", { class: "more" },
     el("summary", { text: "Weitere Optionen" }),
-    el("div", { class: "stack" }, existing ? seriesUntilField : repeatRow,
+    el("div", { class: "stack" }, existing ? seriesUntilField : el("span"),
       el("span", { class: "lbl", text: "Personen" }), who, showRow));
 
   const handle = openDialog({
     title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
-    body: [el("div", { class: "stack" }, title, timeRow, wholeRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
+    body: [el("div", { class: "stack" }, title, timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });

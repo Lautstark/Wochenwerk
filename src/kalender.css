@@ -146,6 +146,9 @@ a.btn { text-decoration: none; }
 /* components.css closes the column with a line under the last panel, and the
    sheet's foot draws its own above the buttons. One of them is enough. */
 .sheet > .body > .panel:last-of-type { border-bottom: none; }
+/* A sheet whose name field is its heading has nothing in the head but the ✕,
+   which then has to stay in the corner it belongs in. */
+.sheet > .head:has(> h2[hidden]) { justify-content: flex-end; }
 
 /* The fold uses the panel's chevron, not a text arrow. */
 .more { border-top: 1px solid var(--line); }
