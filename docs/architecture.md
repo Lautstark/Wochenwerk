@@ -2,7 +2,7 @@
 
 ## Now: prototype only
 
-One browser UI with mock data. It intentionally has no NFC, server, persistence, or authentication.
+One browser UI with mock appointments. The clock is real — weekday, dates and the now state come from the system time and the board redraws each minute — so the prototype can be left running on a monitor for a day. It intentionally has no NFC, server, persistence, or authentication.
 
 ## After UI validation
 

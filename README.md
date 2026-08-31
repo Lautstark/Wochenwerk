@@ -12,6 +12,14 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 - Node.js `>=22.13.0`
 
+## METACOM symbols
+
+The board expects the licensed symbols under `public/metacom-local`, which is git-ignored. Link the **unframed** set — the framed one carries a black border and a printed caption, both of which the board does not want:
+
+```bash
+ln -s "<METACOM>/Symbole_PNG/PNG_ohne_Rahmen" public/metacom-local
+```
+
 ## Quick Start
 
 ```bash
@@ -26,4 +34,4 @@ npm run build
 - `/palette.html` — ten weekday colour palettes with bold/muted toggle
 - `/symbols.html` — METACOM symbol treatment comparisons
 
-The prototype is intentionally static. It has no authentication, persistence, NFC implementation, or server-side planning logic yet.
+The board runs on the real wall clock: the current weekday, the dates of the week and the now state are derived from the system time, and the board redraws on every minute boundary. Everything else is intentionally static — the appointments are a mock household routine, and there is no authentication, persistence, NFC implementation, or server-side planning logic yet.

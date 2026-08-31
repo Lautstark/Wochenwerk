@@ -1,8 +1,130 @@
-:root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background: #181615; color: #f0eae8; }
-* { box-sizing: border-box; } body { margin: 0; min-width: 980px; background: #181615; } #app { width:100vw; min-height:100vh; }
-.board { width:100%; height:100vh; }.week { height:100%; display:grid; grid-template-columns:.78fr .78fr 1.62fr .78fr .78fr .78fr .78fr; gap:0; min-width:0; }.today-body { min-height:0; display:grid; grid-template-columns:3.25rem 1fr; }.focus-rail { position:relative; background:#403c3b; border-right:1px solid rgba(255,255,255,.13); }.focus-rail span { position:absolute; top:var(--at); left:50%; width:2rem; height:2rem; transform:translate(-50%,-50%); opacity:.58; filter:grayscale(1) brightness(2.4); }.focus-rail span img { display:block; width:100%; height:100%; object-fit:contain; }.focus-rail span.is-now { width:2.9rem; height:2.9rem; opacity:1; filter:grayscale(1) brightness(2.7); border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.34) 0 35%, rgba(255,255,255,.11) 43%, transparent 70%); }.day { min-width:0; min-height:0; display:grid; grid-template-rows:3.6rem 1fr; overflow:hidden; border-right:1px solid rgba(255,255,255,.09); background:#302f2c; opacity:.5; }.day.today { z-index:2; overflow:visible; opacity:1; background:#403c3b; border-right-color:rgba(255,255,255,.18); box-shadow:none; }
-header { position: relative; display: flex; align-items: center; justify-content: center; gap: .3rem; border-bottom: 1px solid rgba(0,0,0,.22); color: #211d1b; letter-spacing: .04em; }header b { font-size: clamp(.78rem, 1.2vw, 1.1rem); font-weight: 750; } header time { font-size: clamp(.67rem, 1vw, .92rem); font-weight: 650; letter-spacing: 0; }header small { font-size: .66rem; font-weight: 700; letter-spacing: 0; opacity: .8; }.day-1 { --event-color:#e9c65a; }.day-2 { --event-color:#6faa71; }.day-3 { --event-color:#6a8fd1; }.day-4 { --event-color:#d05f55; }.day-5 { --event-color:#e59046; }.day-6 { --event-color:#ababab; }.day-7 { --event-color:#cf778d; }.day header { background: var(--event-color); }.day.today header { background: #6a8fd1; color: #151717; }
-.all-day { position: absolute; top: .35rem; right: .4rem; display: flex; align-items: center; padding: .16rem; gap: .1rem; border-radius: 99px; background: #fff; box-shadow: 0 2px 7px rgba(0,0,0,.12); }.all-day img { width: 1.15rem; height: 1.15rem; object-fit: contain; }
-.calendar { position: relative; min-height: 0; overflow: visible; background: #403c3b; }.event { position: absolute; z-index: 1; left: 13%; width: 74%; min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: center; padding: .2rem; border: 0; border-radius: 6px; background: var(--event-color); box-shadow: none; }.event.track-left { left: 8%; width: 48%; }.event.track-right { left: 59%; width: 33%; }.event-icons { min-width: 0; min-height: 0; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: .14rem; }.event-icons img { min-width: 0; min-height: 0; width: auto; max-width: 100%; height: min(3.5rem, 74%); max-height: 74%; object-fit: contain; }.event-icons img:not(:only-child) { width: 30%; height: auto; max-height: 74%; }.event.past { opacity: .62; filter: saturate(.68); }.event.choice { border: 0; background: linear-gradient(135deg, color-mix(in srgb, var(--event-color) 84%, white), var(--event-color)); box-shadow: none; }.now-glow { position:absolute; z-index:0; left:0; right:0; height:7.41%; transform:translateY(-50%); background:radial-gradient(ellipse at center, rgba(255,255,255,.19), rgba(255,255,255,.07) 55%, transparent 76%); pointer-events:none; }
-.avatar { position: absolute; top: -.22rem; right: -.22rem; display: grid; place-items: center; width: 1.45rem; height: 1.45rem; padding: .1rem; border: 2px solid #d58b7b; border-radius: 50%; background: white; box-shadow: 0 2px 6px rgba(0,0,0,.11); }.avatar img { width: 100%; height: 100%; object-fit: contain; }.today .event { border-color: #dfe8e3; }.today .event.choice { border-color: #caa64c; }
-@media (max-width: 1250px) { .board { grid-template-columns: 2.5rem 1fr; gap: .65rem; }.week { gap: .35rem; }.day { border-radius: .8rem; grid-template-rows: 3rem 1fr; }.event { left: 10%; width: 80%; border-radius: .65rem; }.event.parallel { left: 56%; width: 39%; }.all-day { transform: scale(.82); transform-origin: top right; } }
+/* Wochenwerk board: every day is a solid field of its colour, every appointment a
+   light card on it. Colour carries the day, the cards carry what happens. */
+:root {
+  color-scheme: dark;
+  font-family: ui-rounded, "SF Pro Rounded", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ground: #14100e;
+  --ink: #17120e;
+  --head: 3.2rem;
+  --col: 1fr;
+  --today: 2.05fr;
+  --rail: 3rem;
+  background: var(--ground);
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 980px; background: var(--ground); }
+#app { width: 100vw; height: 100vh; }
+.week { height: 100%; display: grid; }
+
+/* Weekday colours: one coherent row of the palette explorations, bold enough to
+   carry a whole column. Saturday keeps the METACOM stone grey, warmed so it reads
+   as a colour and not as a disabled state. */
+.day-1 { --day: #f2c94c; }
+.day-2 { --day: #58a66f; }
+.day-3 { --day: #4b9ccc; }
+.day-4 { --day: #e05d50; }
+.day-5 { --day: #f09a34; }
+.day-6 { --day: #a8a096; }
+.day-7 { --day: #d95479; }
+
+/* A day is in one of three states, and the state is carried by colour alone:
+   what is over has lost its colour, today is at full strength, what is ahead keeps
+   its colour but stays quieter than today. */
+.day { min-width: 0; overflow: hidden; display: grid; grid-template-rows: var(--head) 1fr;
+  --field: color-mix(in oklab, var(--day) 82%, var(--ground));
+  --paper: color-mix(in oklab, var(--day) 14%, #fff);
+  --tile: 7rem;
+  background: var(--field); }
+.day.gone { --field: color-mix(in oklab, var(--day) 18%, #47433f);
+  --paper: color-mix(in oklab, var(--day) 7%, #d3cec9); }
+.day.gone .icon img, .day.gone .face { filter: grayscale(.9); opacity: .78; }
+.day.today { z-index: 2; --field: color-mix(in oklab, var(--day) 90%, #fff); --paper: #fff; --tile: 11rem;
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--day) 40%, #fff), 0 0 3.5rem rgba(0, 0, 0, .5); }
+
+/* No band of its own: the header sits straight on the day colour. */
+header { display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+  padding: 0 .55rem; color: var(--ink); }
+.day.gone header { color: #ddd8d3; }
+.name { display: flex; align-items: baseline; gap: .35rem; min-width: 0; overflow: hidden; }
+.name > * { flex: 0 0 auto; }
+.name b { font-size: clamp(.95rem, 1.35vw, 1.5rem); font-weight: 800; letter-spacing: .05em; }
+.name time { font-size: clamp(.7rem, .95vw, 1rem); font-weight: 650; opacity: .66; }
+.name small { font-size: clamp(.68rem, .9vw, .95rem); font-weight: 600; opacity: .5;
+  font-variant-numeric: tabular-nums; }
+.today .name b { font-size: clamp(1.25rem, 1.85vw, 2.1rem); }
+.today .name time { font-size: clamp(.85rem, 1.15vw, 1.2rem); opacity: .78; }
+.today .name small { font-size: clamp(.8rem, 1.05vw, 1.1rem); opacity: .58; }
+.marks { display: flex; flex: 0 0 auto; gap: .3rem; }
+
+/* Avatars are stacked circles: a photo where there is one, initials otherwise. */
+.faces { display: flex; }
+.face { position: relative; display: grid; place-items: center; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; background: var(--tone); color: #fff; overflow: visible;
+  box-shadow: 0 0 0 .13rem var(--field); }
+.face + .face { margin-left: -.5rem; }
+.face b { font-size: .62rem; font-weight: 800; letter-spacing: .02em; }
+.face img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.crown { position: absolute; top: -.5rem; left: 50%; width: 1.05rem; transform: translateX(-50%) rotate(-8deg);
+  fill: #ffd34d; stroke: var(--field); stroke-width: 1.6;
+  stroke-linejoin: round; paint-order: stroke fill; }
+
+.calendar { position: relative; min-height: 0; padding: .35rem .45rem .45rem; }
+.track { position: relative; height: 100%; }
+
+/* Duration is the height of the card, exactly; the gap between cards is day colour. */
+.card { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; padding: .2rem; border: 0; border-radius: .7rem; background: var(--paper);
+  box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .16); }
+.icons { width: 100%; height: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: .25rem; }
+.icon { min-width: 0; max-width: 100%; aspect-ratio: 1; height: min(var(--tile), 100%); display: grid; place-items: center; }
+.icon:not(:only-child) { height: min(calc(var(--tile) * .58), 100%); }
+.icon img { width: 100%; height: 100%; object-fit: contain; }
+.card .faces { position: absolute; top: .18rem; right: .18rem; }
+.card .face { width: 1.4rem; height: 1.4rem; box-shadow: 0 0 0 .12rem var(--paper); }
+.card .face b { font-size: .52rem; }
+.card .face + .face { margin-left: -.42rem; }
+
+/* Now is not a line and not a marker: the appointment that is running lies on top of
+   the board. The white surface grows past its slot and casts a real shadow onto the
+   day below it; everything already done fades back towards the day colour. */
+.card.current { z-index: 9; --tile: 13rem; background: #fff; border-radius: .9rem;
+  box-shadow: 0 0 0 .5rem #fff, 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
+.card.past { background: color-mix(in oklab, var(--day) 7%, #d3cec9); box-shadow: none; }
+.card.past img, .card.past .face { filter: grayscale(.9); opacity: .78; }
+
+/* Parallel appointments overlap, so the one on top needs an edge: a rim in the day
+   colour cuts it out of the card underneath, and its shadow puts it in front. */
+.card.parallel { box-shadow: 0 0 0 .24rem var(--field), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
+.card.parallel.current { box-shadow: 0 0 0 .5rem #fff, 0 0 0 .78rem var(--field), 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
+
+/* An appointment whose symbol is not decided yet: same card, unfinished edge. */
+.card.open { border: .22rem dashed color-mix(in oklab, var(--day) 60%, #241c14); }
+
+/* The daypart rail is a narrow strip in the colour of the current day, and it also
+   carries how far the day has come: the part already behind us is muted, the part
+   still ahead keeps the rail colour. The two meet at the current minute with a soft
+   edge instead of a line. */
+.rail { display: grid; grid-template-rows: var(--head) 1fr;
+  --spent: color-mix(in oklab, var(--day) 24%, #d6d1cb);
+  --ahead: color-mix(in oklab, var(--day) 90%, #fff);
+  --mark: color-mix(in oklab, var(--day) 28%, var(--ink));
+  background: var(--ahead); }
+.rail-head { background: var(--spent); }
+.rail-track { position: relative; min-height: 0; padding: .35rem 0 .45rem; }
+/* The gradient covers the whole track, head included, so no seam can show. */
+.rail-track::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(to bottom, var(--spent) 0,
+    var(--spent) calc(var(--now) - 4%), var(--ahead) calc(var(--now) + 4%), var(--ahead) 100%); }
+.mark { position: absolute; z-index: 1; left: 50%; width: 1.5rem; height: 1.5rem; transform: translate(-50%, -50%);
+  color: var(--mark); opacity: .45; }
+.mark svg { width: 100%; height: 100%; display: block; }
+.mark.is-now { width: 2rem; height: 2rem; opacity: 1; }
+
+@media (max-width: 1250px) {
+  :root { --head: 2.7rem; --rail: 2.4rem; }
+  .day { --tile: 4.5rem; }
+  .day.today { --tile: 7rem; }
+  .card { border-radius: .5rem; }
+  .face { width: 1.4rem; height: 1.4rem; }
+}

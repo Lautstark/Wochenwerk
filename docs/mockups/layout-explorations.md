@@ -35,6 +35,10 @@ Mo  Di |      HEUTE: Mittwoch      | Do  Fr  Sa  So
 
 **Strength:** exceptional `now` clarity. **Risk:** weakens “what happens later this week?” and creates a layout that changes emphasis every day. Worth revisiting only if real-world observation shows the grid is too dense.
 
-## Recommendation
+## What the prototype actually became
 
-Build A first. It satisfies the central weekly-planner promise and makes unresolved choices easy to locate. The live prototype represents this direction; B and C are retained as explicit fallback directions, not as requirements.
+A was built first and then outgrown. Fixed daypart rows could not express real start and end times, so the board moved to a continuous 07:00–20:30 day column in which card height carries duration — call it **A′**. It keeps A's promise (seven columns, one repeatable location per day, unresolved choices easy to find) and drops A's fixed four-row grid.
+
+A′ inherits A's density problem in a new form: on a true time scale a fifteen-minute appointment is only a few pixels tall. Relaxing the scale to guarantee every appointment a legible minimum was tried and rejected — it flattens the difference between a fifteen-minute bike ride and a five-hour Kita morning, which is the one thing the height is there to show. The scale stays exact; a fifteen-minute appointment is allowed to be small. What compensates is the width of the current day, the size of its symbols and the strong now emphasis — see [UX decisions](../ux.md).
+
+B and C are retained as explicit fallback directions, not as requirements. C in particular is worth revisiting only if real-world observation shows that six muted columns earn less than the room they cost.
