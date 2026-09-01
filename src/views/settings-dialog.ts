@@ -10,6 +10,10 @@ import { connect, forget, metacom, needsAttention, preferredRendering, preferRen
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
+import { ablage as ablageStore, isStore } from "../folder.js";
+import { adoptFolder, pullFromFolder } from "../db.js";
+import { actionsFor as ablageActions, lineFor as ablageLine, needsAttention as ablageNeedsAttention } from "@lautstark/sicherung/ablage-ui";
+import type { AblageStatus } from "@lautstark/sicherung/ablage";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { cardEditor } from "./card-editor.js";
 import { personEditor } from "./person-editor.js";
@@ -67,7 +71,26 @@ function makePanel(label: string): Panel {
   return { node, state, body };
 }
 
+/* The package answers with a shape and never with words; these are ours. */
+const ablageStatus = (): AblageStatus => ablageStore.status;
+function whereSays(status: AblageStatus): string {
+  switch (status.kind) {
+    case "unsupported": return "Dieser Browser kann keinen Ordner öffnen.";
+    case "off": return "Kein Ordner — der Kalender liegt nur hier.";
+    case "idle": return `Ordner „${status.folder}“.`;
+    case "saving": return "Wird geschrieben …";
+    case "needs-permission": return `Der Browser braucht die Erlaubnis für „${status.folder}“ erneut.`;
+    case "failed": return `Der Ordner ließ sich nicht schreiben: ${status.reason}`;
+    case "stale": return `„${status.folder}“ ist nicht erreichbar. Der Kalender zeigt den letzten Stand und nimmt nichts an.`;
+    case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
+  }
+}
+const actionSays = (id: string) =>
+  id === "choose" ? "Ordner wählen" : id === "confirm" ? "Erneut erlauben"
+    : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
+
 export function openSettings(say: (line: string) => void) {
+  const ablage = makePanel("Ablage");
   const symbols = makePanel("Symbole");
   const voice = makePanel("Stimme");
   const speech = makePanel("Azure Speech");
@@ -77,7 +100,7 @@ export function openSettings(say: (line: string) => void) {
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
-    body: [symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
+    body: [ablage.node, symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
   });
 
@@ -254,6 +277,25 @@ export function openSettings(say: (line: string) => void) {
 
   function sync() {
     const status = metacom.status();
+    /* Where the household keeps its week. Not a backup: connecting a folder makes
+       it the store, and this browser holds a copy of it from that moment. */
+    const where = ablageStatus();
+    ablage.state.textContent = whereSays(where);
+    fill(ablage.body,
+      el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser. Mit einem Ordner liegt er dort, und jedes Gerät, das ihn erreicht, sieht dieselbe Woche." }),
+      ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
+      el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
+        button(actionSays(action.id), action.primary ? "sm" : "sm quiet", () => void run(async () => {
+          await action.run();
+          if (action.id === "choose") say(await adoptFolder() === "pushed"
+            ? "Der Ordner war leer — was hier lag, liegt jetzt dort."
+            : "Der Ordner hatte schon einen Kalender — der gilt jetzt hier.");
+          else if (action.id === "confirm" || action.id === "retry") await pullFromFolder();
+        }, "")))),
+      where.kind === "conflicted"
+        ? el("p", { class: "notice bad", text: `${where.ids.length} Termin(e) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
+        : null);
+
     symbols.state.textContent = says(status);
     fill(symbols.body,
       el("p", { class: "small muted", text: "Woher die Symbole kommen, wird nicht ausgewählt: Es folgt aus dem Ordner. Mit verbundenem Ordner zeichnet Wochenwerk mit METACOM aus deiner eigenen Lizenz, und nichts davon verlässt den Browser. Ohne Ordner kommen die Symbole von ARASAAC, das keine Einrichtung braucht." }),
@@ -308,7 +350,7 @@ export function openSettings(say: (line: string) => void) {
           add("Entfernen", () => void erasePerson(person), { danger: true });
         })))),
       shown().people.length ? null : el("p", { class: "empty", text: "noch niemand" }),
-      button("＋ Neue Person", "sm", () => openPerson({ id: uuid(), name: "", initials: "", tone: "" })));
+      button("＋ Neue Person", "sm", () => openPerson({ id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 })));
 
     data.state.textContent = `${shown().appointments.length} in dieser Woche`;
     fill(data.body,

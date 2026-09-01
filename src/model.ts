@@ -77,7 +77,7 @@ export type Pattern =
   | { kind: "daily" }
   | { kind: "weekly"; weekdays: number[] }
   | { kind: "yearly" };
-export type Series = { id: string; pattern: Pattern; from: string; until: string; allDay: boolean; createdAt: number };
+export type Series = { id: string; pattern: Pattern; from: string; until: string; allDay: boolean; createdAt: number; updatedAt: number };
 export const samePattern = (a: Pattern, b: Pattern): boolean =>
   a.kind === b.kind && (a.kind !== "weekly" || (b.kind === "weekly"
     && a.weekdays.length === b.weekdays.length && a.weekdays.every((day, index) => day === b.weekdays[index])));
@@ -101,7 +101,7 @@ export function strays(appointment: Appointment, like: Appointment): boolean {
    appointments it produces are ordinary all-day ones carrying that person. The
    crown is then derived rather than stored: any day that is somebody's birthday
    wears one, and nothing in the appointment has to say so. */
-export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string };
+export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string; updatedAt: number };
 export const bornOn = (person: Person, date: string) => !!person.birthday && person.birthday.slice(5) === date.slice(5);
 
 /* Appointments that run at the same time share the width of their day. Both routes

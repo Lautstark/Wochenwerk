@@ -1,7 +1,8 @@
 import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, settings, week, whenStuck } from "./db.js";
+import { allCards, allPeople, pullFromFolder, settings, week, whenStuck } from "./db.js";
+import { ablage, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { announceAt } from "./speech.js";
 import { el } from "./ui.js";
@@ -259,8 +260,14 @@ addEventListener("keydown", event => {
 });
 
 await restore().catch(() => false);
+/* Where a folder is the store, it is read before anything is drawn, and watched
+   afterwards: another household member editing on another machine is the reason
+   a folder was chosen at all. */
+await ablage.restore().catch(() => null);
+await pullFromFolder().catch(() => undefined);
 /* The board resolves references rather than searching, but a reference whose
    qualified path no longer matches is looked up by name — and that lookup answers
    in index order unless it is told which fassung was meant. See `urlFor`. */
 preferRendering((await settings()).metacomRendering ?? null);
 void tick();
+watchFolder(() => void pullFromFolder().then(tick));

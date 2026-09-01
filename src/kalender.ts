@@ -2,8 +2,9 @@ import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
 import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "./model.js";
 import { el, fill, button } from "./ui.js";
-import { settings } from "./db.js";
+import { pullFromFolder, settings } from "./db.js";
 import { load, shown, subscribe, type Week } from "./store.js";
+import { ablage, watchFolder } from "./folder.js";
 import { metacom, owed, preferRendering, restore } from "./symbols.js";
 import { weekGrid } from "./views/week-grid.js";
 import { blankAppointment, editAppointment } from "./views/appointment-dialog.js";
@@ -75,7 +76,14 @@ subscribe(current => {
 metacom.subscribe(() => void load());
 
 await restore().catch(() => false);
+/* Where a folder is the store, it is read before anything is drawn, and watched
+   afterwards: another household member editing on another machine is the reason
+   a folder was chosen at all. */
+await ablage.restore().catch(() => null);
+await pullFromFolder().catch(() => undefined);
 /* The package holds the rendering preference for the tab and persists nothing, so
    the household's answer is handed to it once the folder is back. */
 preferRendering((await settings()).metacomRendering ?? null);
 await load(0);
+/* Somebody else's edit, arriving as a file that changed under this browser. */
+watchFolder(() => void pullFromFolder().then(() => load()));

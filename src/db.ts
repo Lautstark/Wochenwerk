@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
 import { addDays, iso, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
@@ -54,7 +55,7 @@ const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
         const specials = old ? await old.getAll() : [];
         for (const special of specials) {
           const id = crypto.randomUUID();
-          transaction.objectStore("series").put({ id, pattern: { kind: "daily" }, from: special.from, until: special.to, allDay: true, createdAt: Date.now() });
+          transaction.objectStore("series").put({ id, pattern: { kind: "daily" }, from: special.from, until: special.to, allDay: true, createdAt: Date.now(), updatedAt: Date.now() });
           for (const date of occurrences({ kind: "daily" }, special.from, special.to)) {
             transaction.objectStore("appointments").put({
               id: crypto.randomUUID(), date, symbols: special.kind === "birthday" ? [cake] : [],
@@ -159,20 +160,82 @@ function waiting(opened: Promise<IDBPDatabase<Wochenwerk>>): Promise<IDBPDatabas
 
 export const uuid = () => crypto.randomUUID();
 
+/* Every mutation goes through these two, so a household that has connected a
+   folder never has a record in one place and not the other. Where no folder is
+   connected they write to IndexedDB and stop, which is the same code path with
+   the second half doing nothing. See src/folder.ts. */
+const KIND = { appointments: "termine", cards: "karten", people: "personen", series: "serien" } as const;
+type Kept = keyof typeof KIND;
+
+async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
+  await (await db()).put(store as never, record as never);
+  await file(KIND[store], record as never);
+}
+async function drop(store: Kept, id: string): Promise<void> {
+  await (await db()).delete(store as never, id as never);
+  await unfile(KIND[store], id);
+}
+
 /** One week is a range over the date index, not a filter over everything. */
 export async function week(monday: Date): Promise<Appointment[]> {
   const from = iso(monday), to = iso(addDays(monday, 6));
   return (await db()).getAllFromIndex("appointments", "date", IDBKeyRange.bound(from, to));
 }
 export const allPeople = async () => (await db()).getAll("people");
+const allAppointments = async () => (await db()).getAll("appointments");
+/** Mirror what a batch left behind. Cheap where no folder is connected. */
+const mirror = async (...kinds: ("termine" | "serien")[]) => {
+  for (const kind of kinds) {
+    await pushKind(kind, kind === "termine" ? await allAppointments() : await allSeries());
+  }
+};
 export const allSeries = async () => (await db()).getAll("series");
 /** A batch in the order it runs. The index answers by key, which is a UUID. */
 export const inSeries = async (id: string) =>
   (await (await db()).getAllFromIndex("appointments", "series", id)).sort((a, b) => a.date.localeCompare(b.date));
 export async function put(appointment: Appointment): Promise<void> {
-  await (await db()).put("appointments", { ...appointment, updatedAt: Date.now() });
+  await keep("appointments", { ...appointment, updatedAt: Date.now() });
 }
-export const remove = async (id: string) => (await db()).delete("appointments", id);
+export const remove = (id: string) => drop("appointments", id);
+
+/* Where a folder is the store, the folder is the truth: on start it is read and
+   the browser's copy is replaced wholesale. A replace needs no reconciliation and
+   no tombstones — it is not a merge — which is the whole reason two-way sync is
+   not being attempted. See sicherung's adr/0001. */
+export async function pullFromFolder(): Promise<void> {
+  if (!isStore()) return;
+  const database = await db();
+  const [appointments, cards, people, series] = await Promise.all([
+    readKind<Appointment>("termine"), readKind<Card>("karten"),
+    readKind<Person>("personen"), readKind<Series>("serien"),
+  ]);
+  const writing = database.transaction(["appointments", "cards", "people", "series"], "readwrite");
+  await Promise.all([
+    writing.objectStore("appointments").clear(), writing.objectStore("cards").clear(),
+    writing.objectStore("people").clear(), writing.objectStore("series").clear(),
+  ]);
+  await Promise.all([
+    ...appointments.map(record => writing.objectStore("appointments").put(record)),
+    ...cards.map(record => writing.objectStore("cards").put(record)),
+    ...people.map(record => writing.objectStore("people").put(record)),
+    ...series.map(record => writing.objectStore("series").put(record)),
+    writing.done,
+  ]);
+}
+
+/* Connecting a folder for the first time is the migration with a before and an
+   after. An empty folder adopts what this browser already holds; a folder that
+   has records in it replaces what this browser holds, because from that moment
+   it is the truth. Which happened is reported rather than assumed: the two are
+   not interchangeable and somebody is entitled to know which one they got. */
+export async function adoptFolder(): Promise<"pushed" | "pulled"> {
+  const counts = await Promise.all(KINDS.map(async kind => (await readKind(kind)).length));
+  if (counts.some(count => count > 0)) { await pullFromFolder(); return "pulled"; }
+  await mirror("termine", "serien");
+  await pushKind("karten", await allCards());
+  await pushKind("personen", await allPeople());
+  return "pushed";
+}
 
 /** Empty the calendar. Cards, people and their birthdays stay. */
 export async function clearAppointments(): Promise<number> {
@@ -183,6 +246,7 @@ export async function clearAppointments(): Promise<number> {
   const everyone = await database.getAll("people");
   await Promise.all(everyone.filter(person => person.birthdaySeries)
     .map(person => database.put("people", { ...person, birthdaySeries: undefined })));
+  await mirror("termine", "serien");
   return many;
 }
 
@@ -193,6 +257,9 @@ export async function clearAll(): Promise<void> {
     database.clear("appointments"), database.clear("series"),
     database.clear("cards"), database.clear("people"),
   ]);
+  await mirror("termine", "serien");
+  await pushKind("karten", []);
+  await pushKind("personen", []);
 }
 /* One household, so one record, under a constant key. A settings store keyed by
    anything else would be a store of settings, which is how a second answer to the
@@ -232,11 +299,11 @@ export const saveVoice = async (voice: string) => { await saveSettings({ voice }
  */
 export const saveAzure = async (azure: Settings["azure"]) => { await saveSettings({ azure }); };
 
-export const putPerson = async (person: Person) => { await (await db()).put("people", person); };
-export const removePerson = async (id: string) => (await db()).delete("people", id);
+export const putPerson = async (person: Person) => { await keep("people", { ...person, updatedAt: Date.now() }); };
+export const removePerson = (id: string) => drop("people", id);
 export const allCards = async () => (await db()).getAll("cards");
-export const putCard = async (card: Card) => { await (await db()).put("cards", { ...card, updatedAt: Date.now() }); };
-export const removeCard = async (id: string) => (await db()).delete("cards", id);
+export const putCard = async (card: Card) => { await keep("cards", { ...card, updatedAt: Date.now() }); };
+export const removeCard = (id: string) => drop("cards", id);
 
 /* Setting a birthday writes the appointments it produces — a century of all-day
    entries carrying that person, and nothing else. Changing it replaces the batch. */
@@ -263,12 +330,13 @@ export async function createSeries(pattern: Pattern, from: string, until: string
   const database = await db();
   const id = uuid();
   const dates = occurrences(pattern, from, until);
-  await database.put("series", { id, pattern, from, until, allDay: !shape.start, createdAt: Date.now() });
+  await database.put("series", { id, pattern, from, until, allDay: !shape.start, createdAt: Date.now(), updatedAt: Date.now() });
   const writing = database.transaction("appointments", "readwrite");
   await Promise.all([
     ...dates.map(date => writing.store.put({ ...shape, id: uuid(), date, series: id, updatedAt: Date.now() })),
     writing.done,
   ]);
+  await mirror("termine", "serien");
   return id;
 }
 
@@ -285,7 +353,7 @@ export async function seriesFrom(appointment: Appointment, pattern: Pattern, unt
   const stop = until < appointment.date ? appointment.date : until;
   const dates = occurrences(pattern, appointment.date, stop);
   const now = Date.now();
-  await database.put("series", { id, pattern, from: appointment.date, until: stop, allDay: !appointment.start, createdAt: now });
+  await database.put("series", { id, pattern, from: appointment.date, until: stop, allDay: !appointment.start, createdAt: now, updatedAt: now });
   const writing = database.transaction("appointments", "readwrite");
   await Promise.all([
     ...dates.map(date => writing.store.put(date === appointment.date
@@ -294,6 +362,7 @@ export async function seriesFrom(appointment: Appointment, pattern: Pattern, unt
     ...(dates.includes(appointment.date) ? [] : [writing.store.delete(appointment.id)]),
     writing.done,
   ]);
+  await mirror("termine", "serien");
   return id;
 }
 
@@ -308,6 +377,7 @@ export async function dropSeries(series: string, from?: string): Promise<number>
   const writing = database.transaction("appointments", "readwrite");
   await Promise.all([...touched.map(appointment => writing.store.delete(appointment.id)), writing.done]);
   if (!from || !(await inSeries(series)).length) await database.delete("series", series);
+  await mirror("termine", "serien");
   return touched.length;
 }
 /* Reshaping a batch — a new rule, a new end, or both — is one piece of arithmetic
@@ -351,7 +421,8 @@ export async function repattern(series: string, pattern: Pattern, from: string, 
   /* The record describes the stretch it still governs, so `from` moves to the day
      the new rule starts. That is what keeps the untouched past out of every later
      reshape — and what lies there keeps the batch id, so it stays listable as one. */
-  await database.put("series", { ...record, pattern, from, until: stop, allDay: !like.start });
+  await database.put("series", { ...record, pattern, from, until: stop, allDay: !like.start, updatedAt: Date.now() });
+  await mirror("termine", "serien");
   return change;
 }
 
@@ -368,6 +439,7 @@ export async function editSeries(series: string, change: Partial<Appointment>, f
       ? undefined : appointment.chosen;
     return writing.store.put({ ...appointment, ...change, chosen, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() });
   }), writing.done]);
+  await mirror("termine", "serien");
   return touched.length;
 }
 
