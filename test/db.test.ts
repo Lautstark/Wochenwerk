@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
 import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf,
-  setBirthday, uuid, week } from "../src/db.js";
+  saveSettings, saveVoice, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
 const shape = (start?: string, end?: string): Omit<Appointment, "id" | "date" | "series" | "updatedAt"> =>
@@ -95,5 +95,27 @@ describe("a birthday", () => {
     await setBirthday({ ...person, birthday: "2026-09-06", birthdaySeries: series.id }, undefined);
     expect(await allSeries()).toHaveLength(0);
     expect(await week(monday)).toHaveLength(0);
+  });
+});
+
+describe("the settings record", () => {
+  it("is one record: a second preference does not overwrite the first", async () => {
+    /* Nothing set is an empty answer, not a missing one: every caller reads it
+       the same way on a first run as on any other. */
+    expect(await settings()).toEqual({});
+    await saveSettings({ azure: { key: "k", region: "westeurope" } });
+    await saveVoice("piper:de_DE-thorsten-medium");
+    expect(await settings()).toEqual({
+      azure: { key: "k", region: "westeurope" }, voice: "piper:de_DE-thorsten-medium",
+    });
+  });
+
+  /* Clearing the calendar is about what the household planned. What it set up —
+     the voice, the key — is not data it wrote, and losing it on "start again" is
+     how somebody ends up with a silent board and no idea why. */
+  it("survives the calendar being emptied", async () => {
+    await saveVoice("piper:de_DE-thorsten-medium");
+    await clearAll();
+    expect((await settings()).voice).toBe("piper:de_DE-thorsten-medium");
   });
 });

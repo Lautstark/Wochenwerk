@@ -2,12 +2,14 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { listVoices } from "@lautstark/stimmquelle";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
-import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, settings, uuid } from "../db.js";
+import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
+import { nameOf, offered, type Voice } from "../voices.js";
 import { load, shown } from "../store.js";
 import { cardThumb, face, overflow, row } from "./pieces.js";
 import { editCard } from "./card-dialog.js";
 import { editPerson, pickFile } from "./person-dialog.js";
+import { voiceChoice } from "./voice-panel.js";
 
 /**
  * Azure's own region names. A datalist suggests rather than restricts, so a
@@ -63,6 +65,7 @@ function makePanel(label: string): Panel {
 
 export function openSettings(say: (line: string) => void) {
   const symbols = makePanel("Symbole");
+  const voice = makePanel("Stimme");
   const speech = makePanel("Azure Speech");
   const cards = makePanel("Karten");
   const people = makePanel("Personen");
@@ -70,7 +73,7 @@ export function openSettings(say: (line: string) => void) {
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
-    body: [symbols.node, speech.node, cards.node, people.node, data.node],
+    body: [symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
   });
 
@@ -80,6 +83,44 @@ export function openSettings(say: (line: string) => void) {
     await load();
     sync();
   };
+
+  /* What can be spoken with is asked on every opening rather than held in a
+     module: a key typed in the meantime, or a voice the operating system has just
+     installed, should show up without reloading the page. */
+  let voices: Voice[] = [];
+  let chosen: string | undefined;
+  /* Said rather than swallowed. stimmquelle throws on a key it cannot use instead
+     of returning the shipped voices alone, because a picker silently short of half
+     its voices is a failure only the person who typed the key can fix. So the list
+     is asked for a second time without the key: what needs none is still
+     choosable, and the line above it says what is missing and why. */
+  let refused = "";
+
+  const picker = voiceChoice({
+    voices: () => voices,
+    current: () => chosen,
+    pick: id => { if (id && id !== chosen) void choose(id); },
+  });
+
+  /* Choosing writes. There is no pending state and no Save: the panel's heading
+     is what stands in the settings record, the way every other panel's is. */
+  async function choose(id: string) {
+    chosen = id;
+    picker.draw();
+    await run(() => saveVoice(id), `Der Kalender spricht jetzt mit ${nameOf(voices, id) || "dieser Stimme"}.`);
+  }
+
+  async function readVoices() {
+    chosen = (await settings()).voice;
+    try {
+      voices = await offered();
+      refused = "";
+    } catch (error) {
+      refused = (error as Error)?.message ?? "unbekannter Fehler";
+      voices = await offered(false).catch(() => []);
+    }
+    sync();
+  }
 
 
   /* The probe line, and it is the same element for the life of the dialog: a live
@@ -195,6 +236,17 @@ export function openSettings(say: (line: string) => void) {
         metacom.isReady() ? button("Neu einlesen", "sm quiet", () => void run(() => rebuild(), "Neu eingelesen.")) : null,
         metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(() => forget(), "Ordner vergessen.")) : null));
 
+    /* One voice for the whole calendar, so the heading names it the way the other
+       headings carry their state. */
+    const named = nameOf(voices, chosen);
+    voice.state.textContent = chosen ? named || "gewählte Stimme fehlt" : "keine gewählt";
+    fill(voice.body,
+      el("p", { class: "small muted", text: "Eine Stimme für den ganzen Kalender. Ein Termin wird beim Planen aufgenommen und am Board vorgelesen — nicht je Termin, je Karte oder je Person gewählt, sondern einmal hier." }),
+      refused ? el("p", { class: "notice bad", text: `Azure nimmt den Schlüssel nicht an (${refused}). Unten stehen nur die Stimmen, die keinen brauchen.` }) : null,
+      chosen && !named ? el("p", { class: "notice", text: "Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert." }) : null,
+      voices.length ? picker.node : el("p", { class: "empty", text: "keine Stimme verfügbar" }));
+    picker.draw();
+
     const cardList = [...shown().cards.values()];
     cards.state.textContent = `${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`;
     fill(cards.body,
@@ -254,4 +306,5 @@ export function openSettings(say: (line: string) => void) {
      what the heading is for, and empty is not one. */
   speech.state.textContent = "Wird geladen …";
   void drawSpeech();
+  void readVoices();
 }
