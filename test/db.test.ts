@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
-import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf, repattern,
+import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf, remove, repattern,
   reshapeOf, saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
@@ -126,46 +126,47 @@ describe("a choice inside a batch", () => {
 });
 
 describe("a batch given a new rule", () => {
-  const template = (extra: Partial<Appointment> = {}): Appointment =>
-    ({ id: uuid(), date: iso(monday), start: "09:00", end: "10:00", symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
   const fortnight = () => createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 13)), shape("09:00", "10:00"));
 
-  it("does not reach back past the day the new rule starts", async () => {
+  it("cuts the batch in two rather than reaching back past where the new rule starts", async () => {
     const id = await fortnight();
     const before = (await inSeries(id)).slice(0, 7).map(item => item.id);
-    const change = await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)), template());
+    const change = await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)));
     expect(change.dropping).toHaveLength(5);
     expect(change.adding).toHaveLength(0);
-    const after = await inSeries(id);
-    expect(after).toHaveLength(9);
-    expect(after.slice(0, 7).map(item => item.id)).toEqual(before);
+    /* What lay before the cut is untouched, down to the days it covers. */
+    expect((await inSeries(id)).map(item => item.id)).toEqual(before);
+    expect(change.series).not.toBe(id);
+    expect(await inSeries(change.series)).toHaveLength(2);
   });
 
   it("leaves a day that survives exactly as it was", async () => {
     const id = await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("09:00", "10:00"));
     const wednesday = (await inSeries(id))[2];
     await put({ ...wednesday, title: "eigen" });
-    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 6)), template());
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 6)));
     const after = await inSeries(id);
     expect(after).toHaveLength(2);
-    expect(after[1]).toMatchObject({ id: wednesday.id, title: "eigen" });
+    /* Editing a day is what turns it into a record, so it has an id of its own
+       from that moment — the derived handle it had before was never one. */
+    expect(after[1]).toMatchObject({ date: wednesday.date, title: "eigen" });
   });
 
-  it("writes the days that are new from the appointment it was given, not from the first of the batch", async () => {
+  it("gives the days a widened rule adds the batch's shape, and leaves an edited day its own", async () => {
     const id = await createSeries({ kind: "weekly", weekdays: [0] }, iso(monday), iso(addDays(monday, 13)), shape("09:00", "10:00"));
     const [first] = await inSeries(id);
     await put({ ...first, title: "eigen" });
-    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 13)), template({ title: "Vorlage" }));
-    const after = await inSeries(id);
-    expect(after.map(item => item.title)).toEqual(["eigen", "Vorlage", undefined, "Vorlage"]);
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 13)));
+    expect((await inSeries(id)).map(item => item.title)).toEqual(["eigen", undefined, undefined, undefined]);
   });
 
-  it("moves where the rule starts, so the next change leaves the old part alone", async () => {
+  it("moves where the rule starts, so the old part is a batch of its own", async () => {
     const id = await fortnight();
-    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)), template());
-    expect((await allSeries())[0].from).toBe(iso(addDays(monday, 7)));
-    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 7)), template());
-    expect(await inSeries(id)).toHaveLength(8);
+    const change = await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)));
+    const batches = Object.fromEntries((await allSeries()).map(item => [item.id, item]));
+    expect(batches[id].until).toBe(iso(addDays(monday, 6)));
+    expect(batches[change.series].from).toBe(iso(addDays(monday, 7)));
+    expect(await inSeries(id)).toHaveLength(7);
   });
 
   it("says what it would cost without costing it", async () => {
@@ -257,5 +258,51 @@ describe("the settings record", () => {
        "none" — the state a household that never answered is already in. */
     await saveSettings({ metacomRendering: undefined });
     expect((await settings()).metacomRendering).toBeUndefined();
+  });
+});
+
+/* The change that made a folder a workable store: a rule is a record, not the
+   thousands of days it implies. What has to keep working is the two ways a day
+   stops following its rule. */
+describe("a batch that is a rule rather than its days", () => {
+  const decade = () => createSeries({ kind: "daily" }, "2026-08-31", "2036-08-31", shape("18:00", "19:00"));
+
+  it("is one record however many days it covers", async () => {
+    const id = await decade();
+    expect(await allSeries()).toHaveLength(1);
+    expect(await inSeries(id)).toHaveLength(3654);
+    expect(await week(monday)).toHaveLength(7);
+  });
+
+  it("stores nothing for a day nobody touched", async () => {
+    await decade();
+    expect(await inSeries((await allSeries())[0].id)).not.toHaveLength(0);
+    expect((await week(monday)).every(item => item.id.includes("@"))).toBe(true);
+  });
+
+  it("makes a day concrete when it is edited, and leaves the rest derived", async () => {
+    const id = await decade();
+    const tuesday = (await week(monday))[1];
+    await put({ ...tuesday, title: "Besuch" });
+    const days = await week(monday);
+    expect(days.filter(item => item.title === "Besuch")).toHaveLength(1);
+    expect(days).toHaveLength(7);
+    expect(await inSeries(id)).toHaveLength(3654);
+  });
+
+  it("takes a deleted day out of the rule, so it does not come back", async () => {
+    const id = await decade();
+    await remove((await week(monday))[1].id);
+    expect(await week(monday)).toHaveLength(6);
+    expect((await allSeries())[0].skipped).toEqual(["2026-09-01"]);
+    expect(await inSeries(id)).toHaveLength(3653);
+  });
+
+  it("keeps a day deleted after it had been edited, rather than letting the rule redraw it", async () => {
+    await decade();
+    const tuesday = (await week(monday))[1];
+    await put({ ...tuesday, title: "Besuch" });
+    await remove((await week(monday)).find(item => item.title === "Besuch")!.id);
+    expect(await week(monday)).toHaveLength(6);
   });
 });

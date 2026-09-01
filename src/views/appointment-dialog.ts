@@ -334,7 +334,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
           if (!sure) return;
         }
         const gone = change.dropping.some(item => item.id === draft.id);
-        await repattern(batch.id, pattern, cut, stop, { ...draft, ...shape });
+        /* A cut leaves a second batch, and it is the one this day is now in — so
+           what follows changes that one and not the stretch behind it. */
+        draft.series = (await repattern(batch.id, pattern, cut, stop)).series;
         /* The day this one stood on may be one the new rule no longer covers, in
            which case it has just been removed and must not be written back. */
         if (gone) { handle.close(); return done(); }

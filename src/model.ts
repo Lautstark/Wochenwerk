@@ -77,7 +77,45 @@ export type Pattern =
   | { kind: "daily" }
   | { kind: "weekly"; weekdays: number[] }
   | { kind: "yearly" };
-export type Series = { id: string; pattern: Pattern; from: string; until: string; allDay: boolean; createdAt: number; updatedAt: number };
+/* What every day of a batch looks like. An appointment minus the three things that
+   belong to a day rather than to the rule: which day it is, which batch it is in,
+   and what was picked on it. */
+export type Shape = Omit<Appointment, "id" | "date" | "series" | "chosen" | "updatedAt">;
+
+/* A rule, not its consequences.
+ *
+ * A daily series used to be written out as three thousand records that differed
+ * in nothing but their date — the same fact stored three thousand times, and three
+ * thousand writes every time the rule changed. It is one record now, and the days
+ * it covers are worked out when a week is read.
+ *
+ * Two things stay concrete, because they are the days that stopped following the
+ * rule: an occurrence somebody edited is stored as an appointment of its own and
+ * stands in for the derived one, and an occurrence somebody deleted is a date in
+ * `skipped`. Everything else is arithmetic. This is how iCalendar has done it for
+ * thirty years, for the same reason. */
+export type Series = { id: string; pattern: Pattern; from: string; until: string; shape: Shape;
+  /** Dates the rule covers that were removed one at a time. */
+  skipped: string[]; allDay: boolean; createdAt: number; updatedAt: number };
+
+/* A derived occurrence has no record and so has no identity of its own — this is a
+   handle for the week on screen, and deliberately not a UUID, so that anything
+   holding one can tell it apart from something that was actually stored.
+   conventions.md §1.1 governs records; this is not one. */
+export const occurrenceId = (series: string, date: string) => `${series}@${date}`;
+export const isDerived = (id: string) => id.includes("@");
+export const cameFrom = (id: string) => { const at = id.indexOf("@"); return { series: id.slice(0, at), date: id.slice(at + 1) }; };
+
+/** The days a rule covers inside a window, as appointments. */
+export function expand(series: Series, from: string, to: string): Appointment[] {
+  const start = series.from > from ? series.from : from;
+  const stop = series.until < to ? series.until : to;
+  if (stop < start) return [];
+  const skipped = new Set(series.skipped);
+  return occurrences(series.pattern, start, stop)
+    .filter(date => !skipped.has(date))
+    .map(date => ({ ...structuredClone(series.shape), id: occurrenceId(series.id, date), date, series: series.id, updatedAt: series.updatedAt }));
+}
 export const samePattern = (a: Pattern, b: Pattern): boolean =>
   a.kind === b.kind && (a.kind !== "weekly" || (b.kind === "weekly"
     && a.weekdays.length === b.weekdays.length && a.weekdays.every((day, index) => day === b.weekdays[index])));

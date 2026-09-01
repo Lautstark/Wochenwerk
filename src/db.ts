@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { adopted, file, isStore, KINDS, markAdopted, pushKind, readKind, unfile } from "./folder.js";
-import { addDays, iso, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
+import { addDays, cameFrom, expand, iso, isDerived, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
    convention, and the shape a folder of one file per record maps onto when the
@@ -39,7 +39,7 @@ let opening: Promise<IDBPDatabase<Wochenwerk>> | null = null;
    this promise, so whatever the reason, not having opened by now is the thing
    worth saying, and the only screen that can say it is the one being looked at. */
 const PATIENCE = 4000;
-const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
+const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 8, {
   async upgrade(database, from, _to, transaction) {
     if (from < 1) {
       const appointments = database.createObjectStore("appointments", { keyPath: "id" });
@@ -55,13 +55,11 @@ const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
         const specials = old ? await old.getAll() : [];
         for (const special of specials) {
           const id = crypto.randomUUID();
-          transaction.objectStore("series").put({ id, pattern: { kind: "daily" }, from: special.from, until: special.to, allDay: true, createdAt: Date.now(), updatedAt: Date.now() });
-          for (const date of occurrences({ kind: "daily" }, special.from, special.to)) {
-            transaction.objectStore("appointments").put({
-              id: crypto.randomUUID(), date, symbols: special.kind === "birthday" ? [cake] : [],
-              options: [], people: [special.person], showPeople: true, series: id, updatedAt: Date.now(),
-            } as unknown as Appointment);
-          }
+          transaction.objectStore("series").put({
+            id, pattern: { kind: "daily" }, from: special.from, until: special.to,
+            shape: { symbols: special.kind === "birthday" ? [cake] : [], options: [], people: [special.person], showPeople: true },
+            skipped: [], allDay: true, createdAt: Date.now(), updatedAt: Date.now(),
+          });
         }
         database.deleteObjectStore("specials" as never);
       }
@@ -117,6 +115,29 @@ const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
        other's `if (from < 6)` never runs on it and its store is silently absent
        until something reaches for it. Whoever merges second still has to bump the
        version, but this is the half that does not depend on anybody noticing. */
+    /* Version 8 stopped writing a series out day by day. What is already written
+       out is read back into the rule it came from: the shape is what its days have
+       in common, the days the rule covers and nobody kept are `skipped`, and a day
+       that differs from the shape stays a record, because that is what it is.
+
+       Nothing is deleted that is not first accounted for. A day identical to what
+       the rule would draw is redundant and goes; anything else stays. That is the
+       difference between a migration and losing three thousand records. */
+    if (from >= 2 && from < 8) {
+      const appointments = transaction.objectStore("appointments");
+      const batches = transaction.objectStore("series");
+      for (const record of await batches.getAll()) {
+        const days = (await appointments.index("series").getAll(record.id)).sort((a, b) => a.date.localeCompare(b.date));
+        if (!days.length) { await batches.put({ ...record, shape: { symbols: [], options: [], people: [], showPeople: false }, skipped: [] }); continue; }
+        const { id: _id, date: _date, series: _series, chosen: _chosen, updatedAt: _at, ...shape } = days[0];
+        const had = new Set(days.map(day => day.date));
+        const rule = { ...record, shape, skipped: occurrences(record.pattern, record.from, record.until).filter(date => !had.has(date)) };
+        await batches.put(rule);
+        const same = (day: Appointment) => !day.chosen
+          && JSON.stringify({ ...day, id: 0, date: 0, series: 0, updatedAt: 0 }) === JSON.stringify({ ...shape, id: 0, date: 0, series: 0, updatedAt: 0 });
+        for (const day of days) if (same(day)) await appointments.delete(day.id);
+      }
+    }
     if (!database.objectStoreNames.contains("settings")) database.createObjectStore("settings", { keyPath: "id" });
     if (!database.objectStoreNames.contains("clips")) database.createObjectStore("clips", { keyPath: "id" });
   },
@@ -171,15 +192,33 @@ async function keep<T extends { id: string; updatedAt: number }>(store: Kept, re
   await (await db()).put(store as never, record as never);
   await file(KIND[store], record as never);
 }
-async function drop(store: Kept, id: string): Promise<void> {
+async function dropRecord(store: Kept, id: string): Promise<void> {
   await (await db()).delete(store as never, id as never);
   await unfile(KIND[store], id);
 }
 
-/** One week is a range over the date index, not a filter over everything. */
+/* One week is what was stored for those days plus what the rules put there.
+
+   The stored ones come first and win: an appointment that carries a series is an
+   occurrence somebody edited, and it stands in for the day the rule would have
+   drawn. Everything else is arithmetic over seven days, which is nothing. */
 export async function week(monday: Date): Promise<Appointment[]> {
   const from = iso(monday), to = iso(addDays(monday, 6));
-  return (await db()).getAllFromIndex("appointments", "date", IDBKeyRange.bound(from, to));
+  const database = await db();
+  const stored = await database.getAllFromIndex("appointments", "date", IDBKeyRange.bound(from, to));
+  const instead = new Set(stored.filter(item => item.series).map(item => `${item.series}@${item.date}`));
+  const derived = (await database.getAll("series")).flatMap(series => expand(series, from, to));
+  return [...stored, ...derived.filter(item => !instead.has(item.id))]
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+const dayBefore = (date: string) => iso(addDays(new Date(`${date}T00:00`), -1));
+const shapeOf = ({ id: _id, date: _date, series: _series, chosen: _chosen, updatedAt: _at, ...rest }: Appointment): Shape => rest;
+const overridesOf = async (series: string) => (await db()).getAllFromIndex("appointments", "series", series);
+/** Take a date out of a rule, so the day the rule covered stops appearing. */
+async function skip(series: string, date: string): Promise<void> {
+  const record = await (await db()).get("series", series);
+  if (!record || record.skipped.includes(date)) return;
+  await keep("series", { ...record, skipped: [...record.skipped, date], updatedAt: Date.now() });
 }
 export const allPeople = async () => (await db()).getAll("people");
 const allAppointments = async () => (await db()).getAll("appointments");
@@ -190,13 +229,33 @@ const mirror = async (...kinds: ("termine" | "serien")[]) => {
   }
 };
 export const allSeries = async () => (await db()).getAll("series");
-/** A batch in the order it runs. The index answers by key, which is a UUID. */
-export const inSeries = async (id: string) =>
-  (await (await db()).getAllFromIndex("appointments", "series", id)).sort((a, b) => a.date.localeCompare(b.date));
-export async function put(appointment: Appointment): Promise<void> {
-  await keep("appointments", { ...appointment, updatedAt: Date.now() });
+/** A batch in the order it runs: the days somebody changed, and the days the rule
+    still governs on its own. */
+export async function inSeries(id: string): Promise<Appointment[]> {
+  const record = await (await db()).get("series", id);
+  if (!record) return [];
+  const changed = await overridesOf(id);
+  const instead = new Set(changed.map(item => item.date));
+  return [...changed, ...expand(record, record.from, record.until).filter(item => !instead.has(item.date))]
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
-export const remove = (id: string) => drop("appointments", id);
+
+/* Editing one day of a batch is what makes that day concrete: it stops being
+   arithmetic and becomes a record, which is exactly what happened to it. */
+export async function put(appointment: Appointment): Promise<void> {
+  const record = isDerived(appointment.id) ? { ...appointment, id: uuid() } : appointment;
+  await keep("appointments", { ...record, updatedAt: Date.now() });
+}
+
+/* Deleting one day of a batch takes that date out of the rule — and does so for a
+   day that had been edited too. Dropping the record alone would let the rule draw
+   the day again, which reads as a deletion that did not happen. */
+export async function remove(id: string): Promise<void> {
+  if (isDerived(id)) { const { series, date } = cameFrom(id); return skip(series, date); }
+  const appointment = await (await db()).get("appointments", id);
+  await dropRecord("appointments", id);
+  if (appointment?.series) await skip(appointment.series, appointment.date);
+}
 
 /* Where a folder is the store, the folder is the truth: on start it is read and
    the browser's copy is replaced wholesale. A replace needs no reconciliation and
@@ -318,10 +377,10 @@ export const saveVoice = async (voice: string) => { await saveSettings({ voice }
 export const saveAzure = async (azure: Settings["azure"]) => { await saveSettings({ azure }); };
 
 export const putPerson = async (person: Person) => { await keep("people", { ...person, updatedAt: Date.now() }); };
-export const removePerson = (id: string) => drop("people", id);
+export const removePerson = (id: string) => dropRecord("people", id);
 export const allCards = async () => (await db()).getAll("cards");
 export const putCard = async (card: Card) => { await keep("cards", { ...card, updatedAt: Date.now() }); };
-export const removeCard = (id: string) => drop("cards", id);
+export const removeCard = (id: string) => dropRecord("cards", id);
 
 /* Setting a birthday writes the appointments it produces — a century of all-day
    entries carrying that person, and nothing else. Changing it replaces the batch. */
@@ -342,45 +401,29 @@ export async function choose(id: string, option: string): Promise<void> {
   await database.put("appointments", { ...appointment, chosen: option, updatedAt: Date.now() });
 }
 
-/* Creating a series writes the appointments, concretely and once. The series record
-   only remembers how, so the batch can be listed, extended and cleared later. */
-export async function createSeries(pattern: Pattern, from: string, until: string, shape: Omit<Appointment, "id" | "date" | "series" | "updatedAt">): Promise<string> {
-  const database = await db();
-  const id = uuid();
-  const dates = occurrences(pattern, from, until);
-  await database.put("series", { id, pattern, from, until, allDay: !shape.start, createdAt: Date.now(), updatedAt: Date.now() });
-  const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([
-    ...dates.map(date => writing.store.put({ ...shape, id: uuid(), date, series: id, updatedAt: Date.now() })),
-    writing.done,
-  ]);
-  await mirror("termine", "serien");
+/* Creating a series writes the rule and nothing else. What used to be three
+   thousand records is one, and the days it covers are worked out when they are
+   read. */
+export async function createSeries(pattern: Pattern, from: string, until: string, shape: Shape): Promise<string> {
+  const id = uuid(), now = Date.now();
+  await keep("series", { id, pattern, from, until, shape, skipped: [], allDay: !shape.start, createdAt: now, updatedAt: now });
   return id;
 }
 
-/* Turning an appointment that already exists into a batch adopts the record rather
-   than replacing it: its id is what the week on screen already holds, and a choice
-   resolved on it stays resolved. The rest of the batch is written around it, and
-   the copies start undecided — a choice belongs to its own day.
+/* Turning an appointment that already exists into a batch keeps the record rather
+   than dissolving it: its id is what the week on screen already holds, and a choice
+   resolved on it stays resolved — so it stays stored, standing in for its own day.
 
    A pattern that does not fall on this appointment's own weekday leaves it behind:
    what was asked for is the batch, not the batch and the appointment. */
 export async function seriesFrom(appointment: Appointment, pattern: Pattern, until: string): Promise<string> {
-  const database = await db();
-  const id = uuid();
+  const id = uuid(), now = Date.now();
   const stop = until < appointment.date ? appointment.date : until;
-  const dates = occurrences(pattern, appointment.date, stop);
-  const now = Date.now();
-  await database.put("series", { id, pattern, from: appointment.date, until: stop, allDay: !appointment.start, createdAt: now, updatedAt: now });
-  const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([
-    ...dates.map(date => writing.store.put(date === appointment.date
-      ? { ...appointment, series: id, updatedAt: now }
-      : { ...appointment, id: uuid(), date, series: id, chosen: undefined, updatedAt: now })),
-    ...(dates.includes(appointment.date) ? [] : [writing.store.delete(appointment.id)]),
-    writing.done,
-  ]);
-  await mirror("termine", "serien");
+  const covered = occurrences(pattern, appointment.date, appointment.date).length > 0;
+  await keep("series", { id, pattern, from: appointment.date, until: stop, shape: shapeOf(appointment),
+    skipped: [], allDay: !appointment.start, createdAt: now, updatedAt: now });
+  if (covered) await keep("appointments", { ...appointment, series: id, updatedAt: now });
+  else await dropRecord("appointments", appointment.id);
   return id;
 }
 
@@ -389,13 +432,20 @@ export async function reachOf(series: string, from?: string): Promise<Appointmen
   const all = await inSeries(series);
   return from ? all.filter(appointment => appointment.date >= from) : all;
 }
+/* Removing a batch, or the tail of one, is a change to the rule and not a sweep
+   over its days. Where it is cut, the rule stops there and the days before it stay
+   exactly as they were — which is the same promise the old sweep made and had to
+   spend thousands of deletes keeping. */
 export async function dropSeries(series: string, from?: string): Promise<number> {
-  const database = await db();
+  const record = await (await db()).get("series", series);
+  if (!record) return 0;
   const touched = await reachOf(series, from);
-  const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([...touched.map(appointment => writing.store.delete(appointment.id)), writing.done]);
-  if (!from || !(await inSeries(series)).length) await database.delete("series", series);
-  await mirror("termine", "serien");
+  for (const appointment of await overridesOf(series)) {
+    if (!from || appointment.date >= from) await dropRecord("appointments", appointment.id);
+  }
+  if (!from || from <= record.from) await dropRecord("series", series);
+  else await keep("series", { ...record, until: dayBefore(from),
+    skipped: record.skipped.filter(date => date < from), updatedAt: Date.now() });
   return touched.length;
 }
 /* Reshaping a batch — a new rule, a new end, or both — is one piece of arithmetic
@@ -406,7 +456,9 @@ export async function dropSeries(series: string, from?: string): Promise<number>
    Nothing before `from` is looked at, let alone rewritten. What the board showed in
    September is what was planned in September, and a rule changed in October does
    not reach back for it. */
-export type Reshape = { adding: string[]; dropping: Appointment[] };
+export type Reshape = { adding: string[]; dropping: Appointment[];
+  /** Which batch governs the changed stretch afterwards — a cut leaves a new one. */
+  series: string };
 
 export async function reshapeOf(series: string, pattern: Pattern, from: string, until: string): Promise<Reshape> {
   const ahead = (await inSeries(series)).filter(appointment => appointment.date >= from);
@@ -415,49 +467,72 @@ export async function reshapeOf(series: string, pattern: Pattern, from: string, 
   return {
     adding: [...wanted].filter(date => !have.has(date)),
     dropping: ahead.filter(appointment => !wanted.has(appointment.date)),
+    series,
   };
 }
 
-/** Apply one. `like` is the appointment the days that are new get written from. */
-export async function repattern(series: string, pattern: Pattern, from: string, until: string, like: Appointment): Promise<Reshape> {
-  const database = await db();
-  const record = await database.get("series", series);
-  if (!record) return { adding: [], dropping: [] };
+/* Apply one — the rule, and only the rule. What a batch looks like is changed one
+   step further down by `editSeries`, and the days a widened rule adds look like the
+   batch they joined, because that is now the one place a batch's shape lives.
+
+   A change that starts partway through splits the batch: the old record keeps the
+   stretch it already governed and the new rule gets a record of its own. That is
+   what "ab hier" has always meant, and it is now what is stored — one cut instead
+   of rewriting every day after it. The days before the cut are not looked at, so
+   what the board showed in September stays what was planned in September. */
+export async function repattern(series: string, pattern: Pattern, from: string, until: string): Promise<Reshape> {
+  const record = await (await db()).get("series", series);
+  if (!record) return { adding: [], dropping: [], series };
   const stop = until < from ? from : until;
   const change = await reshapeOf(series, pattern, from, stop);
   const now = Date.now();
-  const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([
-    ...change.dropping.map(appointment => writing.store.delete(appointment.id)),
-    /* A day nobody had yet is written from the appointment somebody has open, not
-       from the first of the batch: that one may carry an edit of its own, and it is
-       not the one being looked at. Undecided, because a choice belongs to its day.
-       A day that survives is left alone entirely, edits and all. */
-    ...change.adding.map(date => writing.store.put({ ...like, id: uuid(), date, series, chosen: undefined, updatedAt: now })),
-    writing.done,
-  ]);
-  /* The record describes the stretch it still governs, so `from` moves to the day
-     the new rule starts. That is what keeps the untouched past out of every later
-     reshape — and what lies there keeps the batch id, so it stays listable as one. */
-  await database.put("series", { ...record, pattern, from, until: stop, allDay: !like.start, updatedAt: Date.now() });
-  await mirror("termine", "serien");
-  return change;
+  /* A day that survives the new rule keeps its edits; a day the rule no longer
+     covers loses the record that stood in for it. */
+  for (const appointment of change.dropping) if (!isDerived(appointment.id)) await dropRecord("appointments", appointment.id);
+
+  if (from <= record.from) {
+    await keep("series", { ...record, pattern, from, until: stop,
+      skipped: record.skipped.filter(date => date >= from && date <= stop), updatedAt: now });
+    return change;
+  }
+  await keep("series", { ...record, until: dayBefore(from), skipped: record.skipped.filter(date => date < from), updatedAt: now });
+  const id = uuid();
+  await keep("series", { ...record, id, pattern, from, until: stop, skipped: [], createdAt: now, updatedAt: now });
+  for (const appointment of await overridesOf(series)) {
+    if (appointment.date >= from) await keep("appointments", { ...appointment, series: id, updatedAt: now });
+  }
+  return { ...change, series: id };
 }
 
+/* Changing what a batch looks like changes the rule, and the days that had been
+   edited along with it — they are part of the batch, and a batch that changed
+   shape everywhere except on the days somebody touched would be a strange thing to
+   look at. From a date, the batch splits, exactly as a new rule does. */
 export async function editSeries(series: string, change: Partial<Appointment>, from?: string): Promise<number> {
-  const database = await db();
+  const record = await (await db()).get("series", series);
+  if (!record) return 0;
   const touched = await reachOf(series, from);
-  const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([...touched.map(appointment => {
+  const now = Date.now();
+  const shape = { ...record.shape, ...shapeOf({ ...record.shape, ...change } as Appointment) };
+  const target = !from || from <= record.from ? series : uuid();
+
+  if (target === series) await keep("series", { ...record, shape, allDay: !shape.start, updatedAt: now });
+  else {
+    await keep("series", { ...record, until: dayBefore(from!), skipped: record.skipped.filter(date => date < from!), updatedAt: now });
+    await keep("series", { id: target, pattern: record.pattern, from: from!, until: record.until, shape,
+      skipped: record.skipped.filter(date => date >= from!), allDay: !shape.start, createdAt: now, updatedAt: now });
+  }
+  for (const appointment of await overridesOf(series)) {
+    if (from && appointment.date < from) continue;
     /* What was chosen belongs to the day it was chosen on, so a change over a batch
        never carries one across — `change` is written without it. It can still take
        one away, though: a card that is no longer offered is not an answer, and
        leaving it there would read as decided. */
     const chosen = appointment.chosen && change.options && !change.options.includes(appointment.chosen)
       ? undefined : appointment.chosen;
-    return writing.store.put({ ...appointment, ...change, chosen, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() });
-  }), writing.done]);
-  await mirror("termine", "serien");
+    await keep("appointments", { ...appointment, ...change, chosen, id: appointment.id,
+      date: appointment.date, series: target, updatedAt: now });
+  }
   return touched.length;
 }
 
