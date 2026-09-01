@@ -71,7 +71,7 @@ describe("a whole-day appointment", () => {
 
 describe("a birthday", () => {
   it("writes a century of days from a date on the person, and replaces them when it moves", async () => {
-    const person = { id: uuid(), name: "Testperson", initials: "MI", tone: "#000" };
+    const person = { id: uuid(), name: "Testperson", initials: "TP", tone: "#000" };
     await setBirthday(person, "2026-09-06");
     const [series] = await allSeries();
     expect(await inSeries(series.id)).toHaveLength(101);
@@ -89,7 +89,7 @@ describe("a birthday", () => {
   });
 
   it("takes the appointments with it when the date is cleared", async () => {
-    const person = { id: uuid(), name: "Testperson", initials: "MI", tone: "#000" };
+    const person = { id: uuid(), name: "Testperson", initials: "TP", tone: "#000" };
     await setBirthday(person, "2026-09-06");
     const [series] = await allSeries();
     await setBirthday({ ...person, birthday: "2026-09-06", birthdaySeries: series.id }, undefined);

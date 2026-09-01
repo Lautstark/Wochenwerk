@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse a commit that carries a term from .private-names. See tools/no-private.mjs.
+exec node tools/no-private.mjs

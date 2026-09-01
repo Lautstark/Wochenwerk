@@ -9,7 +9,7 @@
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
     "start": "node ./node_modules/vite/bin/vite.js preview",
-    "test": "vitest run",
+    "test": "node tools/no-private.mjs && vitest run",
     "test:watch": "vitest",
     "check": "tsc --noEmit"
   },

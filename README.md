@@ -12,6 +12,24 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 - Node.js `>=22.13.0`
 
+## Nobody real goes in here
+
+This repository is public and its history is published, so no household's own
+week belongs in it — not in a doc, not in a fixture, not in seed data. Examples
+use placeholders.
+
+`tools/no-private.mjs` is the floor under that rule. It refuses anything in the
+working tree that matches a term in `.private-names`, which is git-ignored so
+that the terms are not themselves committed: one per line, `#` for comments. It
+runs on `npm test`, and on every commit once the hooks are enabled:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Without `.private-names` the check passes and says so. It catches the names
+somebody thought to write down, which is not the same as catching every one.
+
 ## METACOM symbols
 
 Nothing licensed is served by this app. Symbols are read from your own folder in the browser through [`@lautstark/bildquelle`](https://github.com/Lautstark/bildquelle), which hands them to the page as object URLs and transmits nothing. Open **Kalender → Einstellungen → Ordner wählen** and point it at your **unframed** set — `Symbole_PNG/PNG_ohne_Rahmen`. The framed one carries a black border and a printed caption, neither of which the board wants.

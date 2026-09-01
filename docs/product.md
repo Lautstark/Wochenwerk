@@ -28,6 +28,6 @@ The four METACOM time-of-day symbols (morgens, mittags, nachmittags, abends) for
 
 The visual system is flat and modern: no rounded day cards, no gaps between columns, no dashboard chrome, no bottom tray, no legend, and no instructional text. Wochentag colours are bold but harmonious, with the current day most prominent.
 
-## Current example data
+## What a week looks like
 
-Weekdays include breakfast, getting ready, leaving for Kita, Kita (08:45–14:00), free afternoon, cooking, dinner, and evening routine. Saturday and Sunday include open choice appointments. Testperson has speech therapy Tuesday 11:00–11:45 and Thursday 11:00–11:45, followed by early intervention Thursday 12:00–13:15.
+A household's week is its own and none of it is written down here. What the board has to cope with, said as shapes rather than as anybody's timetable: a long weekday block a child is away for, several short ones around it, therapy appointments that run parallel to the long one on some days, open choices at the weekend, and a whole-day entry now and then.

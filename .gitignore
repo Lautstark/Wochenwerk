@@ -45,3 +45,6 @@ yarn-error.log*
 # Locally licensed METACOM symbols are deliberately never committed.
 # Nothing licensed is served from here any more: bildquelle reads the
 # household's own folder through the File System Access API. See ADR 002.
+
+# Terms that must never be committed. Kept out of the repository on purpose.
+/.private-names
