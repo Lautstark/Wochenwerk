@@ -62,16 +62,24 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
   padding: 3px 8px; border-radius: 999px; background: rgba(20, 16, 14, .62);
   font-size: 11.5px; line-height: 1.35; text-align: right; color: #d5cec7; pointer-events: none; }
 
-/* Weekday colours: one coherent row of the palette explorations, bold enough to
-   carry a whole column. Saturday keeps the METACOM stone grey, warmed so it reads
-   as a colour and not as a disabled state. */
-.day-1 { --day: #f2c94c; }
-.day-2 { --day: #58a66f; }
-.day-3 { --day: #4b9ccc; }
-.day-4 { --day: #e05d50; }
-.day-5 { --day: #f09a34; }
-.day-6 { --day: #a8a096; }
-.day-7 { --day: #d95479; }
+/* Weekday colours: the METACOM hues exactly as the day cards teach them — yellow,
+   green, blue, red, orange, white, pink — brought onto one shared lightness and
+   one shared saturation. Only the hue moves from day to day, which is what makes
+   seven colours a set rather than seven decisions.
+
+   Two of the seven cannot be taken over literally. Red and pink sit close enough
+   on the wheel that hue alone would not tell Thursday from Sunday, so they are
+   parted the way METACOM parts them: a full red against a pale rose. And white
+   cannot be a field on a board whose appointments are white cards — Saturday
+   would have no cards left, only their shadows. It becomes the lightest of the
+   seven instead, a warm limestone, still the bright day of the week. */
+.day-1 { --day: #f7d856; }
+.day-2 { --day: #7dcd6b; }
+.day-3 { --day: #71abfa; }
+.day-4 { --day: #f36356; }
+.day-5 { --day: #fea33e; }
+.day-6 { --day: #d5d0c7; }
+.day-7 { --day: #feb9d0; }
 
 /* A day is in one of three states, and the state is carried by colour alone:
    what is over has lost its colour, today is at full strength, what is ahead keeps
@@ -81,8 +89,13 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
   --paper: color-mix(in oklab, var(--day) 14%, #fff);
   --tile: 7rem;
   background: var(--field); }
-.day.gone { --field: color-mix(in oklab, var(--day) 18%, #47433f);
-  --paper: color-mix(in oklab, var(--day) 7%, #d3cec9); }
+/* What is over does not turn grey — it goes dark. Grey was the same answer for
+   all seven days: at a fifth of the day colour on a mid grey, Monday and Saturday
+   came out within a hair of each other, and a week the child reads by colour lost
+   its first half every afternoon. So the day keeps a third of its colour and the
+   light is taken away instead, which is also what the evening does to a room. */
+.day.gone { --field: color-mix(in oklab, var(--day) 34%, #201b18);
+  --paper: color-mix(in oklab, var(--day) 13%, #c7c1bb); }
 .day.gone .icon img, .day.gone .badge img, .day.gone .face { filter: grayscale(.9); opacity: .78; }
 .day.today { position: relative; z-index: 2; --field: color-mix(in oklab, var(--day) 90%, #fff); --paper: #fff; --tile: 11rem;
   box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--day) 40%, #fff), 0 0 3.5rem rgba(0, 0, 0, .5); }

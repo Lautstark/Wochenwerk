@@ -10,7 +10,7 @@ The prototype board is a full-screen 16:9 weekly view over a configurable window
 
 Colour carries time at both scales: past days and finished appointments are strongly greyed, the current day and the running appointment are at full strength, everything ahead keeps its weekday colour but stays quieter than today. The running appointment is the now indicator.
 
-The visual direction is flat, modern, and high-contrast. Each day is a solid field of its weekday colour, taken as bold, harmonious adaptations of the METACOM day colours; appointments are light cards on that field, separated by visible day colour, with no outlines around individual entries. Licensed METACOM assets remain local and are never committed; the board uses the unframed symbol set, without the printed captions.
+The visual direction is flat, modern, and high-contrast. Each day is a solid field of its weekday colour, taken as the METACOM day colours held at one shared lightness and saturation, with Saturday's white replaced by the lightest of the seven; appointments are light cards on that field, separated by visible day colour, with no outlines around individual entries. Licensed METACOM assets remain local and are never committed; the board uses the unframed symbol set, without the printed captions.
 
 ## Future NFC information cards (open requirement)
 
