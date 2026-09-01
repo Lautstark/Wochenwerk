@@ -82,20 +82,6 @@ export type Series = { id: string; pattern: Pattern; from: string; until: string
 export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string };
 export const bornOn = (person: Person, date: string) => !!person.birthday && person.birthday.slice(5) === date.slice(5);
 
-/* One record, and everything the household has chosen is in it — never localStorage,
-   which is a second store to be restored from and survives the database being
-   cleared. conventions.md §1.2 and §1.3.
-
-   And one for the whole calendar: not one per appointment, not per card, not per
-   series. mitreden keeps a voice here too, but as the default for the *next*
-   Sammlung, because it has many of them and each carries its own. Wochenwerk is one
-   household on one shelf. There is one key and one voice, and a setting that could
-   differ between two weeks would be one nobody could answer from the wall. */
-export type Settings = {
-  /** Azure Speech, if a key has been typed. db.ts says what keeping it here means. */
-  azure?: { key: string; region: string };
-};
-
 /* Appointments that run at the same time share the width of their day. Both routes
    lay them out the same way, so the board and the calendar never disagree about
    what is parallel to what. */
@@ -175,3 +161,21 @@ export const mondayOf = (at: Date) => { const start = new Date(at); start.setDat
 export const addDays = (at: Date, days: number) => { const next = new Date(at); next.setDate(at.getDate() + days); return next; };
 export const weekdays = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"];
 export const dayLabel = (date: string) => { const [, month, day] = date.split("-"); return `${Number(day)}.${Number(month)}.`; };
+
+/* What the household set up once, as opposed to what it planned. One record and
+   never localStorage: a preference living in two stores is one that gets restored
+   by one of them and overwritten by the other, and localStorage survives the
+   database being cleared. conventions.md §1.2 and §1.3.
+
+   The voice is one for the whole calendar, deliberately — not per appointment, per
+   card, per series or per person. mitreden keeps a voice per Sammlung because a
+   recording is a fact about the file it produced; a household has one board in one
+   hallway, and a week that changes voice between Tuesday and Wednesday is a week
+   that sounds broken. It is a stimmquelle voice id, which is exactly what speech
+   will later be asked for, so nothing has to be translated. */
+export type Settings = {
+  /** Passed to Azure from the tab and never anywhere else. It is what makes the
+      Azure voices appear in a picker at all. */
+  azure?: { key: string; region: string };
+  voice?: string;
+};

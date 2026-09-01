@@ -63,7 +63,7 @@ function makePanel(label: string): Panel {
 
 export function openSettings(say: (line: string) => void) {
   const symbols = makePanel("Symbole");
-  const speech = makePanel("Sprachausgabe");
+  const speech = makePanel("Azure Speech");
   const cards = makePanel("Karten");
   const people = makePanel("Personen");
   const data = makePanel("Daten");
@@ -93,7 +93,7 @@ export function openSettings(say: (line: string) => void) {
   const wording = (answer: Answer) => answer.ok
     ? `${answer.count} ${answer.count === 1 ? "Stimme" : "Stimmen"} verfügbar`
     : answer.code === "unreachable" ? "Die Region antwortet nicht — stimmt der Regionsname?"
-      : answer.code === "refused" ? "Azure lehnt den Schlüssel ab."
+      : answer.code === "refused" ? "Azure nimmt den Schlüssel nicht an."
         : "Die Abfrage ist fehlgeschlagen — später noch einmal versuchen.";
 
   /* Drawn on opening and after a save or a forget, and deliberately not from
@@ -117,7 +117,7 @@ export function openSettings(say: (line: string) => void) {
     fill(speech.body,
       probe,
       el("p", { class: "small muted", text: "Azure ist kostenpflichtig und braucht ein Konto. Dein Schlüssel bleibt in diesem Browser; die Anfrage geht von hier direkt zu Microsoft, nie über einen Server von uns." }),
-      el("p", { class: "small muted", text: "Schlüssel und Stimme gelten für den ganzen Kalender — nicht pro Termin, nicht pro Karte und nicht pro Serie." }),
+      el("p", { class: "small muted", text: "Ein Schlüssel für den ganzen Kalender — nicht pro Termin, nicht pro Karte und nicht pro Serie." }),
       el("div", { class: "row-of" }, field("Schlüssel", key), field("Region", region)),
       el("datalist", { attrs: { id: "azure-regionen" } }, ...AZURE_REGIONS.map(name => el("option", { attrs: { value: name } }))),
       el("p", { class: "small muted", text: "Die Region steht im Azure-Portal bei deiner Speech-Ressource, z. B. westeurope." }),
