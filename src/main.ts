@@ -68,11 +68,16 @@ function avatar(draw: Drawing, id: string, extra = "") {
   const inner = person.photo ? `<img src="${person.photo}" alt="" />` : `<b>${escape(person.initials)}</b>`;
   return `<span class="face" style="--tone:${person.tone}" title="${escape(person.name)}">${inner}${extra}</span>`;
 }
-function faces(draw: Drawing, ids: string[]) {
+function faces(draw: Drawing, ids: string[], date?: string) {
   /* Three avatars is what a narrow column can carry; the rest becomes a count. */
   const shown = ids.slice(0, 3), rest = ids.length - shown.length;
   const more = rest > 0 ? `<span class="face" style="--tone:#57504a"><b>+${rest}</b></span>` : "";
-  return `<span class="faces">${shown.map(id => avatar(draw, id)).join("")}${more}</span>`;
+  return `<span class="faces">${shown.map(id => {
+    /* A crown wherever the day is somebody's birthday — derived from the person,
+       so no appointment has to carry a category. */
+    const person = draw.people.get(id);
+    return avatar(draw, id, date && person && bornOn(person, date) ? crown : "");
+  }).join("")}${more}</span>`;
 }
 
 function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) {
@@ -97,27 +102,21 @@ function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) 
 }
 
 /* Everything that lasts all day sits at the top of the day rather than in the
-   column, and all of it forms one stack however many appointments it came from:
-   the people it concerns, each wearing the symbol its appointment carries. Visit
-   and birthday are only two shapes of that, not two kinds of record. */
+   column, and each one is a single pill: the symbol it carries and, beside it,
+   whom it concerns. One pill per appointment, so two of them stay countable the
+   way two cards do — and a day fact with nobody on it is the same pill with the
+   symbol alone. Visit and birthday are only two shapes of that, not two kinds of
+   record. */
 function whole(draw: Drawing, appointments: Appointment[], date: string) {
-  const marks = appointments.flatMap(appointment => {
+  const pills = appointments.map(appointment => {
+    /* At most one picture: a row of symbols beside a row of avatars would be two
+       lists in one pill, and the pill is too small to read as two. */
     const first = appointment.symbols[0] ?? shownCards(appointment).map(id => draw.cards.get(id)?.symbol).find(Boolean);
     const symbol = first ? `<span class="badge">${picture(draw, first)}</span>` : "";
-    return appointment.people.length
-      ? appointment.people.map(id => {
-          /* A crown wherever the day is somebody's birthday — derived from the
-             person, so no appointment has to carry a category. */
-          const person = draw.people.get(id);
-          return avatar(draw, id, (person && bornOn(person, date) ? crown : "") + symbol);
-        })
-      : [`<span class="face plain">${symbol}</span>`];
+    const crowd = appointment.people.length ? faces(draw, appointment.people, date) : "";
+    return symbol || crowd ? `<span class="pill">${symbol}${crowd}</span>` : "";
   }).filter(Boolean);
-  if (!marks.length) return "";
-  /* Three is what a narrow column carries; the rest becomes a count, as on a card. */
-  const shown = marks.slice(0, 3), rest = marks.length - shown.length;
-  const more = rest > 0 ? `<span class="face" style="--tone:#57504a"><b>+${rest}</b></span>` : "";
-  return `<span class="faces">${shown.join("")}${more}</span>`;
+  return pills.join("");
 }
 
 function column(draw: Drawing, date: string, index: number, appointments: Appointment[]) {
