@@ -139,9 +139,16 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .calendar { position: relative; min-height: 0; padding: .35rem .45rem .45rem; }
 .track { position: relative; height: 100%; }
 
-/* Duration is the height of the card, exactly; the gap between cards is day colour. */
+/* Duration is the height of the card, exactly; the gap between cards is day colour.
+
+   And a size container, because duration is also how much room there is to draw
+   in: half an hour and three hours are the same appointment at two sizes, and
+   what is on them has to be too. Both of the card's sides come from the style
+   attribute — the height from the duration, the width from the lane — so nothing
+   inside it can feed back into its size and the containment costs nothing. */
 .card { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center;
   overflow: hidden; padding: .2rem; border: 0; border-radius: .7rem; background: var(--paper);
+  container-type: size;
   box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .16); }
 .icons { width: 100%; height: 100%; min-width: 0; display: flex; align-items: center; justify-content: center; gap: .25rem; }
 .icon { min-width: 0; max-width: 100%; aspect-ratio: 1; height: min(var(--tile), 100%); display: grid; place-items: center; }
@@ -252,9 +259,26 @@ header { display: flex; align-items: center; justify-content: space-between; gap
    The row beneath is small and muted on purpose. These are not two appointments
    and must not read as two: they are answers nobody has given, so they sit at a
    third of the height and take some of their colour out. */
+/* Both sizes are a wish and two ceilings. The wish is the day's tile, which is
+   what every other symbol on the board is measured against, so a choice on a long
+   afternoon is as big as the appointments around it. The ceilings are the card
+   itself: a half-hour choice is a short card, and a question mark drawn at the
+   tile size would have been cut off by it — as would the row underneath, which is
+   the half that gets clipped first and the half that says what there is to pick.
+   Width is a ceiling as well, because two parallel appointments halve the column
+   and the offers stand side by side in what is left. */
 .card.open .icons { flex-direction: column; gap: .1rem; }
-.ask { font-size: calc(var(--tile) * .5); line-height: .95; font-weight: 700;
+/* Half the card's height, but never smaller than a word on this page — until the
+   card is so short that even that would not fit, and then it is nine tenths of
+   whatever there is. A half-hour choice is a card thirty pixels tall, of which the
+   dashed edge and the padding are thirteen: at a straight half of the rest the
+   mark came out at eight pixels, which is not a question mark, it is a speck.
+   Below that floor the mark takes the card and the row gives way — it shrinks
+   because it may, and the mark does not because it is the sign being learnt. */
+.ask { font-size: min(calc(var(--tile) * .5), 62cqw, max(50cqh, min(90cqh, 1rem)));
+  flex: none; line-height: .95; font-weight: 700;
   color: color-mix(in oklab, var(--day) 45%, #241c14); }
-.offers { display: flex; align-items: center; justify-content: center; gap: .25rem; }
-.offers .icon { height: calc(var(--tile) * .26); }
+.offers { display: flex; align-items: center; justify-content: center; gap: .25rem;
+  flex: 0 1 auto; min-height: 0; max-width: 100%; overflow: hidden; }
+.offers .icon { height: min(calc(var(--tile) * .26), 24cqh, calc(88cqw / var(--count, 2))); max-height: 100%; }
 .offers img { opacity: .62; filter: saturate(.55); }
