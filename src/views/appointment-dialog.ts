@@ -112,7 +112,13 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      free to carry what the child is not told — a room, a practice, a surname —
      and this is where the two come apart. docs/speech.md. */
   const speech = speechField(
-    () => title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "",
+    /* An all-day fact is offered its whole sentence, because that is what it
+       says — a word would have to be a noun the day can be, and a trip is not
+       one. Everything with a time is offered a word, which has six frames to
+       survive. See `dayFact` and docs/speech.md. */
+    () => whole.checked
+      ? (title.value.trim() ? `Heute ist ${title.value.trim()}.` : "")
+      : title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "",
     () => {
       const on = draft.people.map(id => shown().people.find(person => person.id === id)).filter(Boolean) as Person[];
       const born = whole.checked ? on.filter(person => bornOn(person, draft.date)) : [];

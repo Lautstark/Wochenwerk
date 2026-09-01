@@ -1,4 +1,4 @@
-import { addDays, allDay, board, bornOn, cardSays, daypartTimes, iso, minute, reading, snapped, spokenName, undecided,
+import { addDays, allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, reading, snapped, spokenName, undecided,
   type Appointment, type Card, type Person } from "./model.js";
 
 /* The week, one moment, and what is said out loud about it. See docs/speech.md
@@ -160,7 +160,7 @@ function dayLine(week: Appointment[], at: Date, now: string, household: Househol
      the second half is then the very clip the first half already used. */
   return utter(fixed(FRAMES.today), fixed(day),
     ...(guests.length ? [fixed(FRAMES.and), ...guests] : []),
-    ...(named ? [fixed(FRAMES.stop), fixed(FRAMES.today), own(named)] : []));
+    ...(named ? [fixed(FRAMES.stop), own(named)] : []));
 }
 
 /* Whose birthday it is, and how old they are turning — the age from the person's
@@ -190,10 +190,10 @@ function visitClause(facts: Appointment[], household: Household): Part[] {
   }
   return [];
 }
-/** A day fact with a word of its own: a holiday, a closed Kita. */
-function namedFact(facts: Appointment[], household: Household): string | undefined {
+/** A day fact with something of its own to say: a holiday, a trip, a closed Kita. */
+function namedFact(facts: Appointment[], _household: Household): string | undefined {
   for (const fact of facts) {
-    const said = spokenName(fact, household.cards);
+    const said = dayFact(fact);
     if (said) return said;
   }
   return undefined;
@@ -333,8 +333,10 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
 
   /* An all-day appointment is never running and never next: it is a fact about
      the day, and the day sentence is the only one that carries it. */
+  /* An all-day fact says a sentence rather than a word — see `dayFact`. It is
+     handed one, so nothing here wraps it. */
   if (shape.allDay) return days.map(day => ({
-    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.stop), fixed(FRAMES.today), w),
+    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.stop), w),
     when: day.when,
   }));
 

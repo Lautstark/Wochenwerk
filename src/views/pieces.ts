@@ -137,6 +137,9 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
       const own = fromPeople(shape());
       box.disabled = own;
       box.placeholder = own ? "Wird von der Person gesagt" : instead() || "Ohne Namen wird nichts gesagt";
+      /* A whole sentence for a day, a word for everything else. The placeholder
+         shows one of the two and cannot say which it is, so the label does. */
+      box.title = shape().allDay ? "Ein ganzer Satz über den Tag" : "Ein Wort, das in jeden Satz passt";
       const possible = couldSay(own ? "" : word(), shape());
       all.hidden = !possible.length;
       all.querySelector("summary")!.textContent = own

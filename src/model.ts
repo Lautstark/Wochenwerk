@@ -194,6 +194,25 @@ export const titleOf = (appointment: Appointment, byId: Map<string, Card>, peopl
    had to type either frame. That is also what keeps a word usable in a sentence
    nobody has written yet: a phrase would be right in the frame it was written
    for and wrong in the next one. */
+/* What is said about a day that carries a fact of its own.
+
+   A whole sentence, not a word — and that is not a break with the rule beside it
+   but the same rule read properly. A word has to be a word because it stands in
+   six frames and must survive all of them; a day fact stands in exactly one, so
+   there is nothing for it to survive, and no reason to make a household bend what
+   happens into a noun the day can *be*. "Heute ist Besuch im Saarland" is what
+   that bending sounds like; "Heute fahren wir ins Saarland" is what a person
+   would say, and no frame could have produced it.
+
+   Without one written the title is wrapped, which covers "Ferientag" and every
+   other day that genuinely is a thing. */
+export const dayFact = (appointment: Appointment): string | undefined => {
+  const own = appointment.speech?.trim();
+  if (own) return own;
+  const title = appointment.title?.trim();
+  return title ? `Heute ist ${title}.` : undefined;
+};
+
 export const cardSays = (card: Card | undefined): string | undefined =>
   card?.speech?.trim() || card?.name.trim() || undefined;
 export const spokenName = (appointment: Appointment, byId: Map<string, Card>): string | undefined =>

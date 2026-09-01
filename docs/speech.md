@@ -65,7 +65,7 @@ facts cost one line.
 | always | *Heute ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
 | somebody's birthday | *Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
 | a guest | *Heute ist Dienstagmorgen, und Oma kommt.* |
-| a day fact with a word of its own | *Heute ist Dienstagmorgen. Heute ist Ferientag.* |
+| a day fact with something of its own to say | *Heute ist Dienstagmorgen. Heute fahren wir ins Saarland.* |
 
 **Now** — what the board draws as the lifted card.
 
@@ -149,7 +149,17 @@ dropped and the rest is still spoken; there is no honest way to announce an
 appointment whose name has not been written, and inventing one from the file is
 what this whole section forbids.
 
-**A record says a word. It never says a sentence.** Every sentence in the
+**A day fact is the one record that says a sentence.** That is not a break with
+the rule below but the same rule read properly: a word has to be a word because
+it stands in six frames and must survive all of them, and a day fact stands in
+exactly one. So there is nothing for it to survive, and no reason to make a
+household bend what happens into a noun the day can *be*. *Heute ist Besuch im
+Saarland* is what that bending sounds like; *Heute fahren wir ins Saarland* is
+what a person would say, and no frame could have produced it. Written nothing,
+the title is wrapped as *Heute ist …*, which covers a Ferientag and every other
+day that genuinely is a thing.
+
+**Every other record says a word. It never says a sentence.** Every sentence in the
 catalogue is a frame with one slot in it, and the frames are in the code, so
 *Schwimmbad* and *Bouldern* are all a household ever types — once, on the card,
 when the card is made. A choice appointment then needs nothing entered at all:

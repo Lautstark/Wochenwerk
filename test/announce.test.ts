@@ -56,6 +56,17 @@ describe("the day sentence", () => {
     expect(said(week, at("09:00"), house())[0]).toBe("Heute ist Dienstagmorgen. Heute ist Ferientag.");
   });
 
+  it("lets a day say what no frame could have produced", () => {
+    /* A day is not always a noun it can *be*. "Heute ist Besuch im Saarland" is
+       what bending a trip into that shape sounds like; the household writes the
+       sentence instead, and a day fact stands in one frame so nothing else has
+       to survive it. */
+    const week = [appointment(undefined, undefined, {
+      symbols: [], title: "Besuch im Saarland", speech: "Heute fahren wir ins Saarland.",
+    })];
+    expect(said(week, at("09:00"), house())[0]).toBe("Heute ist Dienstagmorgen. Heute fahren wir ins Saarland.");
+  });
+
   it("carries a visit — a person with no symbol on them", () => {
     const week = [appointment(undefined, undefined, { symbols: [], people: ["o"] })];
     const lines = said(week, at("09:00"), house([], [person("o", "Oma")]));
@@ -292,7 +303,7 @@ describe("what a word can turn up in", () => {
        day sentence is the only one that carries it. That sentence names the day
        it is said on and compounds the daypart onto it, so there are four — and
        the weekday is the appointment's own, not a specimen. */
-    const said = couldSay("Ferientag", { allDay: true, date: "2026-09-03" });
+    const said = couldSay("Heute ist Ferientag.", { allDay: true, date: "2026-09-03" });
     expect(said.map(line => line.text)).toEqual([
       "Heute ist Donnerstagmorgen. Heute ist Ferientag.",
       "Heute ist Donnerstagmittag. Heute ist Ferientag.",
@@ -302,6 +313,6 @@ describe("what a word can turn up in", () => {
   });
 
   it("says nothing about a day it was not told the date of", () => {
-    expect(couldSay("Ferientag", { allDay: true })).toEqual([]);
+    expect(couldSay("Heute ist Ferientag.", { allDay: true })).toEqual([]);
   });
 });
