@@ -1,6 +1,6 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { listVoices } from "@lautstark/stimmquelle";
-import { button, el, field, fill, input, spacer } from "../ui.js";
+import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
@@ -8,8 +8,8 @@ import { connect, forget, metacom, needsAttention, preferredRendering, preferRen
 import { nameOf, offered, type Voice } from "../voices.js";
 import { load, shown } from "../store.js";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
-import { editCard } from "./card-dialog.js";
-import { editPerson, pickFile } from "./person-dialog.js";
+import { cardEditor } from "./card-editor.js";
+import { personEditor } from "./person-editor.js";
 import { voiceChoice } from "./voice-panel.js";
 
 /**
@@ -269,27 +269,29 @@ export function openSettings(say: (line: string) => void) {
 
     const cardList = [...shown().cards.values()];
     cards.state.textContent = `${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`;
-    fill(cards.body,
+    if (editing.card) hold(cards.body, editing.card);
+    else fill(cards.body,
       el("p", { class: "small muted", text: "Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst." }),
       el("div", { class: "rows" }, ...cardList.map(card => row(cardThumb(card), card.name,
         card.nfc ? el("code", { class: "nfc", text: card.nfc }) : el("span", { class: "row__state small muted", text: "keine Nummer" }),
         overflow(add => {
-          add("Bearbeiten", () => editCard(card, async () => { await load(); sync(); }));
+          add("Bearbeiten", () => openCard(card));
           add("Entfernen", () => void eraseCard(card), { danger: true });
         })))),
       cardList.length ? null : el("p", { class: "empty", text: "noch keine" }),
-      button("＋ Neue Karte", "sm", () => editCard({ id: uuid(), name: "", updatedAt: 0 }, async () => { await load(); sync(); })));
+      button("＋ Neue Karte", "sm", () => openCard({ id: uuid(), name: "", updatedAt: 0 })));
 
     people.state.textContent = `${shown().people.length} ${shown().people.length === 1 ? "Person" : "Personen"}`;
-    fill(people.body,
+    if (editing.person) hold(people.body, editing.person);
+    else fill(people.body,
       el("div", { class: "rows" }, ...shown().people.map(person => row(face(person), person.name,
         person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag",
         overflow(add => {
-          add("Bearbeiten", () => editPerson(person, async () => { await load(); sync(); }));
+          add("Bearbeiten", () => openPerson(person));
           add("Entfernen", () => void erasePerson(person), { danger: true });
         })))),
       shown().people.length ? null : el("p", { class: "empty", text: "noch niemand" }),
-      button("＋ Neue Person", "sm", () => editPerson({ id: uuid(), name: "", initials: "", tone: "" }, async () => { await load(); sync(); })));
+      button("＋ Neue Person", "sm", () => openPerson({ id: uuid(), name: "", initials: "", tone: "" })));
 
     data.state.textContent = `${shown().appointments.length} in dieser Woche`;
     fill(data.body,
@@ -325,6 +327,22 @@ export function openSettings(say: (line: string) => void) {
       field("Darstellung", pick.node),
       el("p", { class: "small muted", text: "METACOM enthält dieselben Symbole mehrfach — mit und ohne Rahmen, mit und ohne aufgedrucktes Wort. Eine Vorgabe sortiert die Suche danach; ausgeschlossen wird nichts, und was schon im Kalender steht, bleibt." }));
   }
+
+  /* A card and a person are edited inside the panel that lists them, not in a sheet
+     over this one. Both editors are nodes, and the node is what is held: `sync`
+     redraws every panel on every action, and re-filling a body with the same editor
+     would detach it for a frame and take the caret out of whatever was being typed.
+     `hold` puts it there once and leaves it alone afterwards. */
+  const editing: { card: HTMLElement | null; person: HTMLElement | null } = { card: null, person: null };
+  const hold = (body: HTMLElement, editor: HTMLElement) => { if (body.firstChild !== editor) fill(body, editor); };
+  const openCard = (card: Card) => {
+    editing.card = cardEditor(card, async () => { editing.card = null; await load(); sync(); });
+    sync();
+  };
+  const openPerson = (person: Person) => {
+    editing.person = personEditor(person, async () => { editing.person = null; await load(); sync(); });
+    sync();
+  };
 
   const eraseCard = async (card: Card) => {
     if (await confirmDialog({ title: "Karte entfernen", body: `„${card.name}“ wird entfernt. Termine, die sie zur Wahl stellen, verlieren sie.`,

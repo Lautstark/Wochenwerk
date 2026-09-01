@@ -1,4 +1,3 @@
-import { openDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { TONES, toneOf, type Card, type SymbolRef } from "../model.js";
 import { putCard } from "../db.js";
@@ -9,8 +8,20 @@ import { symbolSearch } from "./symbol-search.js";
 /* A card is a household object: a laminated picture with a tag on it, laid out
    when a choice is offered. It always has a symbol — the picture is the point of
    the card — so the symbol is one slot that a new pick overwrites, never
-   something to empty out. */
-export function editCard(card: Card, after: (id: string) => void) {
+   something to empty out.
+
+   It is a panel and not a dialog, and that is the whole of what changed. Both
+   places a card is edited from are already sheets — the Wahl side of the
+   appointment editor, and the Karten panel in the settings — so a dialog here was
+   never anything but a dialog on top of a dialog: a second scrim, a second Escape,
+   a second thing to close in the right order, over a surface that had the room all
+   along. vorlaut removed the same modal for the same reason and kept the seam; what
+   is left here is a node the caller puts where it is standing.
+
+   `done` is called with the card's id when it was saved and with null when it was
+   not, so a caller that wanted a new card for something can tell the two apart
+   without asking the database what happened. */
+export function cardEditor(card: Card, done: (id: string | null) => void): HTMLElement {
   const draft: Card = structuredClone(card);
 
   const name = input("text", { attrs: { placeholder: "z. B. Spielplatz", autocomplete: "off" } });
@@ -27,18 +38,22 @@ export function editCard(card: Card, after: (id: string) => void) {
     void sync();
   });
 
-  const save = button("Sichern", "primary", () => void store());
-  const handle = openDialog({
-    title: draft.name || "Neue Karte", closeLabel: "Schließen",
-    body: [el("div", { class: "stack" },
+  const save = button("Sichern", "primary sm", () => void store());
+  const heading = el("b", { class: "editor__name" });
+  /* The actions ride in the heading rather than under the form. What is under the
+     form is the symbol search, which fills with results and is as tall as the panel
+     lets it be — a Sichern below that is a scroll away from the thing it saves. */
+  const node = el("div", { class: "editor" },
+    el("div", { class: "editor__head" }, heading, spacer(),
+      button("Abbrechen", "quiet sm", () => done(null)), save),
+    el("div", { class: "stack" },
       field("Name", name), field("NFC-Nummer", nfc),
       el("span", { class: "lbl", text: "Farbe" }), tones,
       el("span", { class: "lbl", text: "Symbol" }), slot,
-      search.node)],
-    footer: [spacer(), button("Abbrechen", "quiet", () => handle.close()), save],
-  });
+      search.node));
 
   async function sync() {
+    heading.textContent = name.value.trim() || draft.name || "Neue Karte";
     /* The picture has to be resolved for the symbol this card holds: the week's
        map only knows what was already on screen, and a fresh pick is not. */
     const known = draft.symbol ? await pictures([draft.symbol]) : new Map<string, string>();
@@ -61,9 +76,12 @@ export function editCard(card: Card, after: (id: string) => void) {
     draft.nfc = nfc.value.trim().toUpperCase() || undefined;
     draft.tone ??= TONES[0];
     await putCard(draft);
-    handle.close();
-    after(draft.id);
+    done(draft.id);
   };
+  /* Only the heading follows the name, and only the heading is refilled for it —
+     `sync` never replaces the field somebody is typing in. */
+  name.addEventListener("input", () => { heading.textContent = name.value.trim() || "Neue Karte"; });
   void sync();
+  return node;
 }
 export type { SymbolRef };

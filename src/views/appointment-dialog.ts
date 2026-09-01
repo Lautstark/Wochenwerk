@@ -7,7 +7,7 @@ import { cardById, load, shown } from "../store.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
-import { editCard } from "./card-dialog.js";
+import { cardEditor } from "./card-editor.js";
 import { askScope } from "./scope-dialog.js";
 
 type Repeat = "none" | "daily" | "weekly" | "yearly";
@@ -60,7 +60,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     const missing = draft.symbols.filter(symbol => !pictureFor(known, symbol));
     if (missing.length) for (const [at, url] of await pictures(missing)) known.set(at, url);
   };
+  /* The Wahl side is either the cards to choose from or one being made. Held as a
+     node rather than as a flag, because `sync` runs on every keystroke in the fields
+     above and refilling this while somebody is typing a card's name into it would
+     take the caret with it. So `sync` leaves it alone entirely while it is here. */
   const offer = el("div", { class: "stack" });
+  let making: HTMLElement | null = null;
 
   const repeatPick = el("select", { class: "field", on: { change: () => { repeat = repeatPick.value as Repeat; sync(); } } },
     ...([["none", "einmalig"], ["daily", "jeden Tag"], ["weekly", "wöchentlich"], ["yearly", "jedes Jahr"]] as const)
@@ -143,13 +148,11 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
           () => { draft.options = draft.options.filter(other => other !== id); void sync(); }))));
     if (!draft.symbols.length && !draft.options.length) fill(chosen, el("p", { class: "empty", text: mode === "choice" ? "noch keine Karte" : "noch kein Symbol" }));
 
-    fill(offer,
+    if (!making) fill(offer,
       el("p", { class: "small muted", text: "Was zur Wahl steht, sind Karten mit NFC-Tag, die du hinlegst." }),
       grid(...[...shown().cards.values()].filter(card => !draft.options.includes(card.id))
         .map(card => pickerItem(card.name, cardThumb(card), false, () => { draft.options = [...draft.options, card.id]; void sync(); }))),
-      button("＋ Neue Karte", "sm", () => editCard({ id: uuid(), name: "", updatedAt: 0 }, async id => {
-        draft.options = [...draft.options, id]; await load(); void sync();
-      })));
+      button("＋ Neue Karte", "sm", () => makeCard()));
 
     /* A batch is not only asked for when the appointment is new: one that turned
        out to repeat is turned into one here. What already belongs to a batch keeps
@@ -179,6 +182,19 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     wantMore.textContent = draft.options.length === 0
       ? "Wähl mindestens zwei Karten aus, zwischen denen das Kind entscheiden kann."
       : "Noch eine Karte: zwischen einer allein gibt es nichts zu wählen.";
+  }
+
+  /* Making a card without leaving the appointment being planned. It ends by
+     dropping the editor and letting `sync` draw the list again — with the new card
+     already offered when there is one, which is the whole reason the button is here
+     rather than in the settings. */
+  function makeCard() {
+    making = cardEditor({ id: uuid(), name: "", updatedAt: 0 }, async id => {
+      making = null;
+      if (id) { draft.options = [...draft.options, id]; await load(); }
+      void sync();
+    });
+    fill(offer, making);
   }
 
   const erase = async () => {

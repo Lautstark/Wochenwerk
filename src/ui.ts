@@ -62,3 +62,17 @@ export function button(label: string, className: string, onClick: () => void): H
   return el("button", { class: `btn ${className}`.trim(), text: label, attrs: { type: "button" }, on: { click: onClick } });
 }
 export const spacer = () => el("span", { class: "spacer" });
+
+/* Reading a file from the person's own disk: a detached <input type="file">,
+   clicked. It lives here rather than beside the one view that happened to need it
+   first — the symbol folder, a ZIP and a portrait are three unrelated things that
+   all need the same two lines, and the file input is a platform part, not a fact
+   about people. */
+export function pickFile(accept: string, folder: boolean, take: (files: FileList) => void): void {
+  const chooser = document.createElement("input");
+  chooser.type = "file";
+  if (folder) chooser.setAttribute("webkitdirectory", "");
+  else chooser.accept = accept;
+  chooser.addEventListener("change", () => { if (chooser.files?.length) take(chooser.files); });
+  chooser.click();
+}

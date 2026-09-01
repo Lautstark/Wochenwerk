@@ -104,6 +104,14 @@ a.btn { text-decoration: none; }
 
 /* ------------------------------------------------------------ inside a sheet */
 .stack { display: grid; gap: 12px; min-width: 0; }
+/* An editor inside the surface that opened it, rather than a second sheet on top
+   of the first. Its actions ride in the heading: what is under the form is the
+   symbol search, which grows to whatever the results need, and a Sichern below
+   that would be a scroll away from the thing it saves. */
+.editor { display: grid; gap: 12px; }
+.editor__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.editor__name { font-size: 15px; }
 .stack > [hidden] { display: none; }
 .row-of { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .row-of > [hidden] { display: none; }
