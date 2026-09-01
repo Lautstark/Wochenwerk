@@ -4,9 +4,10 @@
  * A household's calendar is what this software is for, so the household's own
  * week is the most natural thing in the world to paste into a doc or a fixture
  * while working — and it did happen: a child's name, their therapy and the times
- * of it sat in docs/product.md and in three commits behind it. A public
- * repository publishes its history, so the fix for that was a rewrite, and a
- * rewrite is not a thing to need twice.
+ * of it sat in docs/product.md and in three commits behind it. This repository
+ * is not public yet and is going to be, and publishing publishes the history
+ * too, so the fix was a rewrite before that day rather than after it. A rewrite
+ * is not a thing to need twice.
  *
  * The terms to refuse are deliberately NOT in this file. Listing them here would
  * put the names back in the repository under a different heading. They live in

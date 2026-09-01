@@ -15,9 +15,13 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 ## Nobody real goes in here
 
-This repository is public and its history is published, so no household's own
-week belongs in it — not in a doc, not in a fixture, not in seed data. Examples
-use placeholders.
+This repository is going public, and going public publishes everything it has
+ever held — so no household's own week belongs in it, and never did: not in a
+doc, not in a fixture, not in seed data. Examples use placeholders.
+
+The rule is written for the day it is published rather than for today, because a
+name is committed long before that day and there is no moment at which it
+becomes safe to have started.
 
 `tools/no-private.mjs` is the floor under that rule. It refuses anything in the
 working tree that matches a term in `.private-names`, which is git-ignored so
