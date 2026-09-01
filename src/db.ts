@@ -359,7 +359,15 @@ export async function editSeries(series: string, change: Partial<Appointment>, f
   const database = await db();
   const touched = await reachOf(series, from);
   const writing = database.transaction("appointments", "readwrite");
-  await Promise.all([...touched.map(appointment => writing.store.put({ ...appointment, ...change, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() })), writing.done]);
+  await Promise.all([...touched.map(appointment => {
+    /* What was chosen belongs to the day it was chosen on, so a change over a batch
+       never carries one across — `change` is written without it. It can still take
+       one away, though: a card that is no longer offered is not an answer, and
+       leaving it there would read as decided. */
+    const chosen = appointment.chosen && change.options && !change.options.includes(appointment.chosen)
+      ? undefined : appointment.chosen;
+    return writing.store.put({ ...appointment, ...change, chosen, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() });
+  }), writing.done]);
   return touched.length;
 }
 

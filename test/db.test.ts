@@ -100,6 +100,31 @@ describe("an appointment turned into a series", () => {
   });
 });
 
+describe("a choice inside a batch", () => {
+  const offering = (): Omit<Appointment, "id" | "date" | "series" | "updatedAt"> =>
+    ({ symbols: [], options: ["a", "b"], people: [], showPeople: false });
+  const resolved = async () => {
+    const id = await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 2)), offering());
+    const [first] = await inSeries(id);
+    await put({ ...first, chosen: "a" });
+    return id;
+  };
+
+  it("stays on the day it was made on when the batch is changed around it", async () => {
+    const id = await resolved();
+    await editSeries(id, { title: "neu" });
+    const after = await inSeries(id);
+    expect(after.map(item => item.chosen)).toEqual(["a", undefined, undefined]);
+    expect(after.every(item => item.title === "neu")).toBe(true);
+  });
+
+  it("goes when the card it picked is no longer offered", async () => {
+    const id = await resolved();
+    await editSeries(id, { options: ["b", "c"] });
+    expect((await inSeries(id)).map(item => item.chosen)).toEqual([undefined, undefined, undefined]);
+  });
+});
+
 describe("a batch given a new rule", () => {
   const template = (extra: Partial<Appointment> = {}): Appointment =>
     ({ id: uuid(), date: iso(monday), start: "09:00", end: "10:00", symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });

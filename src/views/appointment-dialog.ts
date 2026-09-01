@@ -27,6 +27,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   let weekly = batch?.pattern.kind === "weekly" ? [...batch.pattern.weekdays]
     : [(new Date(`${draft.date}T00:00`).getDay() + 6) % 7];
   let counts = { from: 0, all: 0 };
+  const anchor = appointment.date;
 
   /* Every control is made once. Only what a change actually affects is refilled,
      which is what keeps a caret where somebody put it. */
@@ -123,7 +124,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   async function sync() {
     read();
-    if (existing && draft.series) counts = { from: (await reachOf(draft.series, draft.date)).length, all: (await reachOf(draft.series)).length };
+    /* Where this one sits in the batch is where it was written, not what the day
+       field currently says: an unsaved move must not change what "and all
+       following" reaches. */
+    if (existing && draft.series) counts = { from: (await reachOf(draft.series, anchor)).length, all: (await reachOf(draft.series)).length };
     handle.dialog.setAttribute("aria-label", titleOf(draft, shown().cards) || "Neuer Termin");
     title.placeholder = derivedName(draft, shown().cards) || "Name";
 
@@ -206,7 +210,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (draft.series) {
       const scope = await askScope("löschen", counts);
       if (!scope) return;
-      if (scope !== "one") { await dropSeries(draft.series, scope === "from" ? draft.date : undefined); handle.close(); return done(); }
+      if (scope !== "one") { await dropSeries(draft.series, scope === "from" ? anchor : undefined); handle.close(); return done(); }
     } else {
       const sure = await confirmDialog({
         title: "Termin löschen", body: `„${titleOf(draft, shown().cards) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
@@ -222,9 +226,14 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const save = async () => {
     read();
     if (!whole.checked && minute(draft.end!) <= minute(draft.start!)) draft.end = clock(minute(draft.start!) + board.snap);
-    if (mode === "symbols") draft.options = []; else { draft.symbols = []; draft.chosen = undefined; }
+    /* What the child already picked is only wrong if it is no longer on offer.
+       Clearing it on every save threw away an answer that was still good. */
+    if (mode === "symbols") { draft.options = []; draft.chosen = undefined; }
+    else { draft.symbols = []; if (draft.chosen && !draft.options.includes(draft.chosen)) draft.chosen = undefined; }
+    /* Without `chosen`: this is what is written across days other than this one,
+       and an answer given on Monday is not an answer for Tuesday. */
     const shape = { title: draft.title, start: draft.start, end: draft.end, symbols: draft.symbols,
-      options: draft.options, chosen: draft.chosen, people: draft.people, showPeople: draft.showPeople };
+      options: draft.options, people: draft.people, showPeople: draft.showPeople };
 
     if (batch) {
       const pattern: Pattern = repeat === "weekly" ? { kind: "weekly", weekdays: [...weekly].sort((one, other) => one - other) }
@@ -261,11 +270,20 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (existing && draft.series) {
       /* Only what the appointment itself says is a change over the batch. A rule
          changed and nothing else is one answer already given. */
-      if (!strays(draft, appointment) && draft.date === appointment.date) { handle.close(); return done(); }
-      counts = { from: (await reachOf(draft.series, draft.date)).length, all: (await reachOf(draft.series)).length };
-      const scope = await askScope("ändern", counts);
+      if (!strays(draft, appointment) && draft.date === anchor) { handle.close(); return done(); }
+      counts = { from: (await reachOf(draft.series, anchor)).length, all: (await reachOf(draft.series)).length };
+      /* The day is the one thing a change over a batch cannot carry: which days a
+         batch falls on is what its rule says, and that is a row further up. */
+      const moved = draft.date !== anchor;
+      const scope = await askScope("ändern", counts,
+        moved ? "Der Tag gilt nur für diesen Termin. Wann die Serie stattfindet, steht unter „Wiederholen“." : undefined);
       if (!scope) return;
-      if (scope !== "one") { await editSeries(draft.series, shape, scope === "from" ? draft.date : undefined); handle.close(); return done(); }
+      if (scope !== "one") {
+        await editSeries(draft.series, shape, scope === "from" ? anchor : undefined);
+        if (moved) await put(draft);
+        handle.close();
+        return done();
+      }
     }
     if (!draft.series) {
       /* A multi-day all-day appointment is a daily batch: one record per day, the

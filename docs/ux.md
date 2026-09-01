@@ -80,6 +80,8 @@ Each carries the id of the batch it came from. That is what makes a series lista
 
 Everything that is otherwise hard falls out of this. A Kita day that falls away is one record deleted. A choice resolved on Monday is written to Monday's own record and does not follow the child to Tuesday. Last month's board keeps showing what was actually planned, because nothing is derived.
 
+The day is the exception to all of it. Which days a batch falls on is what its rule says, so moving an appointment moves that one appointment, whatever scope the change is given — and the question that asks for the scope says so, and says where the rule is instead.
+
 What it costs: an action over a series is a bulk write, so it says how many records it will touch before it touches them — including how many carry edits of their own that it would overwrite. And "until further notice" does not exist; a batch is extended instead.
 
 ## Visual constraints
