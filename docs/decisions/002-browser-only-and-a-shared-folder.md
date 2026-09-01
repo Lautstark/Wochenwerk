@@ -95,13 +95,21 @@ How the folder works, and what it replaces:
   index — which is why "or a count of what is in it" is in the rule. What still
   may not travel is exactly that: the files, an index, a count.
 
-  vorlaut already carries the alternative and needs a sentence to explain it —
-  that a mixed collection cannot be exported — and one such sentence in the family
-  is enough. So this sharpens a shared convention rather than taking a local
-  exception, and belongs in `design/docs/conventions.md` §2.3, which currently
-  records "Diverging: nobody". The wording it needs is roughly: *never the files
-  of a licensed collection, never an index of one and never a count; a reference
-  to a single item the person chose travels with the document that uses it.*
+  This is not a proposal. Two products already draw exactly this line in code:
+  `vorlaut-editor/src/data/backup.ts` drops the METACOM folder path and its file
+  count while letting the board's own `metacom:` references travel — "a reference
+  is a symbol the user chose and put on their own board; an index is an
+  enumeration of what they licensed" — and its test calls a failure there "a leak
+  or a licence, not a bug to triage". bildhaft's export draws the same line.
+
+  So `design/docs/conventions.md` §2.3 is the document that is behind, not the
+  practice. It still records "Diverging: nobody" while its wording — "never a
+  path into a licensed collection" — reads as forbidding what two consumers
+  deliberately do. The word *path* is carrying two meanings: where the collection
+  lives, which is dropped, and a reference to one item in it, which travels. The
+  wording it needs is roughly: *never the files of a licensed collection, never
+  an index of one and never a count; a reference to a single item the person
+  chose travels with the document that uses it.*
 - **The folder is a store, not a copy — and that is a family-level change.** A
   product keeps its data *either* in IndexedDB *or* in a chosen folder; never in
   both, so there is never a second source of truth to reconcile. Whoever holds
