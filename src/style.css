@@ -55,8 +55,27 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
 .day.gone { --field: color-mix(in oklab, var(--day) 18%, #47433f);
   --paper: color-mix(in oklab, var(--day) 7%, #d3cec9); }
 .day.gone .icon img, .day.gone .badge img, .day.gone .face { filter: grayscale(.9); opacity: .78; }
-.day.today { z-index: 2; --field: color-mix(in oklab, var(--day) 90%, #fff); --paper: #fff; --tile: 11rem;
+.day.today { position: relative; z-index: 2; --field: color-mix(in oklab, var(--day) 90%, #fff); --paper: #fff; --tile: 11rem;
   box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--day) 40%, #fff), 0 0 3.5rem rgba(0, 0, 0, .5); }
+/* The muted end of a day, shared by the rail and by today's own field, so the two
+   fade to the same colour at the same minute. */
+.rail, .day.today { --spent: color-mix(in oklab, var(--day) 24%, #d6d1cb); }
+
+/* Today also carries how far it has come, in those two colours and at that same
+   minute. The edge is measured from below the header, so it lands exactly where the
+   rail's does and the two read as one horizontal band across the board instead of a
+   stripe at the margin. The header sits above the edge from the first minute on, so
+   it fades with the rest rather than becoming a band of its own.
+
+   Behind the content, never on it: an appointment is over or it is not, and a symbol
+   that dissolved halfway through the morning would be a question the child cannot
+   answer. The cards keep their two states; only the field behind them flows. */
+.day.today { --edge: calc(var(--head) + (100% - var(--head)) * var(--now, 0) / 100);
+  --soft: calc((100% - var(--head)) * .04);
+  --seam: color-mix(in oklab, var(--day) 26%, #8e877f); }
+.day.today::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to bottom, var(--spent) 0, var(--spent) calc(var(--edge) - var(--soft)),
+    var(--field) calc(var(--edge) + var(--soft)), var(--field) 100%); }
 
 /* No band of its own: the header sits straight on the day colour. */
 header { display: flex; align-items: center; justify-content: space-between; gap: .4rem;
@@ -144,11 +163,17 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .card.current { z-index: 9; --tile: 13rem; background: #fff; border-radius: .9rem;
   box-shadow: 0 0 0 .5rem #fff, 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
 .card.past { background: color-mix(in oklab, var(--day) 7%, #d3cec9); box-shadow: none; }
+/* On today the field behind a past card is the muted end of the gradient, and the
+   card's own paper is a near neighbour of it — close enough that the card would
+   dissolve into the day. It gets its edge back as a rim rather than as more colour:
+   still done, still quiet, but still a thing on the board. */
+.day.today .card.past { box-shadow: inset 0 0 0 .11rem var(--seam); }
 .card.past img, .card.past .face { filter: grayscale(.9); opacity: .78; }
 
 /* Parallel appointments overlap, so the one on top needs an edge: a rim in the day
    colour cuts it out of the card underneath, and its shadow puts it in front. */
 .card.parallel { box-shadow: 0 0 0 .24rem var(--field), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
+.day.today .card.past.parallel { box-shadow: inset 0 0 0 .11rem var(--seam), 0 0 0 .24rem var(--spent), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
 .card.parallel.current { box-shadow: 0 0 0 .5rem #fff, 0 0 0 .78rem var(--field), 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
 
 /* An appointment whose symbol is not decided yet: same card, unfinished edge. */
@@ -159,7 +184,6 @@ header { display: flex; align-items: center; justify-content: space-between; gap
    still ahead keeps the rail colour. The two meet at the current minute with a soft
    edge instead of a line. */
 .rail { display: grid; grid-template-rows: var(--head) 1fr;
-  --spent: color-mix(in oklab, var(--day) 24%, #d6d1cb);
   --ahead: color-mix(in oklab, var(--day) 90%, #fff);
   --mark: color-mix(in oklab, var(--day) 28%, var(--ink));
   background: var(--ahead); }
@@ -168,7 +192,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 /* The gradient covers the whole track, head included, so no seam can show. */
 .rail-track::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: linear-gradient(to bottom, var(--spent) 0,
-    var(--spent) calc(var(--now) - 4%), var(--ahead) calc(var(--now) + 4%), var(--ahead) 100%); }
+    var(--spent) calc((var(--now) - 4) * 1%), var(--ahead) calc((var(--now) + 4) * 1%), var(--ahead) 100%); }
 .mark { position: absolute; z-index: 1; left: 50%; width: 1.5rem; height: 1.5rem; transform: translate(-50%, -50%);
   color: var(--mark); opacity: .45; }
 .mark svg { width: 100%; height: 100%; display: block; }

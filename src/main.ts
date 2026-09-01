@@ -22,8 +22,10 @@ function scale(appointments: Appointment[]) {
   closes = latest > to ? Math.ceil(latest / 60) * 60 : to;
 }
 const pos = (time: string) => ((snapped(time) - first()) / span()) * 100;
-/* The rail reads the clock unsnapped, so its edge moves every minute rather than
-   every grid step, and is clamped for times outside the day window. */
+/* How far the day has come, as a bare number of percent: the rail draws its edge
+   from it, and today's own field draws the same edge from the same number, so the
+   two can never disagree about where now is. Read unsnapped, so the edge moves every
+   minute rather than every grid step, and clamped for times outside the day window. */
 const reached = (time: string) => Math.max(0, Math.min(100, ((minute(time) - first()) / span()) * 100));
 
 /* Overlapping appointments share the width of the day for as long as they run in
@@ -124,7 +126,11 @@ function column(draw: Drawing, date: string, index: number, appointments: Appoin
   const today = index === draw.todayIndex;
   const state = today ? "today" : index < draw.todayIndex ? "gone" : "ahead";
   const time = today ? `<small>${draw.now}</small>` : "";
-  return `<section class="day day-${index + 1} ${state}">
+  /* Only today fades: for a day that is over or still ahead the question the
+     gradient answers has one fixed answer, and a fade would claim a part-way state
+     that day is not in. */
+  const reach = today ? ` style="--now:${reached(draw.now)}"` : "";
+  return `<section class="day day-${index + 1} ${state}"${reach}>
     <header><span class="name"><b>${weekdays[index]}</b><time>${dayLabel(date)}</time>${time}</span><span class="marks">${marks}</span></header>
     <div class="calendar"><div class="track">${place(appointments.filter(appointment => !allDay(appointment))).map(placed => card(draw, placed)).join("")}</div></div>
   </section>`;
@@ -170,7 +176,7 @@ async function build(at: Date): Promise<string> {
   const draw: Drawing = { urls, people: new Map(people.map(person => [person.id, person])), cards, now: reading(at), todayIndex: (at.getDay() + 6) % 7 };
 
   const active = dayparts.filter(part => snapped(part.at) <= snapped(draw.now)).length - 1;
-  const rail = `<aside class="rail day-${draw.todayIndex + 1}" aria-hidden="true" style="--now:${reached(draw.now)}%"><div class="rail-head"></div><div class="rail-track">
+  const rail = `<aside class="rail day-${draw.todayIndex + 1}" aria-hidden="true" style="--now:${reached(draw.now)}"><div class="rail-head"></div><div class="rail-track">
     ${dayparts.map((part, index) => `<span class="mark${index === active ? " is-now" : ""}" style="top:${pos(part.at)}%">${part.icon}</span>`).join("")}
   </div></aside>`;
   const track: string[] = dates.map((_, index) => (index === draw.todayIndex ? "var(--today)" : "var(--col)"));
