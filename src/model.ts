@@ -108,12 +108,18 @@ export const cameFrom = (id: string) => { const at = id.indexOf("@"); return { s
 
 /** The days a rule covers inside a window, as appointments. */
 export function expand(series: Series, from: string, to: string): Appointment[] {
-  const start = series.from > from ? series.from : from;
   const stop = series.until < to ? series.until : to;
+  /* A yearly rule is anchored to the day it began — its month and day come from
+     there and from nowhere else, so the window it is being read through may not
+     stand in for that. Clamping one to the Monday on screen turns a birthday in
+     October into a birthday on that Monday, every year. Daily and weekly rules say
+     nothing about which day they started on, so clamping those is free. */
+  const start = series.pattern.kind === "yearly" ? series.from
+    : series.from > from ? series.from : from;
   if (stop < start) return [];
   const skipped = new Set(series.skipped);
   return occurrences(series.pattern, start, stop)
-    .filter(date => !skipped.has(date))
+    .filter(date => date >= from && !skipped.has(date))
     .map(date => ({ ...structuredClone(series.shape), id: occurrenceId(series.id, date), date, series: series.id, updatedAt: series.updatedAt }));
 }
 export const samePattern = (a: Pattern, b: Pattern): boolean =>

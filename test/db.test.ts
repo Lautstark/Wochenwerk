@@ -298,6 +298,16 @@ describe("a batch that is a rule rather than its days", () => {
     expect(await inSeries(id)).toHaveLength(3653);
   });
 
+  it("puts a birthday on the birthday, whatever week it is read through", async () => {
+    /* A yearly rule takes its month and day from where it began. Reading it
+       through a window must not move it to the edge of that window. */
+    const id = await createSeries({ kind: "yearly" }, "2023-10-08", "2123-10-08",
+      { symbols: [], options: [], people: [], showPeople: false });
+    expect(await week(monday)).toEqual([]);
+    expect((await week(new Date("2026-10-05T00:00"))).map(item => item.date)).toEqual(["2026-10-08"]);
+    expect((await inSeries(id)).slice(0, 2).map(item => item.date)).toEqual(["2023-10-08", "2024-10-08"]);
+  });
+
   it("keeps a day deleted after it had been edited, rather than letting the rule redraw it", async () => {
     await decade();
     const tuesday = (await week(monday))[1];
