@@ -12,6 +12,7 @@ birthday record it used to need.
 | `date` | One day, ISO. Indexed, so a week is a range query. |
 | `start`, `end` | Absent on both means all day. |
 | `title` | A name of its own. Without one it is called after what it shows. |
+| `speech` | The word said out loud, where that is not the title. Usually empty. |
 | `symbols` | What it shows, directly. An ordinary appointment needs nothing else. |
 | `options`, `chosen` | Which cards are offered, and which one an input picked. |
 | `people`, `showPeople` | Who it concerns, and whether the board shows them. |
@@ -34,14 +35,20 @@ symbol and nobody on it.
 | `id` | UUID. |
 | `name` | What it is called. |
 | `symbol` | The picture on it. |
-| `speech` | What is said when it is offered. |
+| `speech` | The word said out loud, where that is not the name. Usually empty. |
 | `nfc` | The tag's identifier — how the board recognises the card. |
 | `tone` | Its colour in the calendar. |
 
 **A card is a record because it is an object.** It is a laminated picture with an
 NFC tag, it lives in a drawer, and it is laid out when a choice is offered. That is
-what makes it worth naming, worth giving a spoken line, and what makes the tag
+what makes it worth naming, worth giving a word of its own, and what makes the tag
 mapping belong to it.
+
+**Neither `speech` holds a sentence.** Both hold a noun. Every spoken sentence is
+a frame with one slot in it and the frames live in `announce.ts`, so a card
+offered and the same card named an hour later are one word in two frames, and a
+choice appointment needs nothing entered on it at all. See
+[speech](speech.md).
 
 **An ordinary appointment has none of this.** It carries its symbols directly. It is
 written once — as a series, usually — and a picture is all the board asks of it;

@@ -1,5 +1,5 @@
 import "./style.css";
-import { addDays, allDay, board, bornOn, dayLabel, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
+import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, settings, week } from "./db.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
@@ -142,12 +142,17 @@ const sun = (cx: number, cy: number) => {
 };
 const arc = `<path d="M4 20a8 8 0 0 1 16 0" stroke-dasharray="1.3 2.7" stroke-width="1.7" opacity=".8"/>`;
 const glyph = (paths: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-const dayparts = [
-  { at: "08:00", icon: glyph(arc + sun(5.8, 16.6)) },
-  { at: "12:00", icon: glyph(arc + sun(12, 11.6)) },
-  { at: "15:30", icon: glyph(arc + sun(18.2, 16.6)) },
-  { at: "19:15", icon: glyph(`<path d="M20 15.4A8.4 8.4 0 0 1 8.6 4a7.4 7.4 0 1 0 11.4 11.4Z" fill="currentColor" stroke="none"/>`) },
+/* The three sun marks and the moon, in the order of the times they belong to.
+   Those times are the model's, because speech reads them too: a rail showing the
+   evening moon while the button says Nachmittag is a disagreement that would only
+   ever show up in front of the child. */
+const daypartIcons = [
+  glyph(arc + sun(5.8, 16.6)),
+  glyph(arc + sun(12, 11.6)),
+  glyph(arc + sun(18.2, 16.6)),
+  glyph(`<path d="M20 15.4A8.4 8.4 0 0 1 8.6 4a7.4 7.4 0 1 0 11.4 11.4Z" fill="currentColor" stroke="none"/>`),
 ];
+const dayparts = daypartTimes.map((at, index) => ({ at, icon: daypartIcons[index]! }));
 
 /* The board is a projection of one moment against one week, so building it is one
    function of `at`. Nothing is cached between renders except the drawn glyphs. */

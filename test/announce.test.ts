@@ -1,0 +1,195 @@
+import { describe, expect, it } from "vitest";
+import { announce, vocabulary, type Household, type Part } from "../src/announce.js";
+import type { Appointment, Card, Person, SymbolRef } from "../src/model.js";
+
+/* 2026-09-01 is a Tuesday, and 09-02 the Wednesday after it. */
+const TUESDAY = "2026-09-01";
+const at = (time: string, date = TUESDAY) => new Date(`${date}T${time}`);
+
+const kita: SymbolRef = { source: "metacom", id: "Berufe/kindergaertnerin.png", label: "kindergaertnerin" };
+
+const appointment = (start: string | undefined, end: string | undefined, extra: Partial<Appointment> = {}): Appointment =>
+  ({ id: `${start}-${extra.title ?? ""}`, date: TUESDAY, start, end, symbols: [kita], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
+
+const card = (id: string, name: string, speech?: string): Card => ({ id, name, speech, updatedAt: 0 });
+const person = (id: string, name: string, birthday?: string): Person =>
+  ({ id, name, initials: name.slice(0, 2), tone: "#000", birthday });
+
+const house = (cards: Card[] = [], people: Person[] = []): Household =>
+  ({ cards: new Map(cards.map(item => [item.id, item])), people: new Map(people.map(item => [item.id, item])) });
+
+/* The catalogue is about what is said, so the tests read the text. What it is
+   played from is checked separately, at the bottom. */
+const said = (week: Appointment[], at: Date, home: Household) => announce(week, at, home).map(line => line.text);
+
+describe("the day sentence", () => {
+  it("compounds the weekday with the daypart", () => {
+    const day = (time: string) => said([], at(time), house())[0];
+    expect(day("06:30")).toBe("Heute ist Dienstagmorgen.");
+    expect(day("08:00")).toBe("Heute ist Dienstagmorgen.");
+    expect(day("12:00")).toBe("Heute ist Dienstagmittag.");
+    expect(day("15:30")).toBe("Heute ist Dienstagnachmittag.");
+    expect(day("19:15")).toBe("Heute ist Dienstagabend.");
+  });
+
+  it("carries a birthday, from the person rather than from the appointment", () => {
+    const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
+    const lines = said(week, at("09:00"), house([], [person("b", "Mia", "2023-09-01")]));
+    expect(lines[0]).toBe("Heute ist Dienstagmorgen, und Mia hat Geburtstag.");
+  });
+
+  it("carries a visit — a person with no symbol on them", () => {
+    const week = [appointment(undefined, undefined, { symbols: [], people: ["o"] })];
+    const lines = said(week, at("09:00"), house([], [person("o", "Oma")]));
+    expect(lines[0]).toBe("Heute ist Dienstagmorgen, und Oma kommt.");
+  });
+});
+
+describe("what is running", () => {
+  it("names it", () => {
+    const week = [appointment("08:00", "09:00", { title: "Frühstück" })];
+    expect(said(week, at("08:30"), house())[1]).toBe("Jetzt ist Frühstück.");
+  });
+
+  it("addresses the one person it concerns, and only one", () => {
+    const week = [appointment("10:00", "10:45", { title: "Turnen", people: ["b"] })];
+    const one = house([], [person("b", "Mia"), person("m", "Toni")]);
+    expect(said(week, at("10:10"), one)[1]).toBe("Mia, jetzt ist Turnen.");
+
+    const both = [appointment("10:00", "10:45", { title: "Turnen", people: ["b", "m"] })];
+    expect(said(both, at("10:10"), one)[1]).toBe("Jetzt ist Turnen.");
+  });
+
+  it("says it is nearly over within one grid step", () => {
+    const week = [appointment("08:00", "09:00", { title: "Frühstück" })];
+    expect(said(week, at("08:50"), house())[1]).toBe("Frühstück ist gleich fertig.");
+  });
+
+  it("offers playing in a gap, but not once the day is done", () => {
+    const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
+    expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts. Du kannst spielen.");
+    expect(said(week, at("19:00"), house())[1]).toBe("Gerade ist nichts.");
+  });
+});
+
+describe("what comes next", () => {
+  const week = () => [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("10:00", "12:00", { title: "Kita" })];
+
+  it("is gleich within twenty minutes, danach behind something running, dann in a gap", () => {
+    expect(said(week(), at("09:50"), house())[2]).toBe("Gleich kommt Kita.");
+    expect(said(week(), at("08:30"), house())[2]).toBe("Danach kommt Kita.");
+    expect(said(week(), at("09:20"), house())[2]).toBe("Dann kommt Kita.");
+  });
+
+  it("ends the day with one sleep, and only as far as the week reaches", () => {
+    const tomorrow = appointment("08:45", "14:00", { title: "Kita", date: "2026-09-02" });
+    expect(said([...week(), tomorrow], at("13:00"), house())[2])
+      .toBe("Heute kommt nichts mehr. Einmal schlafen, dann ist Kita.");
+    expect(said(week(), at("13:00"), house())[2]).toBe("Heute kommt nichts mehr.");
+  });
+});
+
+describe("a choice", () => {
+  const offered = (options: string[], extra: Partial<Appointment> = {}) =>
+    [appointment("14:00", "16:00", { title: undefined, symbols: [], options, ...extra })];
+
+  it("is the whole announcement while it is open", () => {
+    const cards = [card("s", "Schwimmbad"), card("p", "Spielplatz")];
+    expect(said(offered(["s", "p"]), at("14:30"), house(cards)))
+      .toEqual(["Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Leg eine Karte in den Schlitz."]);
+  });
+
+  it("prefers what a card says of itself over what it is called", () => {
+    const cards = [card("s", "Schwimmbad Aquarena", "Schwimmbad"), card("p", "Spielplatz")];
+    expect(said(offered(["s", "p"]), at("14:30"), house(cards))[0])
+      .toBe("Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Leg eine Karte in den Schlitz.");
+  });
+
+  it("points at the table rather than naming a part of it", () => {
+    /* Four options, and separately three of which one has no name: listing what
+       is left would describe a table the child is looking at, wrongly. */
+    const four = [card("a", "A"), card("b", "B"), card("c", "C"), card("d", "D")];
+    const pointing = "Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.";
+    expect(said(offered(["a", "b", "c", "d"]), at("14:30"), house(four))[0]).toBe(pointing);
+    expect(said(offered(["a", "b", "gone"]), at("14:30"), house(four))[0]).toBe(pointing);
+  });
+
+  it("says one word for a card in every frame it appears in", () => {
+    /* Offered and named an hour later are two frames around one noun. A card
+       whose spoken word were a phrase would read as *Jetzt ist ins Schwimmbad
+       gehen* in the second of them, which is why a record says a word. */
+    const cards = [card("s", "Schwimmbad Aquarena", "Schwimmbad")];
+    expect(said(offered(["s"]), at("14:30"), house(cards))[0])
+      .toBe("Jetzt darfst du aussuchen: Schwimmbad. Leg eine Karte in den Schlitz.");
+    expect(said(offered(["s"], { chosen: "s" }), at("14:30"), house(cards))[1])
+      .toBe("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
+  });
+
+  it("is an ordinary appointment once it is decided, and says who decided it", () => {
+    const cards = [card("s", "Schwimmbad"), card("p", "Spielplatz")];
+    const decided = offered(["s", "p"], { chosen: "s" });
+    expect(said(decided, at("14:30"), house(cards))[1]).toBe("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
+    expect(said(decided, at("13:50"), house(cards))[2]).toBe("Gleich kommt Schwimmbad. Das hast du ausgesucht.");
+  });
+
+  it("announces an open one ahead without naming the options twice", () => {
+    const week = [appointment("12:00", "13:00", { title: "Mittagessen" }), ...offered(["s"])];
+    expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen.");
+  });
+});
+
+describe("what is never said", () => {
+  it("says nothing about an appointment nobody named, rather than reading its file name", () => {
+    /* The symbol is `kindergaertnerin.png`. It is a serviceable caption under a
+       picture and wrong out loud, so an appointment with no name of its own
+       contributes no sentence at all. */
+    const week = [appointment("08:00", "09:00"), appointment("10:00", "12:00")];
+    const lines = said(week, at("08:30"), house());
+    expect(lines).toEqual(["Heute ist Dienstagmorgen."]);
+    expect(lines.join(" ")).not.toContain("kindergaertnerin");
+  });
+
+  it("plays every fixed clip out of the vocabulary a recorder was given", () => {
+    /* The household records a word per card, person and appointment when it makes
+       one. Everything else has to have been recorded before the first appointment
+       was ever planned, so a frame written anywhere but `FRAMES` is a clip nobody
+       was asked for — silence on the board, and nothing else to notice it. */
+    const known = new Set(vocabulary());
+    const week = [
+      appointment("07:30", "08:15", { title: "Frühstück" }),
+      appointment("08:45", "14:00", { title: "Kita", people: ["b"] }),
+      appointment("15:00", "17:00", { title: undefined, symbols: [], options: ["s", "p"] }),
+      appointment("18:00", "19:00", { title: "Abendessen", options: ["s"], chosen: "s" }),
+      appointment(undefined, undefined, { symbols: [], people: ["b", "o"] }),
+      appointment("08:00", "09:00", { title: "Kita", date: "2026-09-02" }),
+    ];
+    const home = house([card("s", "Schwimmbad"), card("p", "Spielplatz")],
+      [person("b", "Mia", "2023-09-01"), person("o", "Oma")]);
+    const strangers = new Set<string>();
+    for (let minute = 0; minute < 24 * 60; minute++) {
+      const moment = new Date(`${TUESDAY}T00:00`);
+      moment.setMinutes(minute);
+      for (const line of announce(week, moment, home))
+        for (const part of line.parts as Part[]) if (!part.own && !known.has(part.say)) strangers.add(part.say);
+    }
+    expect([...strangers]).toEqual([]);
+  });
+
+  it("carries no digit anywhere, at any minute of a full day", () => {
+    const week = [
+      appointment("07:30", "08:15", { title: "Frühstück" }),
+      appointment("08:45", "14:00", { title: "Kita", people: ["b"] }),
+      appointment("15:00", "17:00", { title: undefined, symbols: [], options: ["s", "p"] }),
+      appointment("18:00", "19:00", { title: "Abendessen" }),
+      appointment(undefined, undefined, { symbols: [], people: ["o"] }),
+    ];
+    const home = house([card("s", "Schwimmbad"), card("p", "Spielplatz")], [person("b", "Mia"), person("o", "Oma")]);
+    for (let minute = 0; minute < 24 * 60; minute++) {
+      const moment = new Date(`${TUESDAY}T00:00`);
+      moment.setMinutes(minute);
+      const spoken = said(week, moment, home).join(" ");
+      expect(spoken, `at ${moment.toTimeString().slice(0, 5)}`).not.toMatch(/\d/);
+      expect(spoken.length, `at ${moment.toTimeString().slice(0, 5)}`).toBeLessThan(180);
+    }
+  });
+});

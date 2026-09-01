@@ -51,6 +51,11 @@ export type Appointment = {
   end?: string;
   /** A name of its own. Without one the appointment is called after what happens. */
   title?: string;
+  /* The board never draws a title — it draws symbols — so a title is written for
+     whoever is planning, and may carry what the child is not told: a room, a
+     practice, a surname. `speech` is the word said instead where those come
+     apart, and it is empty everywhere else. */
+  speech?: string;
   /** What happens: the symbols this appointment shows. */
   symbols: SymbolRef[];
   /** Or what may happen: the cards offered, and which one an input picked. */
@@ -144,11 +149,35 @@ export const derivedName = (appointment: Appointment, byId: Map<string, Card>) =
     : appointment.symbols.map(symbol => symbol.label)).filter(Boolean).join(" · ");
 export const titleOf = (appointment: Appointment, byId: Map<string, Card>) =>
   appointment.title?.trim() || derivedName(appointment, byId);
+/* What an appointment is *called out loud*, which is not what it is captioned.
+   `derivedName` falls back to symbol labels, and a symbol label is a file name:
+   the breakfast picture is `fruehstueck2.png` and the Kita one is
+   `kindergaertnerin.png`. Written under a picture that is a serviceable caption;
+   said to a two-year-old it is wrong or meaningless, so speech never falls back
+   there. What is left is what a person wrote — the appointment's own spoken form,
+   its name, or the card a choice resolved to — and where there is none the
+   sentence that wanted it is not said at all. */
+/* Every record says a **word**, never a sentence. The sentences are frames in
+   `announce.ts` with one slot in them, so a card offered and the same card named
+   an hour later are the same noun in two different frames — and nobody has ever
+   had to type either frame. That is also what keeps a word usable in a sentence
+   nobody has written yet: a phrase would be right in the frame it was written
+   for and wrong in the next one. */
+export const cardSays = (card: Card | undefined): string | undefined =>
+  card?.speech?.trim() || card?.name.trim() || undefined;
+export const spokenName = (appointment: Appointment, byId: Map<string, Card>): string | undefined =>
+  appointment.speech?.trim() || appointment.title?.trim() || cardSays(byId.get(appointment.chosen ?? ""));
 /** The colour an appointment wears: its card's, or one derived from its symbol. */
 export const appointmentTone = (appointment: Appointment, byId: Map<string, Card>) =>
   appointment.options.length
     ? toneOf(byId.get(shownCards(appointment)[0]!), appointment.options[0] ?? "")
     : hashTone(appointment.symbols[0] ? `${appointment.symbols[0].source}:${appointment.symbols[0].id}` : appointment.title ?? "");
+
+/* When each of the rail's four marks takes over. The board draws them and speech
+   names them, so they are here rather than in either — a rail showing the evening
+   moon while the button says Nachmittag is the kind of disagreement that only
+   shows up in front of the child. */
+export const daypartTimes = ["08:00", "12:00", "15:30", "19:15"];
 
 export const minute = (time: string) => { const [hour, rest] = time.split(":").map(Number); return hour * 60 + rest; };
 export const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
