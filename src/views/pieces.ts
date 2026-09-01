@@ -1,6 +1,7 @@
 import { menuOn } from "@lautstark/design/menu";
-import { el } from "../ui.js";
+import { button, el, input } from "../ui.js";
 import { pictureFor } from "../symbols.js";
+import { preview } from "../speech.js";
 import { type Card, type Person, type SymbolRef } from "../model.js";
 import { shown } from "../store.js";
 
@@ -68,3 +69,41 @@ export function overflow(build: (add: (label: string, run: () => void, opts?: { 
 
 export const cardThumb = (card: Card | undefined, known = shown().pictures) =>
   picture(card?.symbol, card?.name ?? "?", known);
+
+/**
+ * The word a record is said with, and a way to hear it before deciding.
+ *
+ * Empty is the ordinary state and the placeholder is what would be said instead,
+ * so the field shows the answer without storing it: a household that is happy
+ * with the name types nothing, and `speech` stays the override it is meant to be
+ * rather than a second copy of the name to keep in step. See docs/speech.md.
+ *
+ * Hearing it is the reason this is a component and not two lines in a dialog —
+ * choosing a word for a two-year-old without hearing it is choosing blind, and
+ * the same trap was already there for the voice itself.
+ */
+export function speechField(instead: () => string) {
+  const box = input("text", { attrs: { autocomplete: "off" } });
+  const why = el("p", { class: "hint", attrs: { role: "status" } });
+  const play = button("Anhören", "quiet sm", async () => {
+    const said = box.value.trim() || instead();
+    why.textContent = "";
+    if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
+    play.disabled = true;
+    play.textContent = "Spricht …";
+    const trouble = await preview(said);
+    play.disabled = false;
+    play.textContent = "Anhören";
+    /* Said here rather than handed upwards: both places this sits are panels with
+       no status line of their own, and a problem with one word belongs beside
+       that word rather than at the far end of a sheet. */
+    if (trouble) why.textContent = trouble;
+  });
+  const node = el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, play), why);
+  return {
+    node, box,
+    /* Called whenever the name it stands in for changes, so the placeholder never
+       promises a word the record has since stopped having. */
+    draw: () => { box.placeholder = instead() || "Ohne Namen wird nichts gesagt"; },
+  };
+}

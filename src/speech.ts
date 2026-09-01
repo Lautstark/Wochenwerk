@@ -136,6 +136,33 @@ export async function saying(at: Date): Promise<Utterance[]> {
   });
 }
 
+/**
+ * Hear one word, for whoever is deciding what will be said.
+ *
+ * The board is where an announcement belongs and the calendar is where the words
+ * are written, so this is the one place the calendar makes a sound: asked for by
+ * a person, about a single word, never about the day.
+ *
+ * It shares the board's cache and its voice, and a word heard twice is spoken
+ * once. It does not yet pay for the board's own sentences: the fingerprint is
+ * over the text, and today the board renders "Danach kommt Turnen." whole rather
+ * than as a frame and a word, so the two are different names for different files.
+ * They become the same file the moment playback plays clips — which is what
+ * docs/speech.md is written towards, and this is already the door the household's
+ * half of that vocabulary is recorded through.
+ */
+export async function preview(text: string): Promise<string | undefined> {
+  stop();
+  const mine = ++generation;
+  const said = text.trim();
+  if (!said) return undefined;
+  const { voice } = await settings();
+  if (!voice) return "Noch keine Stimme gewählt — Einstellungen → Stimme.";
+  try { await utter(said, voice, mine); }
+  catch (error) { return `Das ging nicht: ${(error as Error)?.message ?? "unbekannter Fehler"}`; }
+  return undefined;
+}
+
 export type Announced = { lines: string[]; trouble?: string };
 /** Which appointment is being talked about right now, or nothing between them. */
 export type Showing = (id: string | undefined) => void;

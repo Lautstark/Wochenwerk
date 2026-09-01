@@ -218,3 +218,8 @@ a.btn { text-decoration: none; }
   .row-of { gap: 8px; }
   .field-row { flex-basis: 100%; }
 }
+
+/* The word a record is said with, beside the button that says it. */
+.speech-row { display: flex; gap: .4rem; align-items: center; }
+.speech-row .field { flex: 1 1 auto; min-width: 0; }
+.speech-row .btn { flex: 0 0 auto; white-space: nowrap; }

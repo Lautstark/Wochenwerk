@@ -1,11 +1,11 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
-import { addDays, allDay, board, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
+import { addDays, allDay, board, cardSays, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
   strays, titleOf, weekdays, type Appointment, type Pattern } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { pictureFor, pictures } from "../symbols.js";
-import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
+import { cardThumb, grid, picture, pickerItem, face, speechField } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
 import { cardEditor } from "./card-editor.js";
 import { askScope } from "./scope-dialog.js";
@@ -99,9 +99,16 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     el("summary", { text: "Weitere Optionen" }),
     el("div", { class: "stack" }, el("span", { class: "lbl", text: "Personen" }), who, showRow));
 
+  /* What the board says about this appointment. Empty means the name, which is
+     the ordinary case: the board draws symbols and never a title, so a title is
+     free to carry what the child is not told — a room, a practice, a surname —
+     and this is where the two come apart. docs/speech.md. */
+  const speech = speechField(() => title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "");
+  speech.box.value = draft.speech ?? "";
+
   const handle = openDialog({
     title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
-    body: [el("div", { class: "stack" }, timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
+    body: [el("div", { class: "stack" }, field("Ansage", speech.node), timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
@@ -116,6 +123,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   const read = () => {
     draft.title = title.value.trim() || undefined;
+    draft.speech = speech.box.value.trim() || undefined;
     draft.date = date.value || draft.date;
     if (whole.checked) { draft.start = undefined; draft.end = undefined; }
     else { draft.start = from.value || "09:00"; draft.end = to.value || "09:30"; }
@@ -130,6 +138,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (existing && draft.series) counts = { from: (await reachOf(draft.series, anchor)).length, all: (await reachOf(draft.series)).length };
     handle.dialog.setAttribute("aria-label", titleOf(draft, shown().cards) || "Neuer Termin");
     title.placeholder = derivedName(draft, shown().cards) || "Name";
+    speech.draw();
 
     fromField.hidden = whole.checked;
     toField.hidden = whole.checked;

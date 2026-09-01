@@ -2,7 +2,7 @@ import { button, el, field, fill, input, spacer } from "../ui.js";
 import { TONES, toneOf, type Card, type SymbolRef } from "../model.js";
 import { putCard } from "../db.js";
 import { pictures } from "../symbols.js";
-import { picture } from "./pieces.js";
+import { picture, speechField } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
 
 /* A card is a household object: a laminated picture with a tag on it, laid out
@@ -28,6 +28,11 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
   const nfc = input("text", { attrs: { placeholder: "04A1B2C3", autocomplete: "off" } });
   name.value = draft.name;
   nfc.value = draft.nfc ?? "";
+  /* What the board says when this card is offered or named. Empty means the name
+     itself, which is the ordinary case — the field is here for where the written
+     and the spoken word come apart. docs/speech.md. */
+  const speech = speechField(() => name.value.trim() || draft.name);
+  speech.box.value = draft.speech ?? "";
 
   const slot = el("div", { class: "slot" });
   const tones = el("div", { class: "tones" });
@@ -47,7 +52,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     el("div", { class: "editor__head" }, heading, spacer(),
       button("Abbrechen", "quiet sm", () => done(null)), save),
     el("div", { class: "stack" },
-      field("Name", name), field("NFC-Nummer", nfc),
+      field("Name", name), field("Ansage", speech.node), field("NFC-Nummer", nfc),
       el("span", { class: "lbl", text: "Farbe" }), tones,
       el("span", { class: "lbl", text: "Symbol" }), slot,
       search.node));
@@ -66,6 +71,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
       style: { "--tone": tone }, attrs: { type: "button", "aria-label": "Farbe" },
       on: { click: () => { draft.tone = tone; void sync(); } },
     })));
+    speech.draw();
     save.disabled = !draft.symbol;
   }
 
@@ -73,6 +79,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     draft.name = name.value.trim();
     if (!draft.name) return name.focus();
     if (!draft.symbol) return;
+    draft.speech = speech.box.value.trim() || undefined;
     draft.nfc = nfc.value.trim().toUpperCase() || undefined;
     draft.tone ??= TONES[0];
     await putCard(draft);
@@ -80,7 +87,10 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
   };
   /* Only the heading follows the name, and only the heading is refilled for it —
      `sync` never replaces the field somebody is typing in. */
-  name.addEventListener("input", () => { heading.textContent = name.value.trim() || "Neue Karte"; });
+  name.addEventListener("input", () => {
+    heading.textContent = name.value.trim() || "Neue Karte";
+    speech.draw();
+  });
   void sync();
   return node;
 }
