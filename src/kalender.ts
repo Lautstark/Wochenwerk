@@ -19,7 +19,14 @@ const talk = announcer(line, { rest: 4000, onRest: node => { node.textContent = 
 const say = (text: string) => { talk.say(text); };
 
 const label = el("b");
-const empty = el("p", { class: "notice", text: "Noch nichts geplant. Klick in eine Spalte, um einen Termin anzulegen." });
+/* `.notice` is the outcome line — what happened after something was done, and it
+   holds until something replaces it. A week nobody has planned yet is not an
+   outcome; it is the empty state, and components.css has one of those with a
+   heading and a hint under it. The calendar was drawing the first as the second
+   while using `.empty` correctly in six other places. */
+const empty = el("p", { class: "empty" },
+  el("b", { text: "Noch nichts geplant" }),
+  el("small", { text: "Klick in eine Spalte, um einen Termin anzulegen." }));
 /* ARASAAC's licence is a condition on showing its pictures, so the notice is asked
    of the symbols this week draws — not of the collection the household happens to
    be searching in. A week drawn from the household's own METACOM folder owes
