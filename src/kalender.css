@@ -235,4 +235,3 @@ a.btn { text-decoration: none; }
 /* When it is said, in the words the rules are written in rather than in minutes:
    for whoever is planning, "in der letzten Viertelstunde" carries more than 15. */
 .sentence__when { flex: 0 0 auto; font-size: .75rem; color: var(--muted); }
-.btn.round { min-width: 1.9rem; padding-inline: 0; }

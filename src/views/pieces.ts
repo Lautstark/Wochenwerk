@@ -126,7 +126,10 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
       all.hidden = !possible.length;
       all.querySelector("summary")!.textContent = `Alle Sätze mit diesem Wort (${possible.length})`;
       fill(lines, ...possible.map(line => {
-        const one = button("▶", "quiet sm round", () => {});
+        /* `quiet icon sm` is the family's own icon-only button — pill radius,
+           its own padding, line-height 1. A local class here fought `sm`'s
+           padding and produced a hover fill wider than the glyph. */
+        const one = button("▶", "quiet icon sm", () => {});
         one.setAttribute("aria-label", "Satz anhören");
         one.addEventListener("click", () => void play(line.text, one, "▶")());
         return el("div", { class: "sentence" }, one,
