@@ -73,12 +73,40 @@ describe("what is running", () => {
 });
 
 describe("what comes next", () => {
-  const week = () => [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("10:00", "12:00", { title: "Kita" })];
+  /* Breakfast ends at half past and Kita starts at nine, so the wait after the one
+     that is running stays inside the horizon and the next thing is worth naming. */
+  const week = () => [appointment("08:00", "08:30", { title: "Frühstück" }), appointment("09:00", "12:00", { title: "Kita" })];
 
   it("is gleich within twenty minutes, danach behind something running, dann in a gap", () => {
-    expect(said(week(), at("09:50"), house())[2]).toBe("Gleich kommt Kita.");
-    expect(said(week(), at("08:30"), house())[2]).toBe("Danach kommt Kita.");
-    expect(said(week(), at("09:20"), house())[2]).toBe("Dann kommt Kita.");
+    expect(said(week(), at("08:45"), house())[2]).toBe("Gleich kommt Kita.");
+    expect(said(week(), at("08:10"), house())[2]).toBe("Danach kommt Kita.");
+    expect(said(week(), at("08:35"), house())[2]).toBe("Dann kommt Kita.");
+  });
+
+  it("does not name what is hours away, and says the time is free instead", () => {
+    /* Kita until two, supper at six. At nine in the morning "danach kommt
+       Abendessen" is a word with no time to hang it on. */
+    const week = [appointment("08:45", "14:00", { title: "Kita" }), appointment("18:00", "19:00", { title: "Abendessen" })];
+    expect(said(week, at("09:00"), house())[2]).toBe("Danach hast du frei.");
+  });
+
+  it("measures the wait from the end of what is running, not from now", () => {
+    /* The same nine in the morning, but the next thing follows Kita closely. A
+       child waits through the gap after Kita, not through Kita. */
+    const week = [appointment("08:45", "14:00", { title: "Kita" }), appointment("14:15", "15:00", { title: "Turnen" })];
+    expect(said(week, at("09:00"), house())[2]).toBe("Danach kommt Turnen.");
+  });
+
+  it("leaves the free time to the now sentence when nothing is running", () => {
+    /* Two sentences, not three: *Du kannst spielen* and *danach hast du frei* are
+       one thing said twice. */
+    const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
+    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts. Du kannst spielen."]);
+  });
+
+  it("still names a choice that is genuinely next", () => {
+    const week = [appointment("12:00", "13:00", { title: "Mittagessen" }), appointment("13:15", "14:00", { options: ["s"], symbols: [], title: undefined })];
+    expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen.");
   });
 
   it("ends the day with one sleep, and only as far as the week reaches", () => {
@@ -132,10 +160,6 @@ describe("a choice", () => {
     expect(said(decided, at("13:50"), house(cards))[2]).toBe("Gleich kommt Schwimmbad. Das hast du ausgesucht.");
   });
 
-  it("announces an open one ahead without naming the options twice", () => {
-    const week = [appointment("12:00", "13:00", { title: "Mittagessen" }), ...offered(["s"])];
-    expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen.");
-  });
 });
 
 describe("what is never said", () => {
@@ -143,7 +167,7 @@ describe("what is never said", () => {
     /* The symbol is `kindergaertnerin.png`. It is a serviceable caption under a
        picture and wrong out loud, so an appointment with no name of its own
        contributes no sentence at all. */
-    const week = [appointment("08:00", "09:00"), appointment("10:00", "12:00")];
+    const week = [appointment("08:00", "09:00"), appointment("09:15", "12:00")];
     const lines = said(week, at("08:30"), house());
     expect(lines).toEqual(["Heute ist Dienstagmorgen."]);
     expect(lines.join(" ")).not.toContain("kindergaertnerin");

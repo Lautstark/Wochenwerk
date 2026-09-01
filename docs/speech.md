@@ -65,12 +65,25 @@ list, so it is only done where there is exactly one.
 
 | when | said |
 | --- | --- |
-| more than ~20 minutes away | *Danach kommt Kita.* |
 | within ~20 minutes | *Gleich kommt Kita.* |
+| further off, but soon after what is running | *Danach kommt Kita.* |
+| further off, and nothing is running | *Dann kommt Kita.* |
+| nothing near, and something is running | *Danach hast du frei.* |
+| nothing near, and nothing is running | nothing — the *now* sentence has said it |
 | next is an open choice | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
 | nothing left today | *Heute kommt nichts mehr.* |
 | nothing left today, and tomorrow has something | *Einmal schlafen, dann ist Kita.* |
+
+**What is hours away is not named.** Told at nine in the morning that supper
+comes after Kita, a two-year-old has been given a word and no time to hang it
+on; what is true and useful at nine is that nothing is being waited for.
+
+**And the wait is measured from the end of what is running, not from now.** A
+child waits through the gap after Kita, never through Kita — so a Turnen at
+quarter past two, following a Kita that ends at two, is *danach* at nine in the
+morning, and a supper at six is not. *Gleich* is the one word that stays on the
+wall clock, because it is a promise about how long the child is standing there.
 
 **Choice, while it is running** — the whole announcement, alone.
 
@@ -153,7 +166,7 @@ is *played* as a frame and a word: one clip after the other, in the order
 `announce` returns them. `Utterance.parts` is that order and `Utterance.text` is
 how the same thing reads.
 
-**Fifty-five clips exist before anything is planned**, and `vocabulary()` is the
+**Fifty-six clips exist before anything is planned**, and `vocabulary()` is the
 list: every frame, plus the twenty-eight weekday-and-daypart words, which are one
 clip each so that no seam ever falls inside a word. That list is what a recorder
 walks. A frame written anywhere but in `FRAMES` would be a clip nobody was asked

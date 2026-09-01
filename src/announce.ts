@@ -41,6 +41,7 @@ const FRAMES = {
   soon: "Gleich kommt",
   after: "Danach kommt",
   then: "Dann kommt",
+  free: "Danach hast du frei.",
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
   thenChoose: "Dann darfst du aussuchen.",
@@ -63,6 +64,11 @@ export const vocabulary = (): string[] => [...DAYS, ...Object.values(FRAMES)];
 
 /** Where *gleich* stops and *danach* begins. Minutes, and the child never hears it. */
 const SOON = 20;
+/* And where naming the next thing stops being worth doing at all. Told that
+   dinner comes after Kita at nine in the morning, a two-year-old has been given
+   a word and no time to hang it on; what is true and useful at nine is that
+   nothing is being waited for. */
+const HORIZON = 30;
 
 const fixed = (say: string): Part => ({ say, own: false });
 const own = (say: string): Part => ({ say, own: true });
@@ -170,6 +176,17 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
   /* *Danach* presumes something to be after. Where nothing is running there is
      nothing for it to follow, so the same appointment is *dann*. */
   const soon = minute(next.start!) - minute(now) <= SOON;
+  /* *Gleich* is wall time and the wait is not. What a child is waiting through is
+     the gap after whatever is happening now, so it is measured from the end of a
+     running appointment and from this minute when nothing is running — which is
+     what makes "Danach kommt Turnen" right at nine for a Turnen that follows Kita
+     at two, and wrong for a supper five hours behind it. */
+  const wait = minute(next.start!) - (running ? minute(running.end!) : minute(now));
+  if (!soon && wait > HORIZON) {
+    /* Nothing running and nothing near: the *now* sentence has already said there
+       is time to play, and saying it twice in two wordings is worse than once. */
+    return running ? [utter(fixed(FRAMES.free))] : [];
+  }
   if (undecided(next)) return [utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose))];
   const said = spokenName(next, household.cards);
   if (!said) return [];
