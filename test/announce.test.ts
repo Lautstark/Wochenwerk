@@ -128,9 +128,9 @@ describe("what comes next", () => {
     expect(said(week, at("09:00"), house())[2]).toBe("Danach kommt Turnen.");
   });
 
-  it("leaves the free time to the now sentence when nothing is running", () => {
-    /* Two sentences, not three: *Du kannst spielen* and *danach hast du frei* are
-       one thing said twice. */
+  it("leaves the empty stretch to the now sentence when nothing is running", () => {
+    /* Two sentences, not three: *Gerade ist nichts geplant* and *danach ist
+       nichts geplant* are one thing said twice. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
     expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
   });
