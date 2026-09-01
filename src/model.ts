@@ -190,6 +190,10 @@ export const mondayOf = (at: Date) => { const start = new Date(at); start.setDat
 export const addDays = (at: Date, days: number) => { const next = new Date(at); next.setDate(at.getDate() + days); return next; };
 export const weekdays = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"];
 export const dayLabel = (date: string) => { const [, month, day] = date.split("-"); return `${Number(day)}.${Number(month)}.`; };
+/* The same date with its year on it. A day inside the week on screen does not need
+   one — the week says which year it is — but where a batch stops can be years away,
+   and a bare 25.10. there reads as this year, which is a different date. */
+export const dateLabel = (date: string) => `${dayLabel(date)}${date.slice(0, 4)}`;
 
 /* What the household set up once, as opposed to what it planned. One record and
    never localStorage: a preference living in two stores is one that gets restored

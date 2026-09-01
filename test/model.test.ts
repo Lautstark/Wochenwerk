@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, iso, lanesOf, occurrences, mondayOf, titleOf, undecided, shownCards,
+import { addDays, dateLabel, dayLabel, iso, lanesOf, occurrences, mondayOf, titleOf, undecided, shownCards,
   type Appointment, type Card } from "../src/model.js";
 
 const at = (start: string, end: string, extra: Partial<Appointment> = {}): Appointment =>
@@ -85,6 +85,11 @@ describe("dates", () => {
 
   it("keeps Sunday in the week that began on Monday", () => {
     expect(iso(mondayOf(new Date("2026-09-06T12:00")))).toBe("2026-08-31");
+  });
+
+  it("carries the year where a date stands on its own", () => {
+    expect(dayLabel("2036-10-25")).toBe("25.10.");
+    expect(dateLabel("2036-10-25")).toBe("25.10.2036");
   });
 
   it("crosses a month boundary when adding days", () => {

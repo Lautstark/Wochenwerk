@@ -1,6 +1,6 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
-import { addDays, allDay, board, clock, dayLabel, derivedName, iso, minute, titleOf,
+import { addDays, allDay, board, clock, dateLabel, dayLabel, derivedName, iso, minute, titleOf,
   weekdays, type Appointment, type Pattern } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
@@ -127,7 +127,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     seriesLine.hidden = !draft.series;
     seriesLine.textContent = !draft.series ? "" : series
       ? `↻ ${series.pattern.kind === "daily" ? "jeden Tag" : series.pattern.kind === "yearly" ? "jedes Jahr"
-          : `wöchentlich ${series.pattern.weekdays.map(day => weekdays[day]).join(" ")}`} · bis ${dayLabel(series.until)}`
+          : `wöchentlich ${series.pattern.weekdays.map(day => weekdays[day]).join(" ")}`} · bis ${dateLabel(series.until)}`
       : "↻ Teil einer Serie";
 
     kinds.children[0].classList.toggle("primary", mode === "symbols");
