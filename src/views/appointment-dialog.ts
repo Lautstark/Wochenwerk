@@ -14,6 +14,19 @@ import { askScope } from "./scope-dialog.js";
 
 type Repeat = "none" | "daily" | "weekly" | "yearly";
 
+/* How long it runs, said the way somebody planning says it. The grid shows this
+   in height and the sheet showed it nowhere, so „Von 08:00 Bis 09:00" left the
+   one fact both fields are about to be worked out. Halves get their own glyph
+   because „1,5 Std" is a number where the others are a duration. */
+function lasting(minutes: number): string {
+  if (minutes <= 0) return "";
+  if (minutes < 60) return `${minutes} Min`;
+  const hours = Math.floor(minutes / 60), rest = minutes % 60;
+  if (rest === 0) return `${hours} Std`;
+  if (rest === 30) return `${hours}½ Std`;
+  return `${hours} Std ${rest} Min`;
+}
+
 export const blankAppointment = (date: string, start?: string): Appointment => ({
   id: uuid(), date, start, end: start ? clock(minute(start) + 30) : undefined,
   symbols: [], options: [], people: [], showPeople: false, updatedAt: 0,
@@ -43,27 +56,75 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const date = input("date"), from = input("time", { attrs: { step: board.snap * 60 } });
   const to = input("time", { attrs: { step: board.snap * 60 } }), spanTo = input("date");
   const whole = input("checkbox");
+  const atOpen = input("checkbox"), atClose = input("checkbox");
   title.value = draft.title ?? "";
   date.value = draft.date; from.value = draft.start ?? "09:00"; to.value = draft.end ?? "09:30";
   spanTo.value = draft.date; whole.checked = allDay(draft);
 
   /* One row, and the fields in it appear or not. A second row holding a second
-     copy of the day was how the first one lost its input to the other. */
-  const dayField = field("Tag", date), fromField = field("Von", from), toField = field("Bis", to);
+     copy of the day was how the first one lost its input to the other.
+
+     Under each field hangs the switch that answers it away: Ganztägig under the
+     day, the two edges of the day under the times they replace. Standing free in
+     a row of their own they belonged to nothing — and Ganztägig, which sat below
+     the times it removes, made the sheet jump upwards under the pointer at the
+     moment it was clicked. Where each one lives now settles both: Ganztägig is in
+     the only column that never goes, and the other two are in the columns it
+     takes with it, so nothing has to remember to hide them. */
+  const switchUnder = (box: HTMLInputElement, text: string, at?: string) =>
+    el("label", { class: "choice" }, box,
+      el("span", {}, el("span", { text }), at ? el("span", { class: "muted", text: ` ${at}` }) : null));
+  const dayField = field("Tag", date), fromField = field("Von", from);
+  /* The one label with something on its far end: how long it lasts, beside the
+     field that ends it. The grid says it in height and the sheet never did. */
+  const lasts = el("span", { class: "lbl__aside" });
+  const toField = el("label", { class: "field-row" },
+    el("span", { class: "lbl lbl--split" }, el("span", { text: "Bis" }), lasts), to);
   const spanField = field("Bis", spanTo);
-  const timeRow = el("div", { class: "row-of" }, dayField, fromField, toField, spanField);
-  const wholeRow = el("label", { class: "choice" }, whole, el("span", { text: "Ganztägig" }));
+  const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"));
+  const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab Tagesbeginn", board.from));
+  const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis Tagesende", board.to));
+  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanField);
   const seriesLine = el("p", { class: "small muted" });
+
+  /* The two edges are a shortcut, not a third thing to store: ticked means the
+     time already *is* the edge of the board's day, so an appointment that starts
+     at seven arrives with the box ticked and no record has to say so. Unticking
+     puts back what was there before rather than leaving the box ticked over a
+     time nobody chose. */
+  let priorFrom = from.value, priorTo = to.value;
+  atOpen.addEventListener("change", () => {
+    if (atOpen.checked) { priorFrom = from.value; from.value = board.from; }
+    else from.value = priorFrom === board.from ? clock(minute(board.from) + 60) : priorFrom;
+    void sync();
+  });
+  atClose.addEventListener("change", () => {
+    if (atClose.checked) { priorTo = to.value; to.value = board.to; }
+    else to.value = priorTo === board.to ? clock(Math.max(minute(from.value) + 30, minute(board.to) - 60)) : priorTo;
+    void sync();
+  });
 
   /* What the two sides differ in is whether the appointment is already answered,
      so that is what they are named after. „Symbole" named the half rather than the
      answer — both sides carry symbols now — and „Das Kind wählt" said it in a
-     whole sentence beside a one-word sibling. */
+     whole sentence beside a one-word sibling.
+
+     Bare buttons, and the selection rides `aria-pressed`: that is what
+     components.css paints a `.segmented` from, and the warning above that rule
+     says this has already been got wrong twice in the family. Toggling `.primary`
+     instead drew the chosen half as a full accent plate with black ink — a
+     primary *action* sitting inside a chooser — and left the control saying
+     nothing at all about which half was chosen. */
+  const kindButton = (label: string, pick: () => void) =>
+    el("button", { text: label, attrs: { type: "button" }, on: { click: () => { pick(); void sync(); } } });
   const kinds = el("div", { class: "segmented" },
-    button("festgelegt", "sm", () => { mode = "symbols"; sync(); }),
+    kindButton("festgelegt", () => { mode = "symbols"; }),
     /* Dropped on the way over rather than at the save that would have dropped
        them anyway, so what stands in the sheet is what will be stored. */
-    button("wählbar", "sm", () => { mode = "choice"; draft.symbols = []; sync(); }));
+    kindButton("wählbar", () => { mode = "choice"; draft.symbols = []; speech.fold.open = true; }));
+  /* A chooser with no question above it. Both halves answer what the board does
+     with this appointment, so that is what the label says. */
+  const kindsRow = el("div", {}, el("span", { class: "lbl", text: "Am Board" }), kinds);
   const chosen = el("div", { class: "chosen" });
   const search = symbolSearch(ref => {
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
@@ -109,9 +170,14 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   /* How often is as much part of planning as when, so it stands beside the time
      rather than under a fold — for a batch that exists as much as for one being
      made, and where it stops sits in the same row as what it repeats. */
+  /* „Weitere Optionen" named a drawer rather than what is in it, and what is in
+     it is people and one question about them. Closed, it also said nothing about
+     the two people on „Oma kommt" — so the heading carries who is inside, which
+     is the shared panel summary's own answer to exactly this. */
+  const peopleState = el("span", { class: "state" });
   const more = el("details", { class: "more" },
-    el("summary", { text: "Weitere Optionen" }),
-    el("div", { class: "stack" }, el("span", { class: "lbl", text: "Personen" }), who, showRow));
+    el("summary", {}, el("span", { class: "section", text: "Personen" }), peopleState),
+    el("div", { class: "stack" }, who, showRow));
 
   /* What the board says about this appointment. Empty means the name, which is
      the ordinary case: the board draws symbols and never a title, so a title is
@@ -152,23 +218,27 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   speech.box.value = draft.speech ?? "";
 
   /* A choice has no Ansage of its own — what is said comes from the cards it
-     offers and, once something picked, from the card that was picked. The block
-     stays anyway, disabled and saying so: hiding it took the sentences with it,
-     and those four are the ones nobody can check anywhere else — a card's word
-     can be heard on the card, but „Schau mal, du darfst aussuchen" is only ever
-     built here, out of the cards this appointment happens to offer. The words are
-     still written where they belong: on the card. */
-  const ansage = field("Ansage", speech.node);
+     offers and, once something picked, from the card that was picked. So there is
+     no word to type and the field goes: anything typed into it was never stored,
+     which made it an input that did nothing.
+
+     What stays is the listening. Those four sentences are not per-card and can be
+     heard nowhere else — a card's own word is played on the card, but „Jetzt
+     darfst du aussuchen: Spielplatz oder Laufrad" is built here, out of the cards
+     this appointment happens to offer, and exists on none of them. The fold's own
+     summary says which four they are, so the label above it would say it twice. */
+  const ansageLabel = el("span", { class: "lbl", text: "Ansage" });
+  const ansage = el("label", { class: "field-row" }, ansageLabel, speech.node);
 
   const handle = openDialog({
     title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", closeLabel: "Schließen", wide: true,
     /* Two groups, in this order: when it happens, then what the board does with
-       it. The Ansage sits at the head of the second rather than at the top of the
-       sheet, because what is heard and what is shown are one question asked twice
-       — and it sits *above* the symbol rather than below it so that the search,
-       which grows to the height of its results, cannot push it around. */
-    body: [el("div", { class: "stack" }, timeRow, wholeRow, repeatRow, seriesLine,
-      ansage, kinds, wantMore, chosen, search.node, offer, more)],
+       it. What is *said* closes the second group rather than opening it — it is
+       read off what is shown, so it cannot be settled before the symbol or the
+       cards it is read from. It stood above them and separated the times from the
+       thing that happens with the tallest block in the sheet. */
+    body: [el("div", { class: "stack" }, timeRow, repeatRow, seriesLine,
+      kindsRow, wantMore, chosen, search.node, offer, ansage, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
@@ -180,6 +250,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const heading = handle.dialog.querySelector("h2");
   heading?.setAttribute("hidden", "");
   handle.dialog.querySelector(".head")?.prepend(title);
+  /* `.title-input` is a field that does not look like one until it is asked to,
+     which is the family's answer and the right one for a name standing where a
+     heading stands. On a new appointment nothing has asked it yet, so it reads as
+     the sheet's title and says „Name". The caret is what asks: `showModal` would
+     otherwise leave focus on the ✕. */
+  if (!existing) title.focus();
 
   const read = () => {
     draft.title = title.value.trim() || undefined;
@@ -200,9 +276,16 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     title.placeholder = derivedName(draft, shown().cards, shown().people) || "Name";
     speech.draw();
 
-    fromField.hidden = whole.checked;
-    toField.hidden = whole.checked;
+    fromCol.hidden = whole.checked;
+    toCol.hidden = whole.checked;
     spanField.hidden = !whole.checked;
+    /* Derived, never stored: ticked means the time already is that edge of the
+       day. Written after the columns are placed so that a time changed by hand
+       unticks the box on the same pass. */
+    atOpen.checked = from.value === board.from;
+    atClose.checked = to.value === board.to;
+    const runs = minute(to.value) - minute(from.value);
+    lasts.textContent = whole.checked ? "" : lasting(runs);
     if (whole.checked && spanTo.value < draft.date) spanTo.value = draft.date;
     spanTo.min = draft.date;
 
@@ -216,8 +299,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         + (draft.date < batch.from ? ` · gilt ab ${dateLabel(batch.from)}` : "")
       : "↻ Teil einer Serie";
 
-    kinds.children[0].classList.toggle("primary", mode === "symbols");
-    kinds.children[1].classList.toggle("primary", mode === "choice");
+    kinds.children[0].setAttribute("aria-pressed", String(mode === "symbols"));
+    kinds.children[1].setAttribute("aria-pressed", String(mode === "choice"));
     /* A choice has no symbol of its own to pick. The board draws a question mark
        over it while it is open and the picked card's picture after that, so
        `symbols` is never what is drawn on one — the save has always thrown away
@@ -227,11 +310,33 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     search.node.hidden = mode === "choice";
     chosen.hidden = mode === "choice";
     offer.hidden = mode !== "choice";
+    /* Nothing to type while the cards do the talking, so the field and its label
+       go and the sentences stand alone. Opening the fold is not done here: `sync`
+       runs on every keystroke in the sheet, so a fold opened from it is a fold
+       nobody can close again. It is opened where the mode is chosen. */
+    const saidByCards = mode === "choice" && !draft.chosen;
+    speech.row.hidden = saidByCards;
+    ansageLabel.hidden = saidByCards;
 
     await resolve();
-    fill(chosen, grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
-      () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); }))));
-    if (!draft.symbols.length) fill(chosen, el("p", { class: "empty", text: "noch kein Symbol" }));
+    /* The slot is always the last tile, filled or not: „noch kein Symbol" was a
+       sentence standing where the thing itself belongs, and it said what was
+       missing without offering to fix it. This is the shape of the tile that is
+       missing, and pressing it puts the caret in the search. */
+    fill(chosen, grid(
+      ...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
+        () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); })),
+      el("button", { class: "picker__item picker__item--add", attrs: { type: "button" },
+        on: { click: () => search.focus() } },
+        el("span", { class: "picker__add", text: "＋" }),
+        el("span", { class: "small", text: "Symbol" }))));
+
+    const named = draft.people
+      .map(id => shown().people.find(person => person.id === id)?.name)
+      .filter(Boolean) as string[];
+    peopleState.textContent = named.length
+      ? named.join(", ") + (draft.showPeople ? " · am Board" : "")
+      : "niemand";
 
     if (!making) fill(offer,
       /* What is already on offer, removable. It used to share `chosen` with the
@@ -262,13 +367,25 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     showRow.hidden = !draft.people.length;
 
     /* A choice with one card is not a choice, and one with none is empty. Saying
-       so where it is decided beats a message after the fact. */
+       so where it is decided beats a message after the fact.
+
+       A fixed appointment with no symbol is the same kind of empty, and it was
+       allowed: the board draws it as a blank card, because `drawnSymbols` finds
+       nothing and `card` paints nothing. One exception, and it is a real one —
+       an all-day appointment carrying people and no symbol is the visit, and the
+       visit is *defined* by having no symbol: `couldSay` builds „und Oma
+       besucht dich" from exactly that shape, and the board draws it as a pill of
+       faces. Requiring a symbol everywhere would abolish it. */
+    const visiting = whole.checked && draft.people.length > 0;
     const short = mode === "choice" && draft.options.length < 2;
-    saveButton.disabled = short;
-    wantMore.hidden = !short;
-    wantMore.textContent = draft.options.length === 0
-      ? "Wähl mindestens zwei Karten aus, zwischen denen das Kind entscheiden kann."
-      : "Noch eine Karte: zwischen einer allein gibt es nichts zu wählen.";
+    const bare = mode === "symbols" && !draft.symbols.length && !visiting;
+    saveButton.disabled = short || bare;
+    wantMore.hidden = !short && !bare;
+    wantMore.textContent = bare
+      ? "Such ein Symbol aus — ohne eins bleibt die Karte am Board leer."
+      : draft.options.length === 0
+        ? "Wähl mindestens zwei Karten aus, zwischen denen das Kind entscheiden kann."
+        : "Noch eine Karte: zwischen einer allein gibt es nichts zu wählen.";
   }
 
   /* Making a card without leaving the appointment being planned. It ends by
@@ -389,6 +506,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     handle.close();
     done();
   };
+
+  /* Arriving at one is the other way into that state, and there the list is the
+     whole of the block — so it stands open rather than as a summary of itself. */
+  if (mode === "choice" && !draft.chosen) speech.fold.open = true;
 
   for (const control of [title, date, from, to, spanTo]) control.addEventListener("input", () => void sync());
   whole.addEventListener("change", () => void sync());

@@ -41,5 +41,6 @@ export function symbolSearch(onPick: (ref: SymbolRef) => void) {
     }, 250);
   };
   query.addEventListener("input", run);
-  return { node, clear: () => { query.value = ""; wipe(); } };
+  /* The empty slot points here, so it needs somewhere to point. */
+  return { node, clear: () => { query.value = ""; wipe(); }, focus: () => query.focus() };
 }
