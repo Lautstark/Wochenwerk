@@ -71,6 +71,9 @@ const DAYS = WEEKDAYS.flatMap(day => DAYPARTS.map(part => `${day}${part}`));
    — and so the clip is a word like every other clip. Past this the sentence
    simply leaves the age out; nobody in the house is turning thirteen soon, and a
    wrong word would be worse than a missing one. */
+/* What the right-hand column says for each of the four, in the words the rules
+   are written in rather than in hours. */
+const DAYPART_WHEN = ["morgens", "mittags", "nachmittags", "abends"];
 const AGES = ["", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf"];
 /** Every clip that is not a household word: what has to be recorded up front. */
 export const vocabulary = (): string[] => [...DAYS, ...AGES.filter(Boolean), ...Object.values(FRAMES)];
@@ -277,6 +280,8 @@ export type Shape = {
   birthday?: { names: string[]; age?: number };
   /** All-day, carrying people and no symbol: a guest. Also said from the person. */
   visiting?: string[];
+  /** The day it falls on. A day sentence names its weekday, and there are seven. */
+  date?: string;
 };
 
 /* Whether the sentence comes from the people on the record rather than from its
@@ -289,6 +294,13 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
   const said = word.trim();
   const line = (...parts: Part[]) => utter(...parts).text;
   const names = (who: string[]) => listing(who, fixed(FRAMES.and2));
+  /* A day sentence names the day it is said on, and it compounds the daypart onto
+     it — so an all-day fact has four of them and not one. Listing a single
+     specimen meant printing a Tuesday under a Thursday appointment, which is two
+     wrong words in the one sentence a person was reading to check the words. */
+  const days = shape.date
+    ? DAYPARTS.map((part, index) => ({ word: `${WEEKDAYS[(new Date(`${shape.date}T00:00`).getDay() + 6) % 7]}${part}`, when: DAYPART_WHEN[index]! }))
+    : [];
 
   /* Said from the people, whatever the word is — so these come first and the
      word never reaches them. */
@@ -301,11 +313,11 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
       when: "als ganzer Tagessatz, jeden Druck",
     }];
   }
-  if (shape.visiting?.length) return [{
-    text: line(fixed(FRAMES.today), fixed("Dienstagmorgen"), fixed(FRAMES.and), ...names(shape.visiting),
-      fixed(shape.visiting.length > 1 ? FRAMES.visit : FRAMES.visits)),
-    when: "im Tagessatz, jeden Druck",
-  }];
+  if (shape.visiting?.length) return days.map(day => ({
+    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.and), ...names(shape.visiting!),
+      fixed(shape.visiting!.length > 1 ? FRAMES.visit : FRAMES.visits)),
+    when: day.when,
+  }));
 
   if (!said) return [];
   const w = own(said), who = shape.who ? own(shape.who) : undefined;
@@ -313,9 +325,10 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
 
   /* An all-day appointment is never running and never next: it is a fact about
      the day, and the day sentence is the only one that carries it. */
-  if (shape.allDay) return [
-    { text: line(fixed(FRAMES.today), fixed("Dienstagmorgen"), fixed(FRAMES.and), fixed(FRAMES.alsoToday), w), when: "im Tagessatz, jeden Druck" },
-  ];
+  if (shape.allDay) return days.map(day => ({
+    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.and), fixed(FRAMES.alsoToday), w),
+    when: day.when,
+  }));
 
   const possible: Possible[] = [];
   if (shape.offered) possible.push(
@@ -332,4 +345,18 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     { text: line(fixed(FRAMES.done), fixed(FRAMES.sleep), w), when: "am Abend davor" },
   );
   return possible;
+}
+
+
+/* Every sentence that belongs to no record: the day in its twenty-eight forms,
+   and the ones that are about nothing happening. They cannot be prepared when
+   something is planned, because nothing plans them — so they are prepared when a
+   voice is chosen, which is the other moment a household waits on purpose. */
+export function standing(): string[] {
+  const line = (...parts: Part[]) => utter(...parts).text;
+  return [
+    ...DAYS.map(day => line(fixed(FRAMES.today), fixed(day))),
+    FRAMES.nothing, FRAMES.nothingYet, FRAMES.done, FRAMES.free, FRAMES.look,
+    FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
+  ];
 }

@@ -209,7 +209,19 @@ a natural break. Where a voice is synthesised, the same parts can be rendered as
 one sentence instead and cached under its text; nothing in the derivation
 changes, because it hands out both.
 
-**Rendered when planned, played when pressed.** The calendar route knows every
+**Rendered when planned, played when pressed, and only ever once.** Saving an
+appointment or a card renders every sentence that record can turn up in —
+`couldSay`, the same list the fold offers to play — and choosing a voice renders
+the ones that belong to no record: the day in its twenty-eight forms, and the
+ones about nothing happening. Planning is a moment somebody is already waiting
+through; a child pressing a key is not.
+
+What guarantees the quiet, though, is the cache rather than the timing: a
+sentence that was missed is spoken once at the press and held afterwards, so
+nothing is ever asked for twice. The preparation moves that one time to a moment
+nobody is standing in front of the board for.
+
+ The calendar route knows every
 sentence a week can produce, and it runs on the laptop where a key would be
 typed anyway. It renders them, and the board plays files. That is exactly the
 split [mitreden and vorlaut](decisions/002-browser-only-and-a-shared-folder.md)

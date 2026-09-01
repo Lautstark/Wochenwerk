@@ -153,5 +153,8 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
   return {
     node: el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, hear), why, all),
     box, draw,
+    /* What a save should render ahead of the key press. The same list the fold
+       shows, so what a person was offered to hear is exactly what is prepared. */
+    sentences: () => couldSay(fromPeople(shape()) ? "" : word(), shape()).map(line => line.text),
   };
 }

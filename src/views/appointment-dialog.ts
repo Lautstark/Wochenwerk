@@ -4,6 +4,7 @@ import { addDays, allDay, board, bornOn, cardSays, clock, dateLabel, dayLabel, d
   strays, titleOf, weekdays, type Appointment, type Pattern, type Person } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
+import { prepare } from "../speech.js";
 import { birthdayOf, birthdaySheet } from "./birthday-sheet.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face, speechField } from "./pieces.js";
@@ -122,6 +123,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         offered: draft.options.length > 0 && !draft.chosen,
         picked: !!draft.chosen,
         allDay: whole.checked,
+        date: draft.date,
         ...(born.length ? { birthday: { names: born.map(person => person.name), age: ages.size === 1 ? [...ages][0] : undefined } } : {}),
         ...(whole.checked && on.length && !born.length && !draft.symbols.length ? { visiting: on.map(person => person.name) } : {}),
       };
@@ -256,6 +258,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   const save = async () => {
     read();
+    /* Rendered here rather than at the key press: planning is a moment somebody
+       is already waiting through, and a child pressing a key is not. Not awaited
+       — the sheet closes and the cache fills behind it. */
+    void prepare(speech.sentences());
     if (!whole.checked && minute(draft.end!) <= minute(draft.start!)) draft.end = clock(minute(draft.start!) + board.snap);
     /* What the child already picked is only wrong if it is no longer on offer.
        Clearing it on every save threw away an answer that was still good. */

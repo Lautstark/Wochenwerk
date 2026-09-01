@@ -1,5 +1,7 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { listVoices } from "@lautstark/stimmquelle";
+import { standing } from "../announce.js";
+import { prepare } from "../speech.js";
 import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
@@ -126,6 +128,11 @@ export function openSettings(say: (line: string) => void) {
     chosen = id;
     picker.draw();
     await run(() => saveVoice(id), `Der Kalender spricht jetzt mit ${nameOf(voices, id) || "dieser Stimme"}.`);
+    /* The sentences that belong to no appointment — the day in its twenty-eight
+       forms, and the ones about nothing happening — have no other moment to be
+       prepared in. Choosing a voice is the one a household waits through on
+       purpose, and every one of them changes with it. */
+    void prepare(standing());
   }
 
   async function readVoices() {

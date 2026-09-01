@@ -272,11 +272,21 @@ describe("what a word can turn up in", () => {
     expect(said).toContain("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
   });
 
-  it("gives an all-day appointment only the day sentence", () => {
+  it("gives an all-day appointment the day sentence, once per daypart", () => {
     /* It is never running and never next: it is a fact about the day, and the
-       day sentence is the only one that carries it. */
-    const said = couldSay("Ferientag", { allDay: true });
-    expect(said).toHaveLength(1);
-    expect(said[0]!.text).toContain("und heute ist Ferientag.");
+       day sentence is the only one that carries it. That sentence names the day
+       it is said on and compounds the daypart onto it, so there are four — and
+       the weekday is the appointment's own, not a specimen. */
+    const said = couldSay("Ferientag", { allDay: true, date: "2026-09-03" });
+    expect(said.map(line => line.text)).toEqual([
+      "Heute ist Donnerstagmorgen, und heute ist Ferientag.",
+      "Heute ist Donnerstagmittag, und heute ist Ferientag.",
+      "Heute ist Donnerstagnachmittag, und heute ist Ferientag.",
+      "Heute ist Donnerstagabend, und heute ist Ferientag.",
+    ]);
+  });
+
+  it("says nothing about a day it was not told the date of", () => {
+    expect(couldSay("Ferientag", { allDay: true })).toEqual([]);
   });
 });

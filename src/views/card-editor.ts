@@ -1,6 +1,7 @@
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { TONES, toneOf, type Card, type SymbolRef } from "../model.js";
 import { putCard } from "../db.js";
+import { prepare } from "../speech.js";
 import { pictures } from "../symbols.js";
 import { picture, speechField } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
@@ -80,6 +81,9 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     if (!draft.name) return name.focus();
     if (!draft.symbol) return;
     draft.speech = speech.box.value.trim() || undefined;
+    /* See the appointment editor: prepared while somebody is saving, not while a
+       child is waiting. */
+    void prepare(speech.sentences());
     draft.nfc = nfc.value.trim().toUpperCase() || undefined;
     draft.tone ??= TONES[0];
     await putCard(draft);

@@ -163,6 +163,42 @@ export async function preview(text: string): Promise<string | undefined> {
   return undefined;
 }
 
+/**
+ * Speak these into the cache now, so that pressing the key later says them from
+ * a file.
+ *
+ * This is what docs/speech.md means by rendered when planned and played when
+ * pressed: a household plans an appointment and waits a moment on purpose, where
+ * a child presses a key and waits for nothing. `remember` looks before it
+ * speaks, so a sentence already held costs nothing and the recurring half of a
+ * routine is prepared exactly once however often it is planned again.
+ *
+ * One at a time rather than all at once: this runs while somebody is doing
+ * something else, and a dozen parallel requests to Azure is a way to be rate
+ * limited for no gain. Quiet about its failures for the same reason — nothing is
+ * lost by one that did not render, because the key press still falls back to
+ * speaking it then.
+ */
+export async function prepare(texts: readonly string[]): Promise<number> {
+  const { voice } = await settings();
+  /* A system voice makes no file — the Web Speech API hands out no samples — so
+     there is nothing to prepare and nothing a press could reuse. */
+  if (!voice || voice.startsWith("system:")) return 0;
+  /* The same door `utter` opens. Without it `remember` reaches piper with no
+     runtime configured, every sentence throws, and this function quietly reports
+     that it prepared nothing — which is exactly what it did. */
+  if (voice.startsWith("piper:")) readyPiper();
+  const options = await spoken();
+  let made = 0;
+  for (const text of new Set(texts.map(one => one.trim()).filter(Boolean))) {
+    try {
+      const { cached } = await remember(clips, text, voice, options);
+      if (!cached) made++;
+    } catch { /* The press will try again, and say why then. */ }
+  }
+  return made;
+}
+
 export type Announced = { lines: string[]; trouble?: string };
 /** Which appointment is being talked about right now, or nothing between them. */
 export type Showing = (id: string | undefined) => void;
