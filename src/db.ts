@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { addDays, iso, mondayOf, occurrences, TONES, type Card, type Appointment, type Pattern, type Person, type Series, type SymbolRef } from "./model.js";
+import { addDays, iso, occurrences, TONES, type Card, type Appointment, type Pattern, type Person, type Series, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
    convention, and the shape a folder of one file per record maps onto when the
@@ -206,23 +206,3 @@ export async function editSeries(series: string, change: Partial<Appointment>, f
   await Promise.all([...touched.map(appointment => writing.store.put({ ...appointment, ...change, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() })), writing.done]);
   return touched.length;
 }
-
-const metacom = (id: string, label: string): SymbolRef => ({ source: "metacom", id, label });
-const symbols = {
-  breakfast: metacom("Lebensmittel_Essen/fruehstueck2.png", "Frühstück"),
-  clothes: metacom("Verben/anziehen1.png", "anziehen"),
-  bike: metacom("Fahrzeuge/fahrrad.png", "Fahrrad"),
-  kita: metacom("Berufe/kindergaertnerin.png", "Kita"),
-  play: metacom("Spielen/spielplatz.png", "Spielplatz"),
-  shop: metacom("Einkaufen/einkaufen.png", "einkaufen"),
-  lunch: metacom("Lebensmittel_Essen/mittagessen.png", "Essen"),
-  cook: metacom("Lebensmittel_Essen/abendessen.png", "kochen"),
-  pajamas: metacom("Kleidung_Accessoires/schlafanzug.png", "Schlafanzug"),
-  teeth: metacom("Koerperpflege/zaehneputzen.png", "Zähne putzen"),
-  sleep: metacom("Verben/schlafen1.png", "schlafen"),
-  speech: metacom("Therapie/sprachtherapielogopaedie.png", "Logopädie"),
-  early: metacom("Therapie/fruehfoerderung.png", "Frühförderung"),
-  bricks: metacom("Spielen/bausteinespielen.png", "Bausteine"),
-  book: metacom("Buch_Zeitung/bilderbuch.png", "Bilderbuch"),
-  ball: metacom("Spielen/ballspielen.png", "Ball"),
-} as const;
