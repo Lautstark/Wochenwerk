@@ -90,9 +90,43 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
       for (const store of ["appointments", "series", "cards", "people"] as const) transaction.objectStore(store).clear();
     }
     /* Version 6 is the first store that is not a kind of record: one settings
-       record, holding every preference the household has. See Settings. */
-    if (from < 6) database.createObjectStore("settings", { keyPath: "id" });
+       record, holding every preference the household has. See Settings.
+
+       Asked of the database rather than of `from`, and that is the one branch here
+       that is not a version check. Two settings panels were written in parallel —
+       the voice and the Azure key — and both had to bump to 6 to have a record to
+       write into. A browser that has already run one of them is *at* 6, so the
+       other's `if (from < 6)` never runs on it and its store is silently absent
+       until something reaches for it. Whoever merges second still has to bump the
+       version, but this is the half that does not depend on anybody noticing. */
+    if (!database.objectStoreNames.contains("settings")) database.createObjectStore("settings", { keyPath: "id" });
   },
+  /* A version bump waits for every open connection to close, and the board is a
+     page that is never closed: it hangs on a wall. Without these three, deploying
+     a new version leaves the calendar's upgrade waiting on the board forever, with
+     nothing on either screen saying so — the failure looks like a page that simply
+     stopped loading.
+
+     `blocking` is the one that fixes it: it fires on the *old* connection, which
+     closes so the upgrade can proceed and reloads into the version that wanted it.
+     This is a display with nothing unsaved in it, so reloading costs nothing and
+     is what somebody would do by hand anyway. It only helps once a build carrying
+     it is the one running, so the first deploy after this still wants the board
+     reloaded by hand; every one after it does not. */
+  blocking(_current, _blocked, event) {
+    (event.target as IDBDatabase | null)?.close();
+    opening = null;
+    globalThis.location?.reload();
+  },
+  /* We are the one waiting, on a tab too old to carry the handler above. Said out
+     loud rather than hung on, because the two are indistinguishable from a screen. */
+  blocked() {
+    console.warn("Wochenwerk: die Datenbank wird gerade von einem anderen Tab offen gehalten. Board neu laden.");
+  },
+  /* The browser dropped the connection — a phone reclaiming memory, usually. Drop
+     the cached promise so the next call opens a live one instead of reusing a
+     handle every query now fails on. */
+  terminated() { opening = null; },
 }));
 
 export const uuid = () => crypto.randomUUID();

@@ -99,6 +99,12 @@ describe("a birthday", () => {
 });
 
 describe("the settings record", () => {
+  /* The file-wide reset is clearAll(), which leaves settings alone on purpose —
+     so this describe resets its own record. Without it these tests would only
+     pass in the order they happen to be written in, and the first one to be
+     added above them would break the rest. */
+  beforeEach(async () => { await saveSettings({ azure: undefined, voice: undefined }); });
+
   it("is one record: a second preference does not overwrite the first", async () => {
     /* Nothing set is an empty answer, not a missing one: every caller reads it
        the same way on a first run as on any other. */
