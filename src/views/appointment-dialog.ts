@@ -138,7 +138,13 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   const handle = openDialog({
     title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", closeLabel: "Schließen", wide: true,
-    body: [el("div", { class: "stack" }, field("Ansage", speech.node), timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
+    /* Two groups, in this order: when it happens, then what the board does with
+       it. The Ansage sits at the head of the second rather than at the top of the
+       sheet, because what is heard and what is shown are one question asked twice
+       — and it sits *above* the symbol rather than below it so that the search,
+       which grows to the height of its results, cannot push it around. */
+    body: [el("div", { class: "stack" }, timeRow, wholeRow, repeatRow, seriesLine,
+      field("Ansage", speech.node), kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
