@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
-import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf,
-  saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
+import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf, repattern,
+  reshapeOf, saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
 const shape = (start?: string, end?: string): Omit<Appointment, "id" | "date" | "series" | "updatedAt"> =>
@@ -97,6 +97,57 @@ describe("an appointment turned into a series", () => {
     await put(one);
     const id = await seriesFrom(one, { kind: "daily" }, iso(monday));
     expect((await inSeries(id)).map(item => item.date)).toEqual([one.date]);
+  });
+});
+
+describe("a batch given a new rule", () => {
+  const template = (extra: Partial<Appointment> = {}): Appointment =>
+    ({ id: uuid(), date: iso(monday), start: "09:00", end: "10:00", symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
+  const fortnight = () => createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 13)), shape("09:00", "10:00"));
+
+  it("does not reach back past the day the new rule starts", async () => {
+    const id = await fortnight();
+    const before = (await inSeries(id)).slice(0, 7).map(item => item.id);
+    const change = await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)), template());
+    expect(change.dropping).toHaveLength(5);
+    expect(change.adding).toHaveLength(0);
+    const after = await inSeries(id);
+    expect(after).toHaveLength(9);
+    expect(after.slice(0, 7).map(item => item.id)).toEqual(before);
+  });
+
+  it("leaves a day that survives exactly as it was", async () => {
+    const id = await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("09:00", "10:00"));
+    const wednesday = (await inSeries(id))[2];
+    await put({ ...wednesday, title: "eigen" });
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 6)), template());
+    const after = await inSeries(id);
+    expect(after).toHaveLength(2);
+    expect(after[1]).toMatchObject({ id: wednesday.id, title: "eigen" });
+  });
+
+  it("writes the days that are new from the appointment it was given, not from the first of the batch", async () => {
+    const id = await createSeries({ kind: "weekly", weekdays: [0] }, iso(monday), iso(addDays(monday, 13)), shape("09:00", "10:00"));
+    const [first] = await inSeries(id);
+    await put({ ...first, title: "eigen" });
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 13)), template({ title: "Vorlage" }));
+    const after = await inSeries(id);
+    expect(after.map(item => item.title)).toEqual(["eigen", "Vorlage", undefined, "Vorlage"]);
+  });
+
+  it("moves where the rule starts, so the next change leaves the old part alone", async () => {
+    const id = await fortnight();
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 13)), template());
+    expect((await allSeries())[0].from).toBe(iso(addDays(monday, 7)));
+    await repattern(id, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 7)), iso(addDays(monday, 7)), template());
+    expect(await inSeries(id)).toHaveLength(8);
+  });
+
+  it("says what it would cost without costing it", async () => {
+    const id = await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("09:00", "10:00"));
+    const change = await reshapeOf(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 6)));
+    expect(change.dropping).toHaveLength(5);
+    expect(await inSeries(id)).toHaveLength(7);
   });
 });
 

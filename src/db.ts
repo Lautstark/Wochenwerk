@@ -310,24 +310,49 @@ export async function dropSeries(series: string, from?: string): Promise<number>
   if (!from || !(await inSeries(series)).length) await database.delete("series", series);
   return touched.length;
 }
-/** Move where a batch stops: write what is missing, drop what is now past the end. */
-export async function reboundSeries(series: string, until: string): Promise<{ added: number; dropped: number }> {
+/* Reshaping a batch — a new rule, a new end, or both — is one piece of arithmetic
+   either way: which days the rule now covers, which records already sit on them,
+   and what the difference costs. It is asked for first and applied second, so the
+   count can be put in front of somebody before anything is written.
+
+   Nothing before `from` is looked at, let alone rewritten. What the board showed in
+   September is what was planned in September, and a rule changed in October does
+   not reach back for it. */
+export type Reshape = { adding: string[]; dropping: Appointment[] };
+
+export async function reshapeOf(series: string, pattern: Pattern, from: string, until: string): Promise<Reshape> {
+  const ahead = (await inSeries(series)).filter(appointment => appointment.date >= from);
+  const wanted = new Set(occurrences(pattern, from, until < from ? from : until));
+  const have = new Set(ahead.map(appointment => appointment.date));
+  return {
+    adding: [...wanted].filter(date => !have.has(date)),
+    dropping: ahead.filter(appointment => !wanted.has(appointment.date)),
+  };
+}
+
+/** Apply one. `like` is the appointment the days that are new get written from. */
+export async function repattern(series: string, pattern: Pattern, from: string, until: string, like: Appointment): Promise<Reshape> {
   const database = await db();
   const record = await database.get("series", series);
-  if (!record) return { added: 0, dropped: 0 };
-  const existing = await inSeries(series);
-  const wanted = new Set(occurrences(record.pattern, record.from, until));
-  const shape = existing[0];
-  const gone = existing.filter(appointment => !wanted.has(appointment.date));
-  const missing = [...wanted].filter(date => !existing.some(appointment => appointment.date === date));
+  if (!record) return { adding: [], dropping: [] };
+  const stop = until < from ? from : until;
+  const change = await reshapeOf(series, pattern, from, stop);
+  const now = Date.now();
   const writing = database.transaction("appointments", "readwrite");
   await Promise.all([
-    ...gone.map(appointment => writing.store.delete(appointment.id)),
-    ...(shape ? missing.map(date => writing.store.put({ ...shape, id: uuid(), date, series, updatedAt: Date.now() })) : []),
+    ...change.dropping.map(appointment => writing.store.delete(appointment.id)),
+    /* A day nobody had yet is written from the appointment somebody has open, not
+       from the first of the batch: that one may carry an edit of its own, and it is
+       not the one being looked at. Undecided, because a choice belongs to its day.
+       A day that survives is left alone entirely, edits and all. */
+    ...change.adding.map(date => writing.store.put({ ...like, id: uuid(), date, series, chosen: undefined, updatedAt: now })),
     writing.done,
   ]);
-  await database.put("series", { ...record, until });
-  return { added: missing.length, dropped: gone.length };
+  /* The record describes the stretch it still governs, so `from` moves to the day
+     the new rule starts. That is what keeps the untouched past out of every later
+     reshape — and what lies there keeps the batch id, so it stays listable as one. */
+  await database.put("series", { ...record, pattern, from, until: stop, allDay: !like.start });
+  return change;
 }
 
 export async function editSeries(series: string, change: Partial<Appointment>, from?: string): Promise<number> {

@@ -1,8 +1,8 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
-import { addDays, allDay, board, clock, dateLabel, dayLabel, derivedName, iso, minute, titleOf,
-  weekdays, type Appointment, type Pattern } from "../model.js";
-import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, seriesFrom, uuid } from "../db.js";
+import { addDays, allDay, board, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
+  strays, titleOf, weekdays, type Appointment, type Pattern } from "../model.js";
+import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
@@ -19,9 +19,13 @@ export const blankAppointment = (date: string, start?: string): Appointment => (
 
 export function editAppointment(appointment: Appointment, existing: boolean, done: () => void) {
   const draft: Appointment = structuredClone(appointment);
+  /* A batch brings its own rule into the dialog rather than an empty one, so what
+     stands there is what is stored, and changing it changes that. */
+  const batch = draft.series ? shown().series.get(draft.series) : undefined;
   let mode: "symbols" | "choice" = draft.options.length ? "choice" : "symbols";
-  let repeat: Repeat = "none";
-  let weekly = [(new Date(`${draft.date}T00:00`).getDay() + 6) % 7];
+  let repeat: Repeat = batch ? batch.pattern.kind : "none";
+  let weekly = batch?.pattern.kind === "weekly" ? [...batch.pattern.weekdays]
+    : [(new Date(`${draft.date}T00:00`).getDay() + 6) % 7];
   let counts = { from: 0, all: 0 };
 
   /* Every control is made once. Only what a change actually affects is refilled,
@@ -69,7 +73,11 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   const repeatPick = el("select", { class: "field", on: { change: () => { repeat = repeatPick.value as Repeat; sync(); } } },
     ...([["none", "einmalig"], ["daily", "jeden Tag"], ["weekly", "wöchentlich"], ["yearly", "jedes Jahr"]] as const)
+      /* „einmalig" is not an answer a batch can be given here: undoing one is
+         deleting it, which is the other button and says what it takes with it. */
+      .filter(([value]) => !batch || value !== "none")
       .map(([value, label]) => el("option", { text: label, attrs: { value } })));
+  repeatPick.value = repeat;
   const days = el("div", { class: "picker__grid picker__grid--tight" });
   const until = input("date");
   const untilRow = field("Bis", until);
@@ -78,21 +86,17 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const removeButton = button("Löschen", "destructive", () => void erase());
   const saveButton = button("Sichern", "primary", () => void save());
   const wantMore = el("p", { class: "notice bad" });
-  /* Only for a batch that already exists: where it stops is the series' own, and
-     changing it is how "until further notice" is answered. */
-  const seriesUntil = input("date");
-  const seriesUntilField = field("Serie läuft bis", seriesUntil);
 
   const who = el("div", { class: "picker__grid" });
   const showPeople = input("checkbox");
   const showRow = el("label", { class: "choice" }, showPeople, el("span", { text: "Am Board zeigen" }));
   showPeople.checked = draft.showPeople;
   /* How often is as much part of planning as when, so it stands beside the time
-     rather than under a fold. Where an existing batch stops is rarer, and folds. */
+     rather than under a fold — for a batch that exists as much as for one being
+     made, and where it stops sits in the same row as what it repeats. */
   const more = el("details", { class: "more" },
     el("summary", { text: "Weitere Optionen" }),
-    el("div", { class: "stack" }, existing ? seriesUntilField : el("span"),
-      el("span", { class: "lbl", text: "Personen" }), who, showRow));
+    el("div", { class: "stack" }, el("span", { class: "lbl", text: "Personen" }), who, showRow));
 
   const handle = openDialog({
     title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
@@ -126,13 +130,14 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (whole.checked && spanTo.value < draft.date) spanTo.value = draft.date;
     spanTo.min = draft.date;
 
-    const series = draft.series ? shown().series.get(draft.series) : undefined;
-    seriesUntilField.hidden = !series;
-    if (series && !seriesUntil.value) seriesUntil.value = series.until;
     seriesLine.hidden = !draft.series;
-    seriesLine.textContent = !draft.series ? "" : series
-      ? `↻ ${series.pattern.kind === "daily" ? "jeden Tag" : series.pattern.kind === "yearly" ? "jedes Jahr"
-          : `wöchentlich ${series.pattern.weekdays.map(day => weekdays[day]).join(" ")}`} · bis ${dateLabel(series.until)}`
+    /* An appointment lying before where the rule starts belongs to the batch but was
+       not written by that rule, so the line says from when the rule holds rather
+       than claiming it over a day it never covered. */
+    seriesLine.textContent = !draft.series ? "" : batch
+      ? `↻ ${batch.pattern.kind === "daily" ? "jeden Tag" : batch.pattern.kind === "yearly" ? "jedes Jahr"
+          : `wöchentlich ${batch.pattern.weekdays.map(day => weekdays[day]).join(" ")}`} · bis ${dateLabel(batch.until)}`
+        + (draft.date < batch.from ? ` · gilt ab ${dateLabel(batch.from)}` : "")
       : "↻ Teil einer Serie";
 
     kinds.children[0].classList.toggle("primary", mode === "symbols");
@@ -154,13 +159,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         .map(card => pickerItem(card.name, cardThumb(card), false, () => { draft.options = [...draft.options, card.id]; void sync(); }))),
       button("＋ Neue Karte", "sm", () => makeCard()));
 
-    /* A batch is not only asked for when the appointment is new: one that turned
-       out to repeat is turned into one here. What already belongs to a batch keeps
-       its pattern — changing that is extending or clearing it, not asking again. */
-    repeatRow.hidden = !!draft.series;
     days.hidden = repeat !== "weekly";
     untilRow.hidden = repeat === "none";
-    if (!until.value) until.value = iso(addDays(new Date(`${draft.date}T00:00`), 55));
+    if (!until.value) until.value = batch ? batch.until : iso(addDays(new Date(`${draft.date}T00:00`), 55));
     fill(days, ...weekdays.map((label, index) => pickerItem(label, el("span"), weekly.includes(index), () => {
       weekly = weekly.includes(index) ? weekly.filter(other => other !== index) : [...weekly, index];
       if (!weekly.length) weekly = [index];
@@ -222,11 +223,43 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     const shape = { title: draft.title, start: draft.start, end: draft.end, symbols: draft.symbols,
       options: draft.options, chosen: draft.chosen, people: draft.people, showPeople: draft.showPeople };
 
-    const series = draft.series ? shown().series.get(draft.series) : undefined;
-    if (series && seriesUntil.value && seriesUntil.value !== series.until) {
-      await reboundSeries(series.id, seriesUntil.value);
+    if (batch) {
+      const pattern: Pattern = repeat === "weekly" ? { kind: "weekly", weekdays: [...weekly].sort((one, other) => one - other) }
+        : repeat === "yearly" ? { kind: "yearly" } : { kind: "daily" };
+      const stop = until.value || batch.until;
+      const moved = !samePattern(pattern, batch.pattern);
+      /* Where a new rule starts: the appointment somebody opened, and never earlier
+         than today. What is already behind us is what was planned, and a rule
+         changed now does not get to say otherwise. */
+      const now = iso(new Date());
+      const cut = moved ? (draft.date > now ? draft.date : now) : batch.from;
+      if (moved || stop !== batch.until) {
+        const change = await reshapeOf(batch.id, pattern, cut, stop);
+        /* Writing days nobody had is not worth a question. Removing days somebody
+           may have edited by hand is — and how many of those there are is the half
+           of the cost a bare count leaves out. */
+        if (change.dropping.length) {
+          const own = change.dropping.filter(item => strays(item, draft)).length;
+          const sure = await confirmDialog({
+            title: "Serie ändern", danger: true, confirmLabel: "Ändern", cancelLabel: "Abbrechen", closeLabel: "Schließen",
+            body: [`${change.dropping.length} Termine fallen weg${own ? `, ${own} davon mit eigenen Änderungen` : ""}`,
+              change.adding.length ? `${change.adding.length} kommen dazu` : "",
+              moved ? `ab ${dateLabel(cut)} — was davor liegt, bleibt wie es ist` : ""].filter(Boolean).join(", ") + ".",
+          });
+          if (!sure) return;
+        }
+        const gone = change.dropping.some(item => item.id === draft.id);
+        await repattern(batch.id, pattern, cut, stop, { ...draft, ...shape });
+        /* The day this one stood on may be one the new rule no longer covers, in
+           which case it has just been removed and must not be written back. */
+        if (gone) { handle.close(); return done(); }
+      }
     }
     if (existing && draft.series) {
+      /* Only what the appointment itself says is a change over the batch. A rule
+         changed and nothing else is one answer already given. */
+      if (!strays(draft, appointment) && draft.date === appointment.date) { handle.close(); return done(); }
+      counts = { from: (await reachOf(draft.series, draft.date)).length, all: (await reachOf(draft.series)).length };
       const scope = await askScope("ändern", counts);
       if (!scope) return;
       if (scope !== "one") { await editSeries(draft.series, shape, scope === "from" ? draft.date : undefined); handle.close(); return done(); }

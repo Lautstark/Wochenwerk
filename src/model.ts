@@ -79,6 +79,24 @@ export type Pattern =
   | { kind: "weekly"; weekdays: number[] }
   | { kind: "yearly" };
 export type Series = { id: string; pattern: Pattern; from: string; until: string; allDay: boolean; createdAt: number };
+export const samePattern = (a: Pattern, b: Pattern): boolean =>
+  a.kind === b.kind && (a.kind !== "weekly" || (b.kind === "weekly"
+    && a.weekdays.length === b.weekdays.length && a.weekdays.every((day, index) => day === b.weekdays[index])));
+
+/* Whether an appointment has been given something of its own since the batch wrote
+   it. Nothing records that, and nothing should: it is a comparison, not a flag, and
+   what it is compared against is the one somebody is looking at. It is what lets a
+   reshape say not only how many appointments it removes but how many of them
+   somebody had already touched. */
+export function strays(appointment: Appointment, like: Appointment): boolean {
+  const alike = (a: string[], b: string[]) => a.length === b.length && a.every((item, index) => item === b[index]);
+  const marks = (item: Appointment) => item.symbols.map(symbol => `${symbol.source}:${symbol.id}`);
+  return (appointment.title ?? "") !== (like.title ?? "")
+    || appointment.start !== like.start || appointment.end !== like.end
+    || appointment.chosen !== like.chosen || appointment.showPeople !== like.showPeople
+    || !alike(marks(appointment), marks(like)) || !alike(appointment.options, like.options)
+    || !alike(appointment.people, like.people);
+}
 
 /* A birthday is not a kind of appointment. It is a date on a person, and the
    appointments it produces are ordinary all-day ones carrying that person. The

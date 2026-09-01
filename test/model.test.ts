@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateLabel, dayLabel, iso, lanesOf, occurrences, mondayOf, titleOf, undecided, shownCards,
+import { addDays, dateLabel, dayLabel, iso, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
   type Appointment, type Card } from "../src/model.js";
 
 const at = (start: string, end: string, extra: Partial<Appointment> = {}): Appointment =>
@@ -75,6 +75,19 @@ describe("what an appointment is called", () => {
     const settled = at("14:00", "18:00", { options: ["a", "b"], chosen: "a" });
     expect(undecided(settled)).toBe(false);
     expect(shownCards(settled)).toEqual(["a"]);
+  });
+});
+
+describe("an appointment with something of its own", () => {
+  it("is one that differs from what it is held against", () => {
+    expect(strays(at("09:00", "10:00"), at("09:00", "10:00"))).toBe(false);
+    expect(strays(at("09:00", "10:00", { title: "eigen" }), at("09:00", "10:00"))).toBe(true);
+    expect(strays(at("09:00", "11:00"), at("09:00", "10:00"))).toBe(true);
+  });
+
+  it("counts a choice already made, because that is the day's own answer", () => {
+    const offered = { options: ["a", "b"] };
+    expect(strays(at("09:00", "10:00", { ...offered, chosen: "a" }), at("09:00", "10:00", offered))).toBe(true);
   });
 });
 

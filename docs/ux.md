@@ -72,7 +72,9 @@ An appointment may carry people, and may or may not show them. Where it does, th
 
 A repetition is a way of writing many appointments at once, never a rule stored instead of them. Creating one asks for a pattern and where it stops — a date, or a number of times — and writes exactly that many concrete appointments.
 
-An appointment written once that turns out to repeat is turned into a batch from the same fields, as long as it does not already belong to one: the record it already is becomes the first of the batch, so a choice resolved on it stays resolved and the copies start undecided. What already belongs to a batch is not asked again — changing that is extending or clearing it.
+An appointment written once that turns out to repeat is turned into a batch from the same fields, as long as it does not already belong to one: the record it already is becomes the first of the batch, so a choice resolved on it stays resolved and the copies start undecided. What already belongs to a batch is never turned into a second one; there, the same fields change the rule it already has.
+
+The rule itself can be changed afterwards — which days the batch falls on, and where it stops — in the same row it was asked for in. A new rule holds from the appointment it was changed on and never from earlier than today: what is already behind is what was planned, and it stays. The batch record's start moves to the day its current rule begins, so no later change reaches back over that part either, while the appointments there keep the batch id and stay listable with the rest. Days that survive the change keep their records untouched, edits and resolved choices and all. Days that are new are written from the appointment in front of whoever made the change, not from the first of the batch. Days that fall away are removed, and how many of them carried something of their own is said before it happens.
 
 Each carries the id of the batch it came from. That is what makes a series listable, extendable and clearable, and it is all the series is for: the appointments stand on their own, and the board never sees it.
 
