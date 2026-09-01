@@ -164,9 +164,13 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
   }
   box.addEventListener("input", draw);
 
+  /* Handed out rather than kept: a choice has no word of its own to type, so the
+     row goes and the list of sentences stays — which is the only part of this
+     that a choice has. */
+  const row = el("div", { class: "speech-row" }, box, hear);
   return {
-    node: el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, hear), why, all),
-    box, draw,
+    node: el("div", { class: "speech" }, row, why, all),
+    box, row, fold: all, draw,
     /* What a save should render ahead of the key press. The same list the fold
        shows, so what a person was offered to hear is exactly what is prepared. */
     sentences: () => (list ? couldSay(fromPeople(shape()) ? "" : word(), shape()) : []).map(line => line.text),

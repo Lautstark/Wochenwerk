@@ -116,6 +116,22 @@ a.btn { text-decoration: none; }
 .row-of { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .row-of > [hidden] { display: none; }
 .field-row { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; }
+/* A field with the switch that replaces it underneath. Two labels, not one
+   nested in the other: a checkbox inside the field's own <label> would give the
+   box two names and the field none. Standing free the switches read as belonging
+   to nothing, which is what this column answers — and it answers the disappearing
+   too, because the ones that replace Von and Bis live in the columns Ganztägig
+   hides, and the one that is Ganztägig lives in the only column that stays. */
+.field-col { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; align-content: start; }
+.field-col > .field-row { flex: none; min-width: 0; }
+.field-col > .choice { font-size: 13px; }
+.field-col > .choice input { flex: none; }
+/* Columns of unequal height hang from the same line, so the fields stay level
+   with each other rather than the switches under them pushing one field down. */
+.row-of--top { align-items: flex-start; }
+/* How long it lasts, on the far end of the label of the field that ends it. */
+.lbl--split { display: flex; justify-content: space-between; gap: 8px; }
+.lbl__aside { color: var(--text-faint); }
 .choice { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .acts { display: flex; gap: 8px; flex-wrap: wrap; }
 /* What pushes the rest of a row to the far end. components.css does not define
@@ -144,6 +160,13 @@ a.btn { text-decoration: none; }
 .picker__item .thumb { width: 52px; height: 52px; }
 .picker__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker__grid--tight .picker__item .thumb { display: none; }
+/* Nothing picked yet, in the shape of the thing that is missing rather than as a
+   sentence where the thing would be. Dashed because it is a slot and not a tile,
+   and it points the caret at the search rather than explaining where it is. */
+.picker__item--add { border: 1px dashed var(--line); background: transparent;
+  place-items: center; gap: 7px; min-height: 92px; color: var(--text-dim); }
+.picker__item--add:hover { background: var(--surface-2); }
+.picker__add { font-size: 20px; line-height: 1; }
 
 /* One choice with several answers, so the rows look like the picker above them
    rather than like a stack of buttons: the accent is what "the one in force"
@@ -201,8 +224,16 @@ a.btn { text-decoration: none; }
 .sheet > .body > .panel:last-of-type { border-bottom: none; }
 /* The fold uses the panel's chevron, not a text arrow. */
 .more { border-top: 1px solid var(--line); }
-.more > summary { display: flex; align-items: center; cursor: pointer; list-style: none;
+.more > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none;
   padding: 10px 0 8px; font-size: 13.5px; color: var(--text-dim); }
+/* components.css §panel: "a folded section whose heading carries its state, so a
+   look is enough". The same two parts, because the answer is the same — a closed
+   fold said nothing about the people inside it. Not `.panel` itself: that is
+   full-bleed furniture with 16px of its own inset, which inside an already
+   padded sheet would sit a row further in than everything above it. */
+.more > summary .section { flex: none; color: var(--text); }
+.more > summary .state { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .more > summary::-webkit-details-marker { display: none; }
 .more > summary::after { content: ""; width: 7px; height: 7px; margin-left: 8px;
   border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim);
@@ -226,12 +257,16 @@ a.btn { text-decoration: none; }
 
 /* Every sentence the word turns up in. Closed by default and gone entirely while
    there is no word — a list of frames with a hole in each one answers nothing. */
-.sentences__fold > summary { font-size: .82rem; color: var(--muted); cursor: pointer; padding: .3rem 0; }
+.sentences__fold > summary { font-size: .82rem; color: var(--text-faint); cursor: pointer; padding: .3rem 0; }
 .sentences { display: flex; flex-direction: column; }
 .sentence { display: flex; align-items: center; gap: .55rem; padding: .35rem 0;
   border-bottom: 1px solid var(--line); }
 .sentence:last-child { border-bottom: 0; }
-.sentence__text { flex: 1 1 auto; min-width: 0; font-size: .88rem; }
+/* `.sheet > .body` paints everything in it --text-dim, so a sentence and the
+   note saying when it is said came out the same weight and the list had no
+   hierarchy at all. The sentence is the thing being read; it takes the full ink
+   back, and the note steps down rather than standing level with it. */
+.sentence__text { flex: 1 1 auto; min-width: 0; font-size: .88rem; color: var(--text); }
 /* When it is said, in the words the rules are written in rather than in minutes:
    for whoever is planning, "in der letzten Viertelstunde" carries more than 15. */
-.sentence__when { flex: 0 0 auto; font-size: .75rem; color: var(--muted); }
+.sentence__when { flex: 0 0 auto; font-size: .75rem; color: var(--text-faint); }
