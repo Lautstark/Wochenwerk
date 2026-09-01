@@ -1,6 +1,6 @@
 import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
-import { addDays, dayLabel, iso, shownCards, weekdays, type SymbolRef } from "./model.js";
+import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "./model.js";
 import { el, fill, button } from "./ui.js";
 import { settings } from "./db.js";
 import { load, shown, subscribe, type Week } from "./store.js";
@@ -26,7 +26,7 @@ const empty = el("p", { class: "notice", text: "Noch nichts geplant. Klick in ei
 const credit = el("p", { class: "credit" });
 const drawn = (current: Week): SymbolRef[] => [
   ...current.appointments.flatMap(appointment => appointment.symbols),
-  ...current.appointments.flatMap(shownCards).map(id => current.cards.get(id)?.symbol).filter(Boolean) as SymbolRef[],
+  ...current.appointments.flatMap(item => drawnSymbols(item, current.cards)),
 ];
 const grid = weekGrid(
   appointment => editAppointment(appointment, true, () => void load()),

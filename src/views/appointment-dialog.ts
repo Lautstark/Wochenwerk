@@ -194,18 +194,25 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
     kinds.children[0].classList.toggle("primary", mode === "symbols");
     kinds.children[1].classList.toggle("primary", mode === "choice");
-    search.node.hidden = mode !== "symbols";
+    /* A choice carries a symbol of its own now, so the picker stopped being one
+       half of a toggle: both kinds answer "what is drawn" the same way, and only
+       "what may be picked" belongs to the choice alone. */
+    search.node.hidden = false;
     offer.hidden = mode !== "choice";
 
     await resolve();
-    fill(chosen, mode === "symbols"
-      ? grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
-          () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); })))
-      : grid(...draft.options.map(id => pickerItem(cardById(id)?.name ?? "?", cardThumb(cardById(id)), true,
-          () => { draft.options = draft.options.filter(other => other !== id); void sync(); }))));
-    if (!draft.symbols.length && !draft.options.length) fill(chosen, el("p", { class: "empty", text: mode === "choice" ? "noch keine Karte" : "noch kein Symbol" }));
+    fill(chosen, grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
+      () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); }))));
+    if (!draft.symbols.length) fill(chosen, el("p", { class: "empty",
+      text: mode === "choice" ? "noch kein Symbol für die Wahl" : "noch kein Symbol" }));
 
     if (!making) fill(offer,
+      /* What is already on offer, removable. It used to share `chosen` with the
+         symbols and cannot any more, now that a choice has both. */
+      ...(draft.options.length
+        ? [grid(...draft.options.map(id => pickerItem(cardById(id)?.name ?? "?", cardThumb(cardById(id)), true,
+            () => { draft.options = draft.options.filter(other => other !== id); void sync(); })))]
+        : []),
       el("p", { class: "small muted", text: "Was zur Wahl steht, sind Karten mit NFC-Tag, die du hinlegst." }),
       grid(...[...shown().cards.values()].filter(card => !draft.options.includes(card.id))
         .map(card => pickerItem(card.name, cardThumb(card), false, () => { draft.options = [...draft.options, card.id]; void sync(); }))),

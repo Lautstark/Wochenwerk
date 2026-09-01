@@ -176,8 +176,19 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .day.today .card.past.parallel { box-shadow: inset 0 0 0 .11rem var(--seam), 0 0 0 .24rem var(--spent), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
 .card.parallel.current { box-shadow: 0 0 0 .5rem #fff, 0 0 0 .78rem var(--field), 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
 
-/* An appointment whose symbol is not decided yet: same card, unfinished edge. */
-.card.open { border: .22rem dashed color-mix(in oklab, var(--day) 60%, #241c14); }
+/* An appointment that is still to be chosen. It carries one sign of its own —
+   *here you choose* — and that sign has to read as a different kind of thing from
+   the pictures around it, which are all what *happens*.
+
+   The picture itself cannot carry that. Line art under a mask collapses to a
+   silhouette and loses the hands that make it legible, and a filter cannot
+   recolour arbitrary artwork without guessing. So the ground carries it instead:
+   the card is a plate of the day's colour rather than paper, which inverts the
+   board's own rule — colour is the field, paper is a card — for the one card that
+   is a prompt and not an event. The dashed edge stays; it says unfinished, where
+   the ground says this one is a question. */
+.card.open { border: .22rem dashed color-mix(in oklab, var(--day) 60%, #241c14);
+  background: color-mix(in oklab, var(--day) 42%, #fff); }
 
 /* The daypart rail is a narrow strip in the colour of the current day, and it also
    carries how far the day has come: the part already behind us is muted, the part

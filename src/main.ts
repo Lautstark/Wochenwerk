@@ -1,5 +1,5 @@
 import "./style.css";
-import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
+import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, settings, week, whenStuck } from "./db.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
@@ -92,11 +92,10 @@ function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) 
   const left = lanes > 1 ? (lane * (100 - width)) / (lanes - 1) : 0;
   const box = `top:${top}%;height:calc(${height}% - 5px);left:calc(${left}% + 3px);width:calc(${width}% - 6px);z-index:${1 + lane}`;
   const crowd = appointment.showPeople && appointment.people.length ? faces(draw, appointment.people) : "";
-  /* An ordinary appointment shows its own symbols; a choice shows the cards it
-     offers, or the one that was picked. */
-  const shown: { symbol?: SymbolRef; name: string }[] = appointment.options.length
-    ? shownCards(appointment).map(id => ({ symbol: draw.cards.get(id)?.symbol, name: draw.cards.get(id)?.name ?? "?" }))
-    : appointment.symbols.map(symbol => ({ symbol, name: symbol.label }));
+  /* Its own symbol, until something picked — then the picked card's. An open
+     choice draws one sign meaning *here you choose* rather than a row of the
+     options; see `drawnSymbols`. */
+  const shown = drawnSymbols(appointment, draw.cards).map(symbol => ({ symbol, name: symbol.label }));
   const icons = shown.map(item => item.symbol
     ? `<span class="icon">${picture(draw, item.symbol)}</span>`
     : `<span class="icon"><span class="missing">${escape(item.name)}</span></span>`).join("");
@@ -113,7 +112,7 @@ function whole(draw: Drawing, appointments: Appointment[], date: string) {
   const pills = appointments.map(appointment => {
     /* At most one picture: a row of symbols beside a row of avatars would be two
        lists in one pill, and the pill is too small to read as two. */
-    const first = appointment.symbols[0] ?? shownCards(appointment).map(id => draw.cards.get(id)?.symbol).find(Boolean);
+    const first = drawnSymbols(appointment, draw.cards)[0];
     const symbol = first ? `<span class="badge">${picture(draw, first)}</span>` : "";
     const crowd = appointment.people.length ? faces(draw, appointment.people, date) : "";
     return symbol || crowd ? `<span class="pill">${symbol}${crowd}</span>` : "";
@@ -190,7 +189,7 @@ async function build(at: Date): Promise<string> {
      so a board that draws from a connected folder carries no line at all. */
   const drawn: SymbolRef[] = [
     ...appointments.flatMap(appointment => appointment.symbols),
-    ...appointments.flatMap(appointment => shownCards(appointment)).map(id => cards.get(id)?.symbol).filter(Boolean) as SymbolRef[],
+    ...appointments.flatMap(appointment => drawnSymbols(appointment, cards)),
   ];
   const credit = owed(drawn);
   return `<div class="week" style="grid-template-columns:${track.join(" ")}">${cells.join("")}</div>`

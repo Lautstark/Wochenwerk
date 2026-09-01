@@ -37,7 +37,6 @@ symbol and nobody on it.
 | `symbol` | The picture on it. |
 | `speech` | The word said out loud, where that is not the name. Usually empty. |
 | `nfc` | The tag's identifier — how the board recognises the card. |
-| `tone` | Its colour in the calendar. |
 
 **A card is a record because it is an object.** It is a laminated picture with an
 NFC tag, it lives in a drawer, and it is laid out when a choice is offered. That is
@@ -55,9 +54,10 @@ written once — as a series, usually — and a picture is all the board asks of
 wrapping every Frühstück in a record would be an abstraction with nothing on the
 other side of it.
 
-Colour follows from that: a card has a chosen tone, and an appointment without one
-derives its colour from its first symbol, so the same picture is always the same
-colour without anything being stored.
+Colour follows from the picture, for a card and an appointment alike: the same
+symbol is always the same colour, and nothing is stored or chosen. A card used to
+carry a tone of its own; once an open choice drew a symbol like everything else,
+there was nothing left for that tone to answer.
 
 ## `Series`
 

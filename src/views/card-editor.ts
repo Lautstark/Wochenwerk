@@ -1,5 +1,5 @@
 import { button, el, field, fill, input, spacer } from "../ui.js";
-import { TONES, toneOf, type Card, type SymbolRef } from "../model.js";
+import { type Card, type SymbolRef } from "../model.js";
 import { putCard } from "../db.js";
 import { prepare } from "../speech.js";
 import { pictures } from "../symbols.js";
@@ -32,11 +32,15 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
   /* What the board says when this card is offered or named. Empty means the name
      itself, which is the ordinary case — the field is here for where the written
      and the spoken word come apart. docs/speech.md. */
-  const speech = speechField(() => name.value.trim() || draft.name, () => ({ offered: true, picked: true }));
+  /* No sentence list here, and that is not tidying. What a card is said inside of
+     depends on which cards a *appointment* offers together — "Jetzt darfst du
+     aussuchen: Schwimmbad oder Bouldern" is a fact about that appointment, and a
+     one-card rendering of it is a sentence the board will almost never say. The
+     word is heard here; the sentences are read where they are true. */
+  const speech = speechField(() => name.value.trim() || draft.name, () => ({}), { list: false });
   speech.box.value = draft.speech ?? "";
 
   const slot = el("div", { class: "slot" });
-  const tones = el("div", { class: "tones" });
   const search = symbolSearch(ref => {
     draft.symbol = ref;
     if (!name.value.trim()) name.value = ref.label;
@@ -54,7 +58,6 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
       button("Abbrechen", "quiet sm", () => done(null)), save),
     el("div", { class: "stack" },
       field("Name", name), field("Ansage", speech.node), field("NFC-Nummer", nfc),
-      el("span", { class: "lbl", text: "Farbe" }), tones,
       el("span", { class: "lbl", text: "Symbol" }), slot,
       search.node));
 
@@ -67,11 +70,6 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
       ? el("div", { class: "slot__filled" }, picture(draft.symbol, draft.symbol.label, known),
           el("span", { class: "small", text: draft.symbol.label }))
       : el("p", { class: "empty", text: "Such unten ein Symbol aus." }));
-    fill(tones, ...TONES.map(tone => el("button", {
-      class: `swatch${toneOf(draft) === tone ? " swatch--active" : ""}`,
-      style: { "--tone": tone }, attrs: { type: "button", "aria-label": "Farbe" },
-      on: { click: () => { draft.tone = tone; void sync(); } },
-    })));
     speech.draw();
     save.disabled = !draft.symbol;
   }
@@ -85,7 +83,6 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
        child is waiting. */
     void prepare(speech.sentences());
     draft.nfc = nfc.value.trim().toUpperCase() || undefined;
-    draft.tone ??= TONES[0];
     await putCard(draft);
     done(draft.id);
   };

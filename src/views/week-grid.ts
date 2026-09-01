@@ -1,5 +1,5 @@
 import { el, fill } from "../ui.js";
-import { allDay, board, bornOn, clock, iso, lanesOf, minute, shownCards, snapped, titleOf, undecided,
+import { allDay, board, bornOn, clock, drawnSymbols, iso, lanesOf, minute, snapped, titleOf, undecided,
   weekdays, type Appointment } from "../model.js";
 import { cardById, personById, shown, type Week } from "../store.js";
 import { cardThumb, face, picture } from "./pieces.js";
@@ -48,9 +48,8 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
             /* One pill: at most one picture, the name, then who it concerns. A
                row of symbols beside a row of avatars was two lists in a chip. */
             (() => {
-              const card = shownCards(item)[0];
-              const symbol = item.symbols[0];
-              return card ? cardThumb(cardById(card)) : symbol ? picture(symbol, symbol.label) : null;
+              const symbol = drawnSymbols(item, current.cards)[0];
+              return symbol ? picture(symbol, symbol.label) : null;
             })(),
             el("span", { class: "whole__name", text: titleOf(item, current.cards, current.people) || "Ganztägig" }),
             item.people.length ? el("span", { class: "whole__who" },

@@ -20,14 +20,13 @@ export type SymbolRef = { source: Source; id: string; label: string };
    symbol, something to say when it is offered, and an NFC tag to be recognised by.
    That is an object, so it is a record: a `Card`. Cards are made once and used by
    every choice appointment that offers them. */
-export type Card = { id: string; name: string; symbol?: SymbolRef; speech?: string; nfc?: string; tone?: string; updatedAt: number };
+export type Card = { id: string; name: string; symbol?: SymbolRef; speech?: string; nfc?: string; updatedAt: number };
 
 /* Ten tones that stay apart from each other on a light and a dark ground. Colour is
    what makes a week readable: without it seven columns of the same routine are one
    grey block, and the forty-five minutes that must not be missed look exactly like
    the five hours that repeat. */
 export const TONES = ["#4f8fd6", "#59a36c", "#d1913c", "#c4604f", "#8a6bc4", "#3fa3a0", "#c2679b", "#7d8f4a", "#a8703c", "#6f7683"];
-export const toneOf = (card: Card | undefined, fallback = "") => card?.tone ?? hashTone(fallback);
 /* A colour without a record behind it: the same symbol is always the same colour,
    so the week reads as a pattern and nothing has to be stored or chosen. */
 export function hashTone(seed: string): string {
@@ -153,10 +152,22 @@ export function occurrences(pattern: Pattern, from: string, until: string): stri
 }
 
 export const undecided = (appointment: Appointment) => appointment.options.length > 0 && !appointment.chosen;
-/** Which cards an appointment offers: the one that was picked, or all of them. */
-export const shownCards = (appointment: Appointment): string[] => {
-  if (!appointment.options.length) return [];
-  return appointment.chosen && appointment.options.includes(appointment.chosen) ? [appointment.chosen] : appointment.options;
+/** The card an input picked, where one did and it is still on offer. */
+export const shownCards = (appointment: Appointment): string[] =>
+  appointment.chosen && appointment.options.includes(appointment.chosen) ? [appointment.chosen] : [];
+
+/* What is actually drawn: the picked card's picture once something picked, and
+   the appointment's own before that.
+
+   An open choice used to draw all of its options at once, so that the board
+   showed the same pictures as the cards lying on the table. It carries one
+   symbol of its own instead — *here you choose* is a sign to learn once, where
+   two or three pictures on one card are a sign that is different every time. The
+   cards on the table say what may be picked; the board says that picking is what
+   happens now, and then says what was picked. */
+export const drawnSymbols = (appointment: Appointment, byId: Map<string, Card>): SymbolRef[] => {
+  const picked = shownCards(appointment).map(id => byId.get(id)?.symbol).filter(Boolean) as SymbolRef[];
+  return picked.length ? picked : appointment.symbols;
 };
 /* What an appointment is called: its own name where it has one, otherwise what
    happens in it. Naming every Kita morning by hand would be work for nothing, and a
@@ -173,10 +184,14 @@ export const birthdayName = (appointment: Appointment, people: Person[]): string
     .filter((person): person is Person => !!person && bornOn(person, appointment.date));
   return born.length ? `${born.map(person => person.name).join(" und ")} Geburtstag` : undefined;
 };
+/* The caption is the calendar's, not the board's, so an open choice is called
+   after what may be picked even though the board draws one sign instead: whoever
+   is planning wants to see the options in the row, and the child is not reading
+   this. Once something picked, the name is what it picked. */
 export const derivedName = (appointment: Appointment, byId: Map<string, Card>, people: Person[] = []) =>
   birthdayName(appointment, people) ||
   (appointment.options.length
-    ? shownCards(appointment).map(id => byId.get(id)?.name)
+    ? (appointment.chosen ? shownCards(appointment) : appointment.options).map(id => byId.get(id)?.name)
     : appointment.symbols.map(symbol => symbol.label)).filter(Boolean).join(" · ");
 export const titleOf = (appointment: Appointment, byId: Map<string, Card>, people: Person[] = []) =>
   appointment.title?.trim() || derivedName(appointment, byId, people);
@@ -218,10 +233,14 @@ export const cardSays = (card: Card | undefined): string | undefined =>
 export const spokenName = (appointment: Appointment, byId: Map<string, Card>): string | undefined =>
   appointment.speech?.trim() || appointment.title?.trim() || cardSays(byId.get(appointment.chosen ?? ""));
 /** The colour an appointment wears: its card's, or one derived from its symbol. */
-export const appointmentTone = (appointment: Appointment, byId: Map<string, Card>) =>
-  appointment.options.length
-    ? toneOf(byId.get(shownCards(appointment)[0]!), appointment.options[0] ?? "")
-    : hashTone(appointment.symbols[0] ? `${appointment.symbols[0].source}:${appointment.symbols[0].id}` : appointment.title ?? "");
+/* A colour with no record behind it, for every appointment alike. A card used to
+   carry a chosen tone and does not any more: once a choice draws a symbol like
+   everything else, there is nothing left for the tone to answer that the picture
+   does not. */
+export const appointmentTone = (appointment: Appointment, byId: Map<string, Card>) => {
+  const first = drawnSymbols(appointment, byId)[0];
+  return hashTone(first ? `${first.source}:${first.id}` : appointment.title ?? "");
+};
 
 /* When each of the rail's four marks takes over. The board draws them and speech
    names them, so they are here rather than in either — a rail showing the evening

@@ -109,7 +109,7 @@ export function playButton(label: string, text: () => string, trouble: (words: s
   return node;
 }
 
-export function speechField(instead: () => string, shape: () => Shape = () => ({})) {
+export function speechField(instead: () => string, shape: () => Shape = () => ({}), { list = true } = {}) {
   const box = input("text", { attrs: { autocomplete: "off" } });
   const why = el("p", { class: "hint", attrs: { role: "status" } });
   const word = () => box.value.trim() || instead();
@@ -123,6 +123,7 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
      one answers nothing. */
   const lines = el("div", { class: "sentences" });
   const all = el("details", { class: "sentences__fold" }, el("summary", {}), lines);
+  all.hidden = !list;
 
   /* Called whenever the name it stands in for changes, and whenever this field is
      typed in — the second is the one that was missing, so the list went on
@@ -140,7 +141,7 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
       /* A whole sentence for a day, a word for everything else. The placeholder
          shows one of the two and cannot say which it is, so the label does. */
       box.title = shape().allDay ? "Ein ganzer Satz über den Tag" : "Ein Wort, das in jeden Satz passt";
-      const possible = couldSay(own ? "" : word(), shape());
+      const possible = list ? couldSay(own ? "" : word(), shape()) : [];
       all.hidden = !possible.length;
       all.querySelector("summary")!.textContent = own
         ? `Was an diesem Tag gesagt wird (${possible.length})`
@@ -158,6 +159,6 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
     box, draw,
     /* What a save should render ahead of the key press. The same list the fold
        shows, so what a person was offered to hear is exactly what is prepared. */
-    sentences: () => couldSay(fromPeople(shape()) ? "" : word(), shape()).map(line => line.text),
+    sentences: () => (list ? couldSay(fromPeople(shape()) ? "" : word(), shape()) : []).map(line => line.text),
   };
 }

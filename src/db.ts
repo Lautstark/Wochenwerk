@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { addDays, iso, occurrences, TONES, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
+import { addDays, iso, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
    convention, and the shape a folder of one file per record maps onto when the
@@ -79,7 +79,7 @@ const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
           if (!seen.has(key)) {
             const id = crypto.randomUUID();
             seen.set(key, id);
-            transaction.objectStore("cards").put({ id, name: ref.label, symbol: ref, tone: TONES[seen.size % TONES.length], updatedAt: Date.now() });
+            transaction.objectStore("cards").put({ id, name: ref.label, symbol: ref, updatedAt: Date.now() });
           }
           return seen.get(key)!;
         };

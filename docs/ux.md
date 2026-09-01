@@ -29,7 +29,17 @@ A choice is where that stops being enough, and the reason is physical. What may 
 
 There is no separate choice appointment. There is one appointment, and it either shows its own symbols or offers cards — in which case an input picks one. Once picked, it is an ordinary appointment and nothing about it differs.
 
-An undecided appointment shows its options rather than a question mark, so the child sees on the board the same symbols that are on the physical cards. Its edge is dashed: the card is visibly unfinished.
+An undecided appointment carries one symbol of its own — *hier wird ausgesucht* —
+and not a row of the options. It used to show the options, so that the board held
+up the same pictures as the cards lying on the table; one sign to learn once beat
+that, because two or three pictures on one card are a different sign every time.
+The cards on the table say what may be picked. The board says that picking is
+what happens now, and afterwards says what was picked.
+
+Its edge is dashed, and its ground is the day's colour rather than paper. That
+inverts the board's own rule — colour is the field, paper is a card — for the one
+card that is a question rather than an event, which is what keeps its symbol from
+reading as one more thing that happens.
 
 The four choice states of the domain model (`draft`, `available`, `active`, `resolved`) are parent-side. The board only ever sees open or decided.
 
