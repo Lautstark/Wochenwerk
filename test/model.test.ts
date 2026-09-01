@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays, dateLabel, dayLabel, iso, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
-  type Appointment, type Card } from "../src/model.js";
+  type Appointment, type Card , runsOf, type Series } from "../src/model.js";
 
 const at = (start: string, end: string, extra: Partial<Appointment> = {}): Appointment =>
   ({ id: start, date: "2026-09-01", start, end, symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
@@ -107,5 +107,55 @@ describe("dates", () => {
 
   it("crosses a month boundary when adding days", () => {
     expect(iso(addDays(new Date("2026-08-31T12:00"), 6))).toBe("2026-09-06");
+  });
+});
+
+describe("a stretch of all-day appointments", () => {
+  const dates = ["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06"];
+  const day = (date: string, extra: Partial<Appointment> = {}): Appointment =>
+    ({ id: `x-${date}-${extra.series ?? ""}`, date, symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
+  const visit = (date: string, extra: Partial<Appointment> = {}) => day(date, { series: "s1", title: "Oma da", ...extra });
+  const rule = (from: string, until: string): Series =>
+    ({ id: "s1", pattern: { kind: "daily" }, from, until, shape: { symbols: [], options: [], people: [], showPeople: false },
+       skipped: [], allDay: true, createdAt: 0, updatedAt: 0 });
+  const only = (item: Series) => new Map([[item.id, item]]);
+
+  it("makes one run of consecutive days that say the same thing", () => {
+    const runs = runsOf(dates.slice(0, 3).map(date => visit(date)), dates, only(rule(dates[0], dates[2])));
+    expect(runs).toHaveLength(1);
+    expect(runs[0].days).toEqual(dates.slice(0, 3));
+  });
+
+  it("does not bridge a gap, because the days between are not planned", () => {
+    const runs = runsOf([visit(dates[0]), visit(dates[3])], dates, only(rule(dates[0], dates[3])));
+    expect(runs.map(run => run.days)).toEqual([[dates[0]], [dates[3]]]);
+  });
+
+  it("breaks where a day was edited, so no bar is captioned with the wrong name", () => {
+    const runs = runsOf([visit(dates[0]), visit(dates[1], { title: "Oma fährt" }), visit(dates[2])],
+      dates, only(rule(dates[0], dates[2])));
+    expect(runs.map(run => run.appointment.title)).toEqual(["Oma da", "Oma fährt", "Oma da"]);
+  });
+
+  it("says when a stretch reaches past the days being looked at, and only then", () => {
+    const inside = runsOf(dates.slice(1, 3).map(date => visit(date)), dates, only(rule(dates[1], dates[2])));
+    expect([inside[0].before, inside[0].after]).toEqual([false, false]);
+    const over = runsOf(dates.map(date => visit(date)), dates, only(rule("2026-08-24", "2026-09-20")));
+    expect([over[0].before, over[0].after]).toEqual([true, true]);
+  });
+
+  it("puts stretches that overlap in lanes of their own", () => {
+    const runs = runsOf([
+      ...dates.slice(0, 3).map(date => visit(date)),
+      day(dates[1], { series: "s2", title: "Ferien" }),
+    ], dates, only(rule(dates[0], dates[2])));
+    expect(runs.map(run => run.lane)).toEqual([0, 1]);
+    expect(runs[0].lanes).toBe(2);
+  });
+
+  it("leaves an appointment with no series a stretch of one day", () => {
+    const runs = runsOf([day(dates[2], { title: "Ferientag" })], dates, new Map());
+    expect(runs[0].days).toEqual([dates[2]]);
+    expect([runs[0].before, runs[0].after]).toEqual([false, false]);
   });
 });

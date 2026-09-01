@@ -1,7 +1,7 @@
 import "./style.css";
-import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, snapped, undecided, weekdays,
+import { addDays, allDay, birthdayName, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, titleOf, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, pullFromFolder, settings, week, whenStuck } from "./db.js";
+import { allCards, allPeople, allSeries, pullFromFolder, settings, week, whenStuck } from "./db.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { announceAt } from "./speech.js";
@@ -56,7 +56,11 @@ function place(appointments: Appointment[]): Placed[] {
   return placed;
 }
 
-type Drawing = { urls: Map<string, string>; people: Map<string, Person>; cards: Map<string, Card>; now: string; todayIndex: number };
+type Drawing = { urls: Map<string, string>; people: Map<string, Person>; cards: Map<string, Card>; now: string; todayIndex: number;
+  /* A birthday stays in the head as the face it always was; everything else
+     all-day moved down into the band. The board asks this rather than working it
+     out twice. */
+  birthday: (appointment: Appointment) => boolean };
 const escape = (text: string) => text.replace(/[&<>"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]!);
 function picture(draw: Drawing, ref: SymbolRef) {
   const url = pictureFor(draw.urls, ref);
@@ -137,7 +141,7 @@ function whole(draw: Drawing, appointments: Appointment[], date: string) {
 }
 
 function column(draw: Drawing, date: string, index: number, appointments: Appointment[]) {
-  const marks = whole(draw, appointments.filter(allDay), date);
+  const marks = whole(draw, appointments.filter(item => allDay(item) && draw.birthday(item)), date);
   const today = index === draw.todayIndex;
   const state = today ? "today" : index < draw.todayIndex ? "gone" : "ahead";
   const time = today ? `<small>${draw.now}</small>` : "";
@@ -181,14 +185,16 @@ const dayparts = daypartTimes.map((at, index) => ({ at, icon: daypartIcons[index
 async function build(at: Date): Promise<string> {
   const monday = mondayOf(at);
   const dates = Array.from({ length: 7 }, (_, index) => iso(addDays(monday, index)));
-  const [appointments, people, cardList] = await Promise.all([week(monday), allPeople(), allCards()]);
+  const [appointments, people, cardList, seriesList] = await Promise.all([week(monday), allPeople(), allCards(), allSeries()]);
   const cards = new Map(cardList.map(card => [card.id, card]));
   scale(appointments);
   const urls = await pictures([
     ...appointments.flatMap(appointment => appointment.symbols),
     ...cardList.map(card => card.symbol).filter(Boolean) as SymbolRef[],
   ]);
-  const draw: Drawing = { urls, people: new Map(people.map(person => [person.id, person])), cards, now: reading(at), todayIndex: (at.getDay() + 6) % 7 };
+  const draw: Drawing = { urls, people: new Map(people.map(person => [person.id, person])), cards,
+    now: reading(at), todayIndex: (at.getDay() + 6) % 7,
+    birthday: appointment => !!birthdayName(appointment, people) };
 
   const active = dayparts.filter(part => snapped(part.at) <= snapped(draw.now)).length - 1;
   const rail = `<aside class="rail day-${draw.todayIndex + 1}" aria-hidden="true" style="--now:${reached(draw.now)}"><div class="rail-head"></div><div class="rail-track">
@@ -210,7 +216,27 @@ async function build(at: Date): Promise<string> {
     ...appointments.flatMap(appointment => appointment.options).map(id => cards.get(id)?.symbol).filter(Boolean) as SymbolRef[],
   ];
   const credit = owed(drawn);
-  return `<div class="week" style="grid-template-columns:${track.join(" ")}">${cells.join("")}</div>`
+  /* One bar per stretch, laid over the week. The rail sits inside the grid as a
+     column of its own, so a stretch that crosses today crosses it too — which is
+     what a stretch does. */
+  const runs = runsOf(appointments, dates, new Map(seriesList.map(item => [item.id, item])))
+    .filter(run => !draw.birthday(run.appointment));
+  const column_ = (index: number) => index + 1 + (index >= draw.todayIndex ? 1 : 0);
+  const lanes = runs.length ? Math.max(...runs.map(run => run.lane)) + 1 : 0;
+  const band = !runs.length ? "" : `<div class="band" style="grid-template-columns:${track.join(" ")}">
+    ${runs.map(run => {
+      const first = column_(dates.indexOf(run.days[0])), last = column_(dates.indexOf(run.days[run.days.length - 1]));
+      const symbol = drawnSymbols(run.appointment, cards)[0];
+      const over = run.days[run.days.length - 1] < dates[draw.todayIndex];
+      return `<div class="span${run.before ? " span--from" : ""}${run.after ? " span--into" : ""}${over ? " gone" : ""}"
+        style="grid-column:${first} / span ${last - first + 1}; grid-row:${run.lane + 1}">
+        ${symbol ? `<span class="badge">${picture(draw, symbol)}</span>` : ""}
+        <span class="span__name">${escape(titleOf(run.appointment, cards, people) || "Ganztägig")}</span>
+        ${run.appointment.people.length ? faces(draw, run.appointment.people, run.days[0]) : ""}
+      </div>`;
+    }).join("")}</div>`;
+  const grown = lanes ? ` --band:${(lanes * 1.95 + 0.3).toFixed(2)}rem; --head:calc(var(--head-day) + var(--band))` : "";
+  return `<div class="week" style="grid-template-columns:${track.join(" ")};${grown}">${cells.join("")}${band}</div>`
     + (credit.length ? `<p class="credit">${escape(credit.join(" "))}</p>` : "");
 }
 

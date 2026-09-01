@@ -44,9 +44,10 @@ a.btn { text-decoration: none; }
   background: var(--accent); color: var(--accent-ink); }
 .cal__corner { display: grid; align-items: center; padding: 0 6px; font-size: 10px; line-height: 1.15;
   color: var(--text-faint); overflow: hidden; }
-.cal__whole { border-bottom: 1px solid var(--line); background: var(--surface-2); min-height: 40px; }
-.cal__whole-cell { display: flex; flex-wrap: wrap; align-content: start; gap: 3px; padding: 5px;
-  border-left: 1px solid var(--line); cursor: pointer; }
+.cal__whole { border-bottom: 1px solid var(--line); background: var(--surface-2); min-height: 40px;
+  grid-template-rows: repeat(var(--lanes, 1), auto); padding-bottom: 5px; }
+.cal__whole .cal__corner { grid-row: 1 / -1; align-items: start; padding-top: 7px; }
+.cal__whole-rule { grid-row: 1 / -1; border-left: 1px solid var(--line); cursor: pointer; }
 /* The padding moves labels, rules and events together, so the topmost hour label
    has room instead of being clipped by the scroll edge. */
 .cal__body { min-height: 0; overflow-y: auto; padding-top: 9px; align-content: start; }
@@ -77,9 +78,15 @@ a.btn { text-decoration: none; }
 .event--tight { align-items: center; padding-block: 0; }
 .event--tight .event__name { font-size: 11.5px; white-space: nowrap; }
 
-.whole { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 9px 3px 5px;
-  border: 1px solid transparent; border-radius: var(--radius-pill); color: var(--text);
-  background: var(--accent-soft); font: inherit; font-size: 12px; cursor: pointer; }
+.whole { display: flex; align-items: center; gap: 5px; min-width: 0; margin: 5px 4px 0;
+  padding: 3px 9px 3px 5px; border: 1px solid transparent; border-radius: var(--radius-pill);
+  color: var(--text); background: var(--accent-soft); font: inherit; font-size: 12px;
+  text-align: left; cursor: pointer; }
+/* A stretch that began before this week, or carries on past it, is cut flat where
+   it leaves. The shape is the whole statement — an arrow beside it would say the
+   same thing a second time. */
+.whole--from { border-top-left-radius: 2px; border-bottom-left-radius: 2px; margin-left: 0; }
+.whole--into { border-top-right-radius: 2px; border-bottom-right-radius: 2px; margin-right: 0; }
 .whole.choice { border-style: dashed; border-color: var(--line); background: var(--surface-2); }
 .whole__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .whole__who { display: inline-flex; }

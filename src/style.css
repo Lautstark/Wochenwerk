@@ -5,7 +5,11 @@
   font-family: ui-rounded, "SF Pro Rounded", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --ground: #14100e;
   --ink: #17120e;
-  --head: 3.2rem;
+  /* The head is the day's own; a week carrying multi-day stretches grows it by the
+     band, and the rail grows with it, so the tracks underneath stay level and the
+     hour a mark sits at is still the hour a card sits at. */
+  --head-day: 3.2rem;
+  --head: var(--head-day);
   --col: 1fr;
   --today: 2.05fr;
   --rail: 3rem;
@@ -15,7 +19,32 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 980px; background: var(--ground); }
 #app { width: 100vw; height: 100vh; }
-.week { height: 100%; display: grid; }
+.week { position: relative; height: 100%; display: grid; }
+
+/* Multi-day stretches, hanging under the heads and floating straight over the
+   columns' own colours — no strip of its own, so a day is one colour top to
+   bottom and only the bars cross the seams. Above `.day.today`, which raises
+   itself over its neighbours and would otherwise cut a stretch in half at today
+   of all days. */
+/* A stretch belongs to no day, so it cannot borrow a day's paper — it carries the
+   plain white the cards on today use, which is the board's brightest surface and
+   the right one for the thing lying over all of them. */
+.band { position: absolute; z-index: 3; left: 0; right: 0; top: var(--head-day); height: var(--band);
+  display: grid; align-content: start; pointer-events: none; --paper: #fff; }
+.span { display: flex; align-items: center; gap: .3rem; min-width: 0; margin: .2rem .3rem .25rem;
+  padding: .18rem .5rem .18rem .22rem; border-radius: 999px; background: var(--paper);
+  color: var(--ink); font-size: clamp(.7rem, .95vw, .95rem); font-weight: 700;
+  box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18); }
+.span__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Cut flat where it leaves the week. The shape is the whole statement. */
+.span--from { border-top-left-radius: .2rem; border-bottom-left-radius: .2rem; margin-left: 0; }
+.span--into { border-top-right-radius: .2rem; border-bottom-right-radius: .2rem; margin-right: 0; }
+/* A stretch that is over greys like a day that is over. Only when the whole of it
+   is behind us: one that still covers today is not over, whatever it started. */
+.span.gone { filter: grayscale(.9); opacity: .72; }
+.span .badge { width: 1.4rem; height: 1.4rem; }
+.span .face { width: 1.4rem; height: 1.4rem; box-shadow: 0 0 0 .12rem var(--paper); }
+.span .face + .face { margin-left: -.4rem; }
 .nothing { display: grid; align-content: center; justify-items: center; gap: .6rem; height: 100%; margin: 0;
   color: #b9b2ab; font-size: clamp(1rem, 1.8vw, 1.6rem); text-align: center; }
 .nothing small { font-size: .68em; color: #7d766f; }
@@ -78,7 +107,9 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
     var(--field) calc(var(--edge) + var(--soft)), var(--field) 100%); }
 
 /* No band of its own: the header sits straight on the day colour. */
-header { display: flex; align-items: center; justify-content: space-between; gap: .4rem;
+/* The head keeps its own height even where the week grew one for the band: what
+   grew is the room under it, and the day's name belongs at the top of its day. */
+header { height: var(--head-day); display: flex; align-items: center; justify-content: space-between; gap: .4rem;
   min-width: 0; padding: 0 .55rem; color: var(--ink); }
 .day.gone header { color: #ddd8d3; }
 /* Three things want the header and it is one day wide, so they are ranked. The
@@ -247,7 +278,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .mark.is-now { width: 2rem; height: 2rem; opacity: 1; }
 
 @media (max-width: 1250px) {
-  :root { --head: 2.7rem; --rail: 2.4rem; }
+  :root { --head-day: 2.7rem; --rail: 2.4rem; }
   .day { --tile: 4.5rem; }
   .day.today { --tile: 7rem; }
   .card { border-radius: .5rem; }

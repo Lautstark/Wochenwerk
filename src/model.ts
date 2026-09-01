@@ -175,6 +175,69 @@ export function lanesOf(appointments: Appointment[]): Laid[] {
   return laid;
 }
 
+/* A stretch of days that are one thing.
+ *
+ * A visit lasting three days is three all-day appointments of one series — the
+ * calendar drew each of them, so the name and the face stood there three times.
+ * They are one bar now, and this works out which days belong to it.
+ *
+ * Days join a run when they are consecutive and say the same thing. Same series
+ * is not enough: a day somebody edited says something else, and a bar that
+ * spanned it would be captioned with a name that is wrong for one of its days.
+ * So an edited day breaks the run and stands as its own bar, which is exactly
+ * what it is. */
+export type Run = { appointment: Appointment; days: string[]; lane: number; lanes: number;
+  /** Whether the stretch carries on outside the days being looked at. */
+  before: boolean; after: boolean };
+
+const sameThing = (appointment: Appointment) => [
+  appointment.series ?? appointment.id, appointment.title ?? "",
+  appointment.symbols.map(symbol => `${symbol.source}:${symbol.id}`).join(","),
+  appointment.people.join(","), appointment.options.join(","), appointment.chosen ?? "",
+].join("|");
+
+export function runsOf(appointments: Appointment[], dates: string[], series: Map<string, Series>): Run[] {
+  const open: Map<string, Run> = new Map();
+  const runs: Run[] = [];
+  dates.forEach((date, index) => {
+    const here = new Map(appointments.filter(item => item.date === date && allDay(item))
+      .map(item => [sameThing(item), item]));
+    for (const [key, run] of open) if (!here.has(key)) open.delete(key);
+    for (const [key, appointment] of here) {
+      const running = open.get(key);
+      /* Consecutive means the day before, not merely an earlier day: a Monday and
+         a Thursday of one series are two stretches with a gap, and drawing them as
+         one bar would claim two days that are not planned. */
+      if (running && running.days[running.days.length - 1] === dates[index - 1]) { running.days.push(date); continue; }
+      const run: Run = { appointment, days: [date], lane: 0, lanes: 1, before: false, after: false };
+      open.set(key, run);
+      runs.push(run);
+    }
+  });
+
+  /* Whether a stretch continues past the edge is the rule's business, not the
+     week's: the days outside are not loaded, and the record already says. */
+  for (const run of runs) {
+    const rule = run.appointment.series ? series.get(run.appointment.series) : undefined;
+    run.before = !!rule && rule.from < run.days[0] && run.days[0] === dates[0];
+    run.after = !!rule && rule.until > run.days[run.days.length - 1] && run.days[run.days.length - 1] === dates[dates.length - 1];
+  }
+
+  /* Lanes, packed the way parallel appointments are packed inside a day: first row
+     with nothing in the way. */
+  const ends: number[] = [];
+  for (const run of runs) {
+    const from = dates.indexOf(run.days[0]), to = dates.indexOf(run.days[run.days.length - 1]);
+    let lane = ends.findIndex(end => end < from);
+    if (lane === -1) lane = ends.length;
+    ends[lane] = to;
+    run.lane = lane;
+  }
+  const lanes = ends.length || 1;
+  for (const run of runs) run.lanes = lanes;
+  return runs;
+}
+
 /** Which dates a pattern covers between its bounds. Monday is 0. */
 export function occurrences(pattern: Pattern, from: string, until: string): string[] {
   const start = new Date(`${from}T00:00`), stop = new Date(`${until}T00:00`);

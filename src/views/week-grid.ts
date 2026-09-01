@@ -1,5 +1,5 @@
 import { el, fill } from "../ui.js";
-import { allDay, board, bornOn, clock, drawnSymbols, iso, lanesOf, minute, snapped, titleOf, undecided,
+import { allDay, board, bornOn, clock, drawnSymbols, iso, lanesOf, minute, runsOf, snapped, titleOf, undecided,
   weekdays, type Appointment } from "../model.js";
 import { cardById, personById, shown, type Week } from "../store.js";
 import { cardThumb, face, picture } from "./pieces.js";
@@ -41,24 +41,39 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
       el("div", { class: `cal__day${date === today ? " cal__day--today" : ""}` },
         el("b", { text: weekdays[current.dates.indexOf(date)] }), el("span", { text: String(Number(date.slice(8))) }))));
 
-    fill(whole, el("div", { class: "cal__corner", text: "ganztägig" }), ...days.map(date =>
-      el("div", { class: "cal__whole-cell", on: { click: event => { if (event.target === event.currentTarget) onCreate(date); } } },
-        ...current.appointments.filter(item => item.date === date && allDay(item)).map(item =>
-          el("button", { class: `whole ${kindOf(item)}`.trim(), attrs: { type: "button" }, on: { click: () => onOpen(item) } },
-            /* One pill: at most one picture, the name, then who it concerns. A
-               row of symbols beside a row of avatars was two lists in a chip. */
-            (() => {
-              const symbol = drawnSymbols(item, current.cards)[0];
-              return symbol ? picture(symbol, symbol.label) : null;
-            })(),
-            el("span", { class: "whole__name", text: titleOf(item, current.cards, current.people) || "Ganztägig" }),
-            item.people.length ? el("span", { class: "whole__who" },
-              ...item.people.slice(0, 3).map(id => {
-                const person = personById(id);
-                return el("span", { class: "whole__face" },
-                  face(person, "sm"),
-                  person && bornOn(person, date) ? el("span", { class: "crown", text: "👑" }) : null);
-              })) : null)))));
+    /* Ganztägiges is a band of stretches, not a cell per day: three days of one
+       visit are one bar, written once. The rules underneath stay a cell each,
+       because clicking an empty day is still how a day gets an appointment. */
+    const runs = runsOf(current.appointments, days, current.series);
+    const lanes = runs.length ? Math.max(...runs.map(run => run.lane)) + 1 : 1;
+    whole.style.setProperty("--lanes", String(lanes));
+    fill(whole,
+      el("div", { class: "cal__corner", text: "ganztägig" }),
+      ...days.map((date, index) => el("div", { class: "cal__whole-rule",
+        attrs: { style: `grid-column: ${index + 2}` },
+        on: { click: event => { if (event.target === event.currentTarget) onCreate(date); } } })),
+      ...runs.map(run => {
+        const item = run.appointment;
+        const first = drawnSymbols(item, current.cards)[0];
+        return el("button", {
+          /* A stretch cut by the edge of the week is left flat there. Nothing says
+             so in words: a bar that is rounded at one end and squared at the other
+             is already the sentence. */
+          class: `whole ${kindOf(item)}${run.before ? " whole--from" : ""}${run.after ? " whole--into" : ""}`.replace(/\s+/g, " ").trim(),
+          attrs: { type: "button",
+            style: `grid-column: ${days.indexOf(run.days[0]) + 2} / span ${run.days.length}; grid-row: ${run.lane + 1}` },
+          on: { click: () => onOpen(item) },
+        },
+          first ? picture(first, first.label) : null,
+          el("span", { class: "whole__name", text: titleOf(item, current.cards, current.people) || "Ganztägig" }),
+          item.people.length ? el("span", { class: "whole__who" },
+            ...item.people.slice(0, 3).map(id => {
+              const person = personById(id);
+              return el("span", { class: "whole__face" },
+                face(person, "sm"),
+                person && bornOn(person, run.days[0]) ? el("span", { class: "crown", text: "👑" }) : null);
+            })) : null);
+      }));
 
     fill(body,
       el("div", { class: "cal__gutter" }, ...hours.map(hour =>
