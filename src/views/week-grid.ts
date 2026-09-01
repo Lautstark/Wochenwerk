@@ -52,7 +52,7 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
               const symbol = item.symbols[0];
               return card ? cardThumb(cardById(card)) : symbol ? picture(symbol, symbol.label) : null;
             })(),
-            el("span", { class: "whole__name", text: titleOf(item, current.cards) || "Ganztägig" }),
+            el("span", { class: "whole__name", text: titleOf(item, current.cards, current.people) || "Ganztägig" }),
             item.people.length ? el("span", { class: "whole__who" },
               ...item.people.slice(0, 3).map(id => {
                 const person = personById(id);
@@ -83,7 +83,7 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
           /* Short appointments keep a floor so their name still fits; two may
              overlap by a few pixels rather than both being unreadable. */
           const tall = Math.max(26, ((snapped(appointment.end!) - snapped(appointment.start!)) / 60) * HOUR);
-          const name = titleOf(appointment, current.cards) || (undecided(appointment) ? "Auswahl" : "Termin");
+          const name = titleOf(appointment, current.cards, current.people) || (undecided(appointment) ? "Auswahl" : "Termin");
           const width = 100 / lanes;
           column.appendChild(el("button", {
             class: `event ${kindOf(appointment)}${tall < 40 ? " event--tight" : ""}`.trim(),

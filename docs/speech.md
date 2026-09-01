@@ -19,8 +19,18 @@ the rail carries — *morgens, mittags, nachmittags, abends* — and otherwise i
 order of what happens. *Nach dem Mittagessen* is a time a three-year-old can act
 on. *Um halb zwei* is not.
 
-The one number that survives is nights, because sleeping is the unit they
-already own: *einmal schlafen, dann …*, and never more than once.
+Two numbers survive. **Nights**, because sleeping is the unit they already own:
+*einmal schlafen, dann …*, and never more than once. And **an age**, on the one
+day it is what everything is about — a three-year-old holds their age the way
+they hold no clock time. Both are words rather than figures, so the ban on
+digits stands as written and each is a clip like any other; past twelve the
+sentence leaves the age out rather than reach for a word nobody recorded.
+
+**A birthday takes the whole day sentence.** On every other day that sentence
+answers *which day is it*, and the daypart is the useful half of the answer; on
+this one the answer is the birthday, and a child who is turning four is not
+waiting to hear that it is also Tuesday. The rail still carries the daypart,
+drawn, all day.
 
 ## The shape
 
@@ -46,7 +56,8 @@ facts cost one line.
 | when | said |
 | --- | --- |
 | always | *Heute ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
-| the day carries an all-day appointment | *Heute ist Dienstag, und Mia hat Geburtstag.* / *Heute ist Dienstag, und Oma kommt.* |
+| somebody's birthday | *Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
+| the day carries another all-day appointment | *Heute ist Dienstag, und Oma kommt.* |
 
 **Now** — what the board draws as the lifted card.
 

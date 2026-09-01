@@ -2,7 +2,7 @@ import { menuOn } from "@lautstark/design/menu";
 import { button, el, fill, input } from "../ui.js";
 import { pictureFor } from "../symbols.js";
 import { preview } from "../speech.js";
-import { couldSay, type Shape } from "../announce.js";
+import { couldSay, fromPeople, type Shape } from "../announce.js";
 import { type Card, type Person, type SymbolRef } from "../model.js";
 import { shown } from "../store.js";
 
@@ -121,10 +121,18 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
      replaces it. What is written here is what the board will say, so it is what
      the list has to be made of. */
   function draw() {
-      box.placeholder = instead() || "Ohne Namen wird nichts gesagt";
-      const possible = couldSay(word(), shape());
+      /* A birthday and a visit are said from the person on the record, and
+         `dayClause` asks about people before it asks about a name — so a word
+         typed here would be written and never spoken. The field says that
+         instead of inviting one. */
+      const own = fromPeople(shape());
+      box.disabled = own;
+      box.placeholder = own ? "Wird von der Person gesagt" : instead() || "Ohne Namen wird nichts gesagt";
+      const possible = couldSay(own ? "" : word(), shape());
       all.hidden = !possible.length;
-      all.querySelector("summary")!.textContent = `Alle Sätze mit diesem Wort (${possible.length})`;
+      all.querySelector("summary")!.textContent = own
+        ? `Was an diesem Tag gesagt wird (${possible.length})`
+        : `Alle Sätze mit diesem Wort (${possible.length})`;
       fill(lines, ...possible.map(line => {
         /* `quiet icon sm` is the family's own icon-only button — pill radius,
            its own padding, line-height 1. A local class here fought `sm`'s

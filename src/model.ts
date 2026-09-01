@@ -161,12 +161,25 @@ export const shownCards = (appointment: Appointment): string[] => {
 /* What an appointment is called: its own name where it has one, otherwise what
    happens in it. Naming every Kita morning by hand would be work for nothing, and a
    parents' evening is not called after its symbol — so both, in that order. */
-export const derivedName = (appointment: Appointment, byId: Map<string, Card>) =>
+/* A birthday is not stored as a name any more than it is stored as a crown: any
+   all-day appointment carrying somebody born on its own date is that person's
+   birthday, and nothing in the record has to say so. Derived rather than written
+   at creation because a person can be renamed, and a century of appointments
+   holding the old spelling would be a century of them to fix. */
+export const birthdayName = (appointment: Appointment, people: Person[]): string | undefined => {
+  if (!allDay(appointment)) return undefined;
+  const born = appointment.people
+    .map(id => people.find(person => person.id === id))
+    .filter((person): person is Person => !!person && bornOn(person, appointment.date));
+  return born.length ? `${born.map(person => person.name).join(" und ")} Geburtstag` : undefined;
+};
+export const derivedName = (appointment: Appointment, byId: Map<string, Card>, people: Person[] = []) =>
+  birthdayName(appointment, people) ||
   (appointment.options.length
     ? shownCards(appointment).map(id => byId.get(id)?.name)
     : appointment.symbols.map(symbol => symbol.label)).filter(Boolean).join(" · ");
-export const titleOf = (appointment: Appointment, byId: Map<string, Card>) =>
-  appointment.title?.trim() || derivedName(appointment, byId);
+export const titleOf = (appointment: Appointment, byId: Map<string, Card>, people: Person[] = []) =>
+  appointment.title?.trim() || derivedName(appointment, byId, people);
 /* What an appointment is *called out loud*, which is not what it is captioned.
    `derivedName` falls back to symbol labels, and a symbol label is a file name:
    the breakfast picture is `fruehstueck2.png` and the Kita one is

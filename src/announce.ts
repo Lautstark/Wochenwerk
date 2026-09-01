@@ -29,10 +29,16 @@ const FRAMES = {
   alsoToday: "heute ist",
   birthday: "hat Geburtstag",
   birthdays: "haben Geburtstag",
+  birthdayOf: "Heute ist der Geburtstag von",
+  turns: "wird",
+  turnsPlural: "werden",
+  yearsOld: "Jahre alt.",
   visits: "kommt",
   visit: "kommen",
   and2: "und",
   comma: ",",
+  /* Between two sentences of one utterance. A recorded pause, like the comma. */
+  stop: ".",
   now: "Jetzt ist",
   nowFor: ", jetzt ist",
   ending: "ist gleich fertig",
@@ -59,8 +65,15 @@ const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Sa
    the daypart cost one clip rather than two, and no seam falls inside a word. */
 const DAYPARTS = ["morgen", "mittag", "nachmittag", "abend"];
 const DAYS = WEEKDAYS.flatMap(day => DAYPARTS.map(part => `${day}${part}`));
+/* The one number a child is told, and the only reason it is allowed: an age is
+   what a birthday is *about*, and a three-year-old holds it the way they hold no
+   clock time. Spelled rather than written, so the ban on digits stands as it is
+   — and so the clip is a word like every other clip. Past this the sentence
+   simply leaves the age out; nobody in the house is turning thirteen soon, and a
+   wrong word would be worse than a missing one. */
+const AGES = ["", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf"];
 /** Every clip that is not a household word: what has to be recorded up front. */
-export const vocabulary = (): string[] => [...DAYS, ...Object.values(FRAMES)];
+export const vocabulary = (): string[] => [...DAYS, ...AGES.filter(Boolean), ...Object.values(FRAMES)];
 
 /** Where *gleich* stops and *danach* begins. Minutes, and the child never hears it. */
 const SOON = 20;
@@ -126,9 +139,33 @@ export function announce(week: Appointment[], at: Date, household: Household): U
    never reach. A birthday and a visit are the shapes product.md names; anything
    else all-day is said by its own spoken word or not at all. */
 function dayLine(week: Appointment[], at: Date, now: string, household: Household): Utterance {
+  const facts = week.filter(item => item.date === iso(at) && allDay(item));
+  /* A birthday takes the day sentence rather than riding along at the end of it.
+     On every other day the sentence answers *which day is it*, and the daypart is
+     the useful half of that; on this one the answer is the birthday, and a child
+     who is turning four is not waiting to hear that it is also Tuesday. The rail
+     still carries the daypart, drawn, all day. */
+  const born = birthdayLine(facts, household);
+  if (born) return born;
   const day = `${WEEKDAYS[(at.getDay() + 6) % 7]}${DAYPARTS[daypartOf(now)]}`;
-  const clause = dayClause(week.filter(item => item.date === iso(at) && allDay(item)), household);
+  const clause = dayClause(facts, household);
   return utter(fixed(FRAMES.today), fixed(day), ...(clause.length ? [fixed(FRAMES.and), ...clause] : []));
+}
+
+/* Whose birthday it is, and how old they are turning — the age from the person's
+   own date rather than from anything stored on the appointment, so it is right
+   for a hundred years of them and cannot drift. */
+function birthdayLine(facts: Appointment[], household: Household): Utterance | undefined {
+  for (const fact of facts) {
+    const born = peopleOn(fact, household).filter(person => bornOn(person, fact.date));
+    if (!born.length) continue;
+    const names = listing(born.map(person => person.name), fixed(FRAMES.and2));
+    const years = new Set(born.map(person => Number(fact.date.slice(0, 4)) - Number(person.birthday!.slice(0, 4))));
+    const age = years.size === 1 ? AGES[[...years][0]!] : undefined;
+    return utter(fixed(FRAMES.birthdayOf), ...names,
+      ...(age ? [fixed(FRAMES.stop), ...names, fixed(born.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : []));
+  }
+  return undefined;
 }
 
 function dayClause(facts: Appointment[], household: Household): Part[] {
@@ -236,12 +273,41 @@ export type Shape = {
   picked?: boolean;
   /** All day rather than at a time: a different set of sentences entirely. */
   allDay?: boolean;
+  /** Whose birthday it is, and how old they turn. Said from the person. */
+  birthday?: { names: string[]; age?: number };
+  /** All-day, carrying people and no symbol: a guest. Also said from the person. */
+  visiting?: string[];
 };
+
+/* Whether the sentence comes from the people on the record rather than from its
+   word. A birthday and a visit do, and nothing typed into the Ansage field
+   changes them — `dayClause` asks about people before it asks about a name — so
+   the field has to say so rather than take a word it will not use. */
+export const fromPeople = (shape: Shape) => !!(shape.birthday?.names.length || shape.visiting?.length);
 
 export function couldSay(word: string, shape: Shape = {}): Possible[] {
   const said = word.trim();
-  if (!said) return [];
   const line = (...parts: Part[]) => utter(...parts).text;
+  const names = (who: string[]) => listing(who, fixed(FRAMES.and2));
+
+  /* Said from the people, whatever the word is — so these come first and the
+     word never reaches them. */
+  if (shape.birthday?.names.length) {
+    const age = shape.birthday.age === undefined ? undefined : AGES[shape.birthday.age];
+    const who = names(shape.birthday.names);
+    return [{
+      text: line(fixed(FRAMES.birthdayOf), ...who,
+        ...(age ? [fixed(FRAMES.stop), ...who, fixed(shape.birthday.names.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : [])),
+      when: "als ganzer Tagessatz, jeden Druck",
+    }];
+  }
+  if (shape.visiting?.length) return [{
+    text: line(fixed(FRAMES.today), fixed("Dienstagmorgen"), fixed(FRAMES.and), ...names(shape.visiting),
+      fixed(shape.visiting.length > 1 ? FRAMES.visit : FRAMES.visits)),
+    when: "im Tagessatz, jeden Druck",
+  }];
+
+  if (!said) return [];
   const w = own(said), who = shape.who ? own(shape.who) : undefined;
   const tail = shape.picked ? [fixed(FRAMES.decided)] : [];
 

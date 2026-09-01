@@ -32,10 +32,19 @@ describe("the day sentence", () => {
     expect(day("19:15")).toBe("Heute ist Dienstagabend.");
   });
 
-  it("carries a birthday, from the person rather than from the appointment", () => {
+  it("gives the whole day sentence to a birthday, with the age spelled out", () => {
+    /* The day sentence answers *which day is it*, and on this one the answer is
+       the birthday rather than the weekday. The age is the one number a child is
+       told, and it is a word so that the ban on digits still holds. */
     const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
     const lines = said(week, at("09:00"), house([], [person("b", "Mia", "2023-09-01")]));
-    expect(lines[0]).toBe("Heute ist Dienstagmorgen, und Mia hat Geburtstag.");
+    expect(lines[0]).toBe("Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.");
+  });
+
+  it("leaves the age out rather than guessing at one it has no word for", () => {
+    const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
+    const lines = said(week, at("09:00"), house([], [person("b", "Oma", "1955-09-01")]));
+    expect(lines[0]).toBe("Heute ist der Geburtstag von Oma.");
   });
 
   it("carries a visit — a person with no symbol on them", () => {

@@ -1,7 +1,7 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
-import { addDays, allDay, board, cardSays, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
-  strays, titleOf, weekdays, type Appointment, type Pattern } from "../model.js";
+import { addDays, allDay, board, bornOn, cardSays, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
+  strays, titleOf, weekdays, type Appointment, type Pattern, type Person } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { pictureFor, pictures } from "../symbols.js";
@@ -105,17 +105,24 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      and this is where the two come apart. docs/speech.md. */
   const speech = speechField(
     () => title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "",
-    () => ({
-      /* One person is an address; two is a list, and a list is not an address. */
-      who: draft.people.length === 1 ? shown().people.find(person => person.id === draft.people[0])?.name : undefined,
-      offered: draft.options.length > 0 && !draft.chosen,
-      picked: !!draft.chosen,
-      allDay: whole.checked,
-    }));
+    () => {
+      const on = draft.people.map(id => shown().people.find(person => person.id === id)).filter(Boolean) as Person[];
+      const born = whole.checked ? on.filter(person => bornOn(person, draft.date)) : [];
+      const ages = new Set(born.map(person => Number(draft.date.slice(0, 4)) - Number(person.birthday!.slice(0, 4))));
+      return {
+        /* One person is an address; two is a list, and a list is not an address. */
+        who: on.length === 1 ? on[0]!.name : undefined,
+        offered: draft.options.length > 0 && !draft.chosen,
+        picked: !!draft.chosen,
+        allDay: whole.checked,
+        ...(born.length ? { birthday: { names: born.map(person => person.name), age: ages.size === 1 ? [...ages][0] : undefined } } : {}),
+        ...(whole.checked && on.length && !born.length && !draft.symbols.length ? { visiting: on.map(person => person.name) } : {}),
+      };
+    });
   speech.box.value = draft.speech ?? "";
 
   const handle = openDialog({
-    title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
+    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", closeLabel: "Schließen", wide: true,
     body: [el("div", { class: "stack" }, field("Ansage", speech.node), timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
@@ -144,8 +151,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        field currently says: an unsaved move must not change what "and all
        following" reaches. */
     if (existing && draft.series) counts = { from: (await reachOf(draft.series, anchor)).length, all: (await reachOf(draft.series)).length };
-    handle.dialog.setAttribute("aria-label", titleOf(draft, shown().cards) || "Neuer Termin");
-    title.placeholder = derivedName(draft, shown().cards) || "Name";
+    handle.dialog.setAttribute("aria-label", titleOf(draft, shown().cards, shown().people) || "Neuer Termin");
+    title.placeholder = derivedName(draft, shown().cards, shown().people) || "Name";
     speech.draw();
 
     fromField.hidden = whole.checked;
@@ -230,7 +237,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
       if (scope !== "one") { await dropSeries(draft.series, scope === "from" ? anchor : undefined); handle.close(); return done(); }
     } else {
       const sure = await confirmDialog({
-        title: "Termin löschen", body: `„${titleOf(draft, shown().cards) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
+        title: "Termin löschen", body: `„${titleOf(draft, shown().cards, shown().people) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
         confirmLabel: "Löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
       });
       if (!sure) return;
