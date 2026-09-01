@@ -56,8 +56,16 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
   function draw(): void {
     const voices = spec.voices();
     const live = spec.current();
-    const lead = voices.filter(voice => voice.recommended);
-    const rest = voices.filter(voice => !voice.recommended);
+    /* Azure leads with the recommended ones rather than sitting behind the fold,
+       and that is not a preference about cloud voices. `recommended` is stimmquelle's
+       editorial pick within its own piper catalogue and is hard-coded false for every
+       cloud and system voice — the package says so on the field. So folding by it
+       alone put every single voice a key had just unlocked behind „Mehr Stimmen",
+       which is the one thing somebody who has just typed a key is looking for. It is
+       the trap mitreden's picker documents and avoids for the same reason. */
+    const leads = (voice: Voice) => voice.recommended || voice.source === "azure";
+    const lead = voices.filter(leads);
+    const rest = voices.filter(voice => !leads(voice));
     /* The four are stimmquelle's editorial pick, one per language-and-gender slot,
        and with only German asked for they are one or two. If it has no opinion
        about any of them — a machine offering nothing but its own voices — there is
@@ -65,7 +73,7 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
     const shown = all || !lead.length ? [...lead, ...rest]
       /* A chosen voice from behind the fold still shows: a group whose answer is
          not among its rows reads as having lost it. */
-      : voices.filter(voice => voice.recommended || voice.id === live);
+      : voices.filter(voice => leads(voice) || voice.id === live);
 
     fill(list, ...shown.map(voice => voiceRow(voice, voice.id === live, shown)));
     fill(more, rest.length && lead.length

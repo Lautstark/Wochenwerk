@@ -204,6 +204,11 @@ export function openSettings(say: (line: string) => void) {
       await saveAzure({ key, region });
       say(`Azure Speech freigeschaltet — ${answer.count} Stimmen stehen zur Wahl.`);
       await drawSpeech(answer);
+      /* And the list of voices, which is the whole reason somebody typed a key.
+         It is read once when the dialog opens, so without this the Azure voices
+         arrived only on the next opening — the panel said they were there and the
+         picker below it did not have them. */
+      await readVoices();
     } catch (error) {
       say(`Hat nicht geklappt: ${(error as Error)?.message ?? "unbekannter Fehler"}`);
     } finally {
@@ -216,6 +221,9 @@ export function openSettings(say: (line: string) => void) {
     await saveAzure(undefined);
     say("Azure Speech wieder abgeschaltet.");
     await drawSpeech();
+    /* The same seam in the other direction: without this the picker goes on
+       offering voices that nothing can speak with any more. */
+    await readVoices();
   }
 
   function sync() {

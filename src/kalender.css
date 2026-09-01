@@ -130,7 +130,9 @@ a.btn { text-decoration: none; }
    rather than like a stack of buttons: the accent is what "the one in force"
    looks like everywhere in this family. Left-aligned and stacked, because what
    decides between two voices is a line of facts under the name. */
-.voices { display: flex; flex-direction: column; gap: 6px; }
+/* A key turns three voices into thirty, so the list scrolls in a box of its own
+   rather than pushing the panel below it off the screen. */
+.voices { display: flex; flex-direction: column; gap: 6px; max-height: min(46vh, 340px); overflow-y: auto; }
 .voice { display: grid; gap: 2px; padding: 9px 11px; border: none; border-radius: var(--radius-sm);
   background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer;
   transition: background .13s, box-shadow .13s; }
