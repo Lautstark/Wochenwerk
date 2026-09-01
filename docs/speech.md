@@ -229,7 +229,11 @@ coming. A card still lit under the following sentence would point at the wrong
 thing, which is worse than pointing at nothing.
 
 A ring rather than a fill, because the card's own colour is already saying
-whether it is over, now or ahead and must not have to give that up. It breathes,
+whether it is over, now or ahead and must not have to give that up. The ring is
+the day's own colour darkened, the way an undecided card draws its dashed edge
+and the rail draws its marks — a neutral grey belonged to nothing on a board
+where every column is a colour, and read as chrome laid over the week rather
+than as part of it. It breathes,
 because a still outline on a board full of pictures is not what pulls a
 two-year-old's eye, and it holds still for anyone whose system asks for less
 motion. This is the pairing [hardware.md](hardware.md) sketches for its

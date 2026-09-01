@@ -215,12 +215,21 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 
 /* The card the voice is on. A ring rather than a fill, so it reads the same on an
    ordinary card, on the lifted current one and on a greyed past one, and none of
-   the three has to give up what its own colour already says. It breathes, because
-   a still outline on a board full of pictures is not what pulls a two-year-old's
-   eye — and it stops for anyone who has asked the system for less motion. */
-.card.saying { z-index: 10; outline: .3rem solid rgba(47, 42, 38, .85); outline-offset: .2rem;
+   the three has to give up what its own colour already says.
+
+   The ring is the day's own colour darkened, the way `.card.open` draws its
+   dashed edge and the rail draws its marks: a neutral grey belonged to nothing on
+   a board where every column is a colour, and it read as chrome laid over the
+   week rather than as part of it. Darkened rather than plain, because a light
+   card on a field of the same hue would have nothing to stand against.
+
+   It breathes, because a still outline on a board full of pictures is not what
+   pulls a two-year-old's eye — and it holds still for anyone who has asked the
+   system for less motion. */
+.card.saying { z-index: 10; outline: .3rem solid var(--ring); outline-offset: .2rem;
+  --ring: color-mix(in oklab, var(--day) 58%, #241c14);
   animation: saying 1.15s ease-in-out infinite; }
 @keyframes saying {
-  50% { outline-color: rgba(47, 42, 38, .3); outline-offset: .5rem; }
+  50% { outline-color: color-mix(in oklab, var(--ring) 32%, transparent); outline-offset: .5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .card.saying { animation: none; } }
