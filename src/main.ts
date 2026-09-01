@@ -106,10 +106,13 @@ function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) 
      what is lying on the table, quiet enough that nobody mistakes it for what is
      happening: these are not two appointments, they are two answers nobody has
      given yet. */
+  const offered = appointment.options.map(id => draw.cards.get(id)?.symbol).filter(Boolean) as SymbolRef[];
+  /* How many stand side by side, handed to the stylesheet: the row's share of a
+     card is the card's width divided by them, and only this side knows the
+     divisor. */
   const icons = undecided(appointment)
-    ? `<span class="ask" aria-hidden="true">?</span><span class="offers">`
-      + appointment.options.map(id => draw.cards.get(id)?.symbol).filter(Boolean)
-        .map(symbol => `<span class="icon">${picture(draw, symbol as SymbolRef)}</span>`).join("")
+    ? `<span class="ask" aria-hidden="true">?</span><span class="offers" style="--count:${Math.max(1, offered.length)}">`
+      + offered.map(symbol => `<span class="icon">${picture(draw, symbol)}</span>`).join("")
       + `</span>`
     : shown.map(drawn).join("");
   return `<div class="${classes}" style="${box}" data-id="${escape(appointment.id)}"><span class="icons">${icons}</span>${crowd}</div>`;
