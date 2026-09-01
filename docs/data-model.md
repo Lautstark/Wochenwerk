@@ -1,6 +1,6 @@
 # Domain model
 
-Four records, and the first two are nearly all of it. This is what the code holds;
+Four records, and the first two are nearly all of it — plus a fifth that holds no domain at all. This is what the code holds;
 the earlier daypart-and-slot table is gone, along with the separate visit and
 birthday record it used to need.
 
@@ -81,6 +81,30 @@ A visit across a weekend is the same mechanism as a weekly Kita, only shorter.
 `id`, `name`, `initials`, `tone`, `photo`. An avatar is the photo where there is one
 and the initials otherwise. A photo is centre-cropped and shrunk to 160 px before it
 is stored, because these records go into a synced folder later.
+
+## `Settings`
+
+One record under one constant key, holding every preference the household has made.
+Today that is `azure` (the Speech key and region, passed to Microsoft from the tab
+and nowhere else), `voice` (one stimmquelle voice for the whole calendar), and
+`metacomRendering` (which of METACOM's parallel folders the search offers first).
+All three are absent until somebody answers them.
+
+**Every preference, and only here.** `conventions.md` §1.2 and §1.3: not
+`localStorage`, which is a second store with its own eviction policy and which
+survives the database being cleared, so a preference kept there would outlive the
+data it is about. A preference living in two places is one that gets restored by
+one of them and overwritten by the other.
+
+**One record and not one per preference.** A settings store that grows a row per
+answer stops being the settings. Every field is optional and absent means the
+product's own default rather than a value written at install, which is what makes a
+household that has answered nothing indistinguishable from one that was never
+asked — and what makes the next preference a one-line change.
+
+It is not domain data, and the two deletions say so: emptying the calendar and
+deleting everything both name the appointments, the cards and the people, and take
+exactly those.
 
 ## Not modelled here
 

@@ -2,11 +2,12 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { listVoices } from "@lautstark/stimmquelle";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
-import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveVoice, settings, uuid } from "../db.js";
-import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
+import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
+import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
+  renderings, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
 import { nameOf, offered, type Voice } from "../voices.js";
 import { load, shown } from "../store.js";
-import { cardThumb, face, overflow, row } from "./pieces.js";
+import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { editCard } from "./card-dialog.js";
 import { editPerson, pickFile } from "./person-dialog.js";
 import { voiceChoice } from "./voice-panel.js";
@@ -250,7 +251,8 @@ export function openSettings(say: (line: string) => void) {
         status.kind === "needs-setup" && status.code === "permission-needed"
           ? button("Erneut erlauben", "sm", () => void run(() => reconnect(), "Erlaubnis wieder da.")) : null,
         metacom.isReady() ? button("Neu einlesen", "sm quiet", () => void run(() => rebuild(), "Neu eingelesen.")) : null,
-        metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(() => forget(), "Ordner vergessen.")) : null));
+        metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(() => forget(), "Ordner vergessen.")) : null),
+      renderingChooser());
 
     /* One voice for the whole calendar, so the heading names it the way the other
        headings carry their state. */
@@ -294,6 +296,34 @@ export function openSettings(say: (line: string) => void) {
       el("div", { class: "acts" },
         button("Alle Termine löschen", "sm destructive", () => void wipe(false)),
         button("Alle Daten löschen", "sm destructive", () => void wipe(true))));
+  }
+
+  /* Which fassung of a doubled symbol the search should offer first.
+     Only when the folder holds more than one — a copy pointed straight at a single
+     rendering has nothing to choose between, and a list with one answer is a
+     question that should not have been asked. The README used to send people to
+     `PNG_ohne_Rahmen` with the picker itself, which answers this by making the rest
+     of the collection unreachable; this answers it by ordering. */
+  function renderingChooser(): HTMLElement | null {
+    const found = renderings();
+    if (found.length < 2) return null;
+    const named = (segment: string | null) => segment === null ? "Keine Vorgabe"
+      : `${segment} · ${found.find(entry => entry.segment === segment)?.count ?? 0} Symbole`;
+    const pick = dropdown(() => named(preferredRendering()), add => {
+      const live = preferredRendering();
+      /* Told to the provider and written down, in that order: the provider ranks the
+         next search by it, and without the second half the choice lasts exactly as
+         long as the tab does. */
+      const choose = (segment: string | null) => () => void run(async () => {
+        preferRendering(segment);
+        await saveSettings({ metacomRendering: segment ?? undefined });
+      }, segment ? `Darstellung „${segment}“ wird bevorzugt.` : "Keine Darstellung mehr bevorzugt.");
+      add(named(null), choose(null), { checked: live === null });
+      for (const entry of found) add(named(entry.segment), choose(entry.segment), { checked: live === entry.segment });
+    });
+    return el("div", { class: "opt" },
+      field("Darstellung", pick.node),
+      el("p", { class: "small muted", text: "METACOM enthält dieselben Symbole mehrfach — mit und ohne Rahmen, mit und ohne aufgedrucktes Wort. Eine Vorgabe sortiert die Suche danach; ausgeschlossen wird nichts, und was schon im Kalender steht, bleibt." }));
   }
 
   const eraseCard = async (card: Card) => {

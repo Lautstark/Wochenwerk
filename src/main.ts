@@ -1,8 +1,8 @@
 import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, week } from "./db.js";
-import { owed, pictureFor, pictures, restore } from "./symbols.js";
+import { allCards, allPeople, settings, week } from "./db.js";
+import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 
 /* The board has no planning logic. It reads the week the calendar wrote and draws
    it; the only thing it would ever write is the option an input picked. */
@@ -195,4 +195,8 @@ async function tick() {
   setTimeout(tick, 60_000 - (at.getSeconds() * 1000 + at.getMilliseconds()) + 20);
 }
 await restore().catch(() => false);
+/* The board resolves references rather than searching, but a reference whose
+   qualified path no longer matches is looked up by name — and that lookup answers
+   in index order unless it is told which fassung was meant. See `urlFor`. */
+preferRendering((await settings()).metacomRendering ?? null);
 void tick();

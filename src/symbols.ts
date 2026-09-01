@@ -20,6 +20,21 @@ export const reconnect = () => metacom.requestPermission();
 export const rebuild = () => metacom.rebuildIndex();
 export const forget = () => metacom.forget();
 
+/* METACOM ships the same symbols several times over — with and without a frame,
+   with and without the word printed on the picture — as parallel folders holding
+   identical file names. `renderings()` derives which folder segments tell them
+   apart from the index itself rather than from a list of known names, because a
+   household's copy is its own: renamed, partial, or organised for a language the
+   package has never seen.
+
+   Preferring one is ordering only. Nothing is filtered out, so a symbol that
+   exists in a single fassung stays reachable, and nothing already in the calendar
+   changes. The preference lives in the settings record and is handed to the
+   provider at boot: the package holds it for the tab and does not persist it. */
+export const renderings = () => (metacom.isReady() ? metacom.renderings() : []);
+export const preferRendering = (segment: string | null) => metacom.preferRendering(segment);
+export const preferredRendering = () => metacom.preferredRendering;
+
 /* Which source the household draws from. It is derived and never chosen: a
    connected METACOM folder is the answer, and without one it is ARASAAC. So there
    is no preference to keep, nothing that can disagree with the folder, and no
@@ -31,12 +46,36 @@ export const refFor = (source: ProviderId, candidate: Candidate): SymbolRef => (
 export const owed = (refs: SymbolRef[]) => attributionsFor(refs.map(ref => ref.source));
 
 const key = (ref: SymbolRef) => `${ref.source}:${ref.id}`;
+
+/* A stored METACOM reference is the id the index gave when the symbol was picked,
+   and the shape of that id is a fact about how the folder was reached: a picked
+   directory indexes without its root, an uploaded file list with it, and a zip
+   however the zip was made. So the same picture, in the same collection, has a
+   different id depending on the route — and a household that re-picks its folder a
+   different way would watch its whole calendar fall back to names.
+
+   `idForName` is bildquelle's own lookup for exactly that, and it is asked with the
+   preferred rendering in front of the name. A bare stem resolves in index order, so
+   a household that has said „ohne Rahmen" and lost the qualified path would
+   otherwise get the framed copy back — the right picture in the wrong fassung,
+   which is the one failure this preference exists to prevent. */
+const stem = (id: string) => id.replace(/\.[a-z0-9]+$/i, "");
+async function urlFor(ref: SymbolRef): Promise<string | null> {
+  const provider = getProvider(ref.source);
+  const exact = await provider.getImageUrl(ref.id);
+  if (exact || ref.source !== "metacom") return exact;
+  const name = stem(ref.id), rendering = metacom.preferredRendering;
+  const again = (rendering ? metacom.idForName(`${rendering}/${name.split("/").pop()}`) : null)
+    ?? metacom.idForName(name);
+  return again && again !== ref.id ? provider.getImageUrl(again) : null;
+}
+
 /** Resolve every symbol a render needs in one pass, so drawing stays synchronous. */
 export async function pictures(refs: SymbolRef[]): Promise<Map<string, string>> {
   const wanted = new Map(refs.map(ref => [key(ref), ref]));
   const found = new Map<string, string>();
   await Promise.all([...wanted].map(async ([id, ref]) => {
-    const url = await getProvider(ref.source).getImageUrl(ref.id).catch(() => null);
+    const url = await urlFor(ref).catch(() => null);
     if (url) found.set(id, url);
   }));
   return found;

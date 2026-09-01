@@ -42,6 +42,20 @@ export function row(lead: Node | null, title: string, state: string | Node, acti
     el("div", { class: "row__actions menu-anchor" }, actions));
 }
 
+/* A preference with a handful of answers is picked the way the family picks
+   things: a button that says what is chosen and opens a menu. A native <select>
+   was never one of this system's parts — its open list is drawn by the operating
+   system and is the one thing on the page that cannot follow the tokens. vorlaut
+   says the same in its own rendering chooser; bildhaft is the outlier there. */
+export function dropdown(label: () => string, build: (add: (item: string, run: () => void, opts?: { checked?: boolean }) => void) => void) {
+  const trigger = el("button", { class: "btn dropdown", attrs: { type: "button" },
+    on: { click: () => menuOn(trigger, build) } });
+  const node = el("span", { class: "menu-anchor" }, trigger);
+  const sync = () => { trigger.textContent = label(); };
+  sync();
+  return { node, sync };
+}
+
 /* `menuOn` opens a menu; it does not register one. Calling it while building a
    row opened a menu and the next click closed it again, which looked exactly
    like a menu that does not work. */

@@ -178,4 +178,9 @@ export type Settings = {
       Azure voices appear in a picker at all. */
   azure?: { key: string; region: string };
   voice?: string;
+  /** Which of METACOM's parallel renderings the search should offer first — a
+      folder segment, absent for no preference. Ordering only: nothing is filtered
+      out, so a symbol that exists in one fassung stays reachable and what is
+      already in the calendar keeps the picture it has. */
+  metacomRendering?: string;
 };

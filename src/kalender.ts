@@ -2,8 +2,9 @@ import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
 import { addDays, dayLabel, iso, shownCards, weekdays, type SymbolRef } from "./model.js";
 import { el, fill, button } from "./ui.js";
+import { settings } from "./db.js";
 import { load, shown, subscribe, type Week } from "./store.js";
-import { metacom, owed, restore } from "./symbols.js";
+import { metacom, owed, preferRendering, restore } from "./symbols.js";
 import { weekGrid } from "./views/week-grid.js";
 import { blankAppointment, editAppointment } from "./views/appointment-dialog.js";
 import { openSettings } from "./views/settings-dialog.js";
@@ -74,4 +75,7 @@ subscribe(current => {
 metacom.subscribe(() => void load());
 
 await restore().catch(() => false);
+/* The package holds the rendering preference for the tab and persists nothing, so
+   the household's answer is handed to it once the folder is back. */
+preferRendering((await settings()).metacomRendering ?? null);
 await load(0);

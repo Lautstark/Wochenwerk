@@ -110,6 +110,12 @@ a.btn { text-decoration: none; }
 .field-row { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; }
 .choice { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+/* One preference inside a panel: what it is called, the button that answers it,
+   and the sentence saying what the answer does. The control does not stretch —
+   a menu trigger as wide as the dialog reads as a text field. */
+.opt { display: grid; gap: 6px; margin-top: 14px; }
+.opt .field-row { flex: 0 1 auto; max-width: 22rem; }
+.opt p { margin: 0; }
 .search { display: grid; gap: 10px; }
 .search__row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .search__row .field-row:first-child { flex: 2 1 14rem; }

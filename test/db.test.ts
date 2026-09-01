@@ -103,7 +103,7 @@ describe("the settings record", () => {
      so this describe resets its own record. Without it these tests would only
      pass in the order they happen to be written in, and the first one to be
      added above them would break the rest. */
-  beforeEach(async () => { await saveSettings({ azure: undefined, voice: undefined }); });
+  beforeEach(async () => { await saveSettings({ azure: undefined, voice: undefined, metacomRendering: undefined }); });
 
   it("is one record: a second preference does not overwrite the first", async () => {
     /* Nothing set is an empty answer, not a missing one: every caller reads it
@@ -123,5 +123,23 @@ describe("the settings record", () => {
     await saveVoice("piper:de_DE-thorsten-medium");
     await clearAll();
     expect((await settings()).voice).toBe("piper:de_DE-thorsten-medium");
+  });
+
+  /* Three panels write three halves of one record, so the merge is the thing worth
+     asserting: the rendering is written by the Symbole panel and must not arrive
+     as a replacement for what the other two put there. */
+  it("takes a third preference without disturbing the first two", async () => {
+    await saveSettings({ azure: { key: "k", region: "westeurope" } });
+    await saveVoice("piper:de_DE-thorsten-medium");
+    await saveSettings({ metacomRendering: "PNG_ohne_Rahmen" });
+    expect(await settings()).toEqual({
+      azure: { key: "k", region: "westeurope" },
+      voice: "piper:de_DE-thorsten-medium",
+      metacomRendering: "PNG_ohne_Rahmen",
+    });
+    /* Cleared back to no preference, which is absent rather than a value meaning
+       "none" — the state a household that never answered is already in. */
+    await saveSettings({ metacomRendering: undefined });
+    expect((await settings()).metacomRendering).toBeUndefined();
   });
 });
