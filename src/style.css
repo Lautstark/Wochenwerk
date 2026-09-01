@@ -188,7 +188,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
    is a prompt and not an event. The dashed edge stays; it says unfinished, where
    the ground says this one is a question. */
 .card.open { border: .22rem dashed color-mix(in oklab, var(--day) 60%, #241c14);
-  background: color-mix(in oklab, var(--day) 42%, #fff); }
+  background: color-mix(in oklab, var(--day) 60%, #fff); }
 
 /* The daypart rail is a narrow strip in the colour of the current day, and it also
    carries how far the day has come: the part already behind us is muted, the part
@@ -244,3 +244,10 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   50% { outline-color: color-mix(in oklab, var(--ring) 32%, transparent); outline-offset: .5rem; }
 }
 @media (prefers-reduced-motion: reduce) { .card.saying { animation: none; } }
+
+/* The board's own sign for a choice nobody has made, in the day's ink. Dark
+   enough to hold against the plate it sits on, which is that same day at sixty
+   per cent — the mark and its ground are one colour at two strengths, which is
+   how the rail draws itself too. */
+.icon.choose { color: color-mix(in oklab, var(--day) 45%, #241c14); display: grid; place-items: center; }
+.icon.choose svg { width: 82%; height: 82%; }

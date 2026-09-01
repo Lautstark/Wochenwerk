@@ -63,6 +63,16 @@ function picture(draw: Drawing, ref: SymbolRef) {
      child — it is what makes the setup state legible to whoever is fixing it. */
   return url ? `<img src="${url}" alt="" />` : `<span class="missing">${escape(ref.label)}</span>`;
 }
+/* Two cards, and one arrow forking to both: *one of these*. Simple enough to
+   hold at the size a card on the board gives it, and drawn in strokes so the
+   whole of it is one colour — which is what lets the day tint it. Modelled on
+   the METACOM sign for choosing rather than traced from it: nothing licensed is
+   redrawn here. */
+const choosing = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">`
+  + `<rect x="2.6" y="3" width="7.6" height="8.4" rx="1.6"/><rect x="13.8" y="3" width="7.6" height="8.4" rx="1.6"/>`
+  + `<path d="M12 21.4V17.6"/><path d="M12 17.6C12 15.2 6.4 15.6 6.4 13.4"/><path d="M12 17.6C12 15.2 17.6 15.6 17.6 13.4"/>`
+  + `</svg>`;
+
 const crown = `<svg class="crown" viewBox="0 0 24 15" aria-hidden="true"><path d="M1.5 13.5 3 2.5l5 4.5 4-6 4 6 5-4.5 1.5 11Z"/></svg>`;
 function avatar(draw: Drawing, id: string, extra = "") {
   const person = draw.people.get(id);
@@ -96,9 +106,17 @@ function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) 
      choice draws one sign meaning *here you choose* rather than a row of the
      options; see `drawnSymbols`. */
   const shown = drawnSymbols(appointment, draw.cards).map(symbol => ({ symbol, name: symbol.label }));
-  const icons = shown.map(item => item.symbol
-    ? `<span class="icon">${picture(draw, item.symbol)}</span>`
-    : `<span class="icon"><span class="missing">${escape(item.name)}</span></span>`).join("");
+  /* And where it has no symbol of its own, the board draws the sign itself. Drawn
+     rather than a picture, for the reason the rail's marks are drawn: a flat
+     single-colour mark takes the day's ink and reads as a different family from
+     the pictures around it, which are all what *happens*. A licensed pictogram
+     cannot be tinted — line art under a mask collapses, a filter guesses — and it
+     would be one more full-colour picture competing with the rest. */
+  const icons = undecided(appointment) && !shown.length
+    ? `<span class="icon choose">${choosing}</span>`
+    : shown.map(item => item.symbol
+        ? `<span class="icon">${picture(draw, item.symbol)}</span>`
+        : `<span class="icon"><span class="missing">${escape(item.name)}</span></span>`).join("");
   return `<div class="${classes}" style="${box}" data-id="${escape(appointment.id)}"><span class="icons">${icons}</span>${crowd}</div>`;
 }
 
