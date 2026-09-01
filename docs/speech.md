@@ -74,6 +74,14 @@ facts cost one line.
 
 **Now** — what the board draws as the lifted card.
 
+**Two at once: the innermost is announced.** A therapy hour inside a Kita day is
+what the child is in; the Kita is the bracket around it. The one that began last
+wins, and of two that began together the one that ends first — so the specific
+thing is spoken and the bracket waits. It used to be the earlier start, which is
+nearly always the bracket, so an hour that always falls inside another was never
+announced at all, on any press, all year. When the inner one ends the bracket
+resumes, and that is what comes next: *Danach kommt wieder Kita.*
+
 | when | said |
 | --- | --- |
 | an appointment is running | *Jetzt ist Frühstück.* |

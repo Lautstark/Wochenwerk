@@ -103,6 +103,33 @@ describe("what is running", () => {
   });
 });
 
+describe("two at once", () => {
+  /* A therapy hour inside a Kita day: the shape that made this worth deciding. */
+  const week = () => [appointment("08:45", "14:00", { title: "Kita" }), appointment("11:00", "11:45", { title: "Turnen" })];
+
+  it("announces the inner one, not the bracket around it", () => {
+    /* The earlier start used to win, which is nearly always the bracket — so the
+       hour inside it was never announced on any press, all year. */
+    expect(said(week(), at("11:10"), house())[1]).toBe("Jetzt ist Turnen.");
+    expect(said(week(), at("11:40"), house())[1]).toBe("Turnen ist gleich fertig.");
+  });
+
+  it("says what resumes when the inner one ends", () => {
+    /* Not "Heute ist nichts mehr geplant", which is what it said with three
+       hours of Kita still to run. */
+    expect(said(week(), at("11:10"), house())[2]).toBe("Danach kommt wieder Kita.");
+  });
+
+  it("goes back to the bracket once the inner one is over", () => {
+    expect(said(week(), at("12:00"), house())[1]).toBe("Jetzt ist Kita.");
+  });
+
+  it("prefers the shorter of two that begin together", () => {
+    const both = [appointment("09:00", "12:00", { title: "Kita" }), appointment("09:00", "09:30", { title: "Turnen" })];
+    expect(said(both, at("09:10"), house())[1]).toBe("Jetzt ist Turnen.");
+  });
+});
+
 describe("what comes next", () => {
   /* Breakfast ends at half past and Kita starts at nine, so the wait after the one
      that is running stays inside the horizon and the next thing is worth naming. */

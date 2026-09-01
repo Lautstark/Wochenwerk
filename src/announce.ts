@@ -50,6 +50,7 @@ const FRAMES = {
   soon: "Gleich kommt",
   after: "Danach kommt",
   then: "Dann kommt",
+  again: "Danach kommt wieder",
   free: "Danach ist nichts geplant.",
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
@@ -127,9 +128,16 @@ const peopleOn = (appointment: Appointment, household: Household) =>
 export function announce(week: Appointment[], at: Date, household: Household): Utterance[] {
   const now = reading(at), today = iso(at);
   /* Parallel appointments share the width of the day, and one of them has to be
-     the one that is spoken. The earlier start wins, which is the order the board
-     already lays them out in. */
-  const running = timedOn(week, today).find(item => item.start! <= now && now < item.end!);
+     the one that is spoken. The innermost wins: the one that began last, and of
+     two that began together the one that ends first.
+
+     The earlier start used to win, which is nearly always the bracket rather than
+     what is happening inside it — a therapy hour inside a Kita day was never
+     announced at all, on any press, because the Kita had started first and would
+     go on for hours. The specific thing is the one the child is in. */
+  const here = timedOn(week, today).filter(item => item.start! <= now && now < item.end!);
+  const running = here.length < 2 ? here[0]
+    : [...here].sort((a, b) => snapped(b.start!) - snapped(a.start!) || snapped(a.end!) - snapped(b.end!))[0];
 
   /* The one thing that outranks the shape: while a choice is open there is
      something for the child to do, and a sentence about Tuesday in front of it is
@@ -227,6 +235,18 @@ function nowLine(running: Appointment | undefined, now: string, week: Appointmen
 }
 
 function nextLine(week: Appointment[], at: Date, now: string, running: Appointment | undefined, household: Household): Utterance[] {
+  /* What is still running around the one being announced resumes the moment it
+     ends, and that is what comes next — before anything that has not started.
+     Without this the board said "Heute ist nichts mehr geplant" during a therapy
+     hour with three more hours of Kita around it. */
+  const around = running
+    ? timedOn(week, iso(at)).filter(item => item !== running && item.start! <= now && item.end! > running.end!)
+        .sort((a, b) => snapped(a.end!) - snapped(b.end!))[0]
+    : undefined;
+  if (around) {
+    const said = spokenName(around, household.cards);
+    return said ? [about(around, utter(fixed(FRAMES.again), own(said)))] : [];
+  }
   const next = timedOn(week, iso(at)).find(item => item.start! > now);
   if (!next) return [restOfIt()];
   /* *Danach* presumes something to be after. Where nothing is running there is
