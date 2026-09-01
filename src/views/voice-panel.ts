@@ -1,4 +1,4 @@
-import { el, fill } from "../ui.js";
+import { el, field, fill, input } from "../ui.js";
 import { caveats, factsOf, labelOf, type Voice } from "../voices.js";
 
 /**
@@ -9,11 +9,23 @@ import { caveats, factsOf, labelOf, type Voice } from "../voices.js";
  * exclusivity from the drawing. That is bildhaft's source picker and mitreden's
  * voice picker, and it is the same control here for the same reason.
  *
- * **What it does not have is mitreden's search field and language chips.** Those
- * exist because a Sammlung's voice is chosen out of hundreds once an Azure key is
- * in, and because that page speaks more than one language. This one asks
- * stimmquelle for German only, so the list is short enough to read, and the four
- * recommended lead it with everything else behind „Mehr Stimmen".
+ * **It is the family's picker: a field you narrow it with, and a list that
+ * scrolls in a box of its own.** This started without one, on the argument that
+ * asking stimmquelle for German only leaves a list short enough to read, with the
+ * recommended ones leading and the rest behind „Mehr Stimmen". Three German
+ * voices ship, so that was true — right up to the moment somebody adds an Azure
+ * key, which is the only reason to add one. Then it is thirty, and both halves of
+ * the argument failed at once: `recommended` is stimmquelle's editorial pick
+ * within its own piper catalogue and is hard-coded false for every cloud voice, so
+ * the fold hid the entire catalogue a key had just unlocked, and the short list it
+ * was protecting had stopped being short anyway.
+ *
+ * So the fold is gone rather than fixed. A list you can type into does the job it
+ * was doing and does it under search as well as before it, which a fold cannot —
+ * mitreden and vorlaut both landed here, and neither has one.
+ *
+ * What is still deliberately missing is mitreden's language chips: this asks for
+ * German and nothing else, so every chip would say Deutsch.
  */
 export interface VoiceChoice {
   node: HTMLElement;
@@ -28,14 +40,32 @@ export interface VoiceChoiceSpec {
 }
 
 export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
-  /* Whether the ones stimmquelle has no editorial opinion about are shown. Kept
-     here rather than passed in: it is somebody's place in a list, and a settings
-     dialog that folded it away again on every repaint would lose that place. */
-  let all = false;
+  /* Somebody's place in the list, so it is held here rather than passed in: a
+     settings dialog that repaints for an unrelated panel must not empty it. */
+  let query = "";
 
+  /* Built once and never replaced — only the rows under it are. A field rebuilt
+     on every keystroke loses the caret, which is the bug symbol-search.ts carries
+     the same note about. */
+  const search = input("search", { attrs: { placeholder: "z. B. Katja, Azure, weiblich", autocomplete: "off" } });
   const list = el("div", { class: "voices", attrs: { role: "radiogroup", "aria-label": "Stimme" } });
-  const more = el("div", { class: "acts" });
-  const node = el("div", { class: "stack" }, list, more);
+  const node = el("div", { class: "stack" }, field("Stimme suchen", search), list);
+
+  /* Searched on exactly what the row shows: the name it is labelled with and the
+     facts line under it. A list that answers to something invisible — a locale
+     code, an id — looks like it is ignoring what was typed, and one that will not
+     answer to „Azure" or „weiblich" when both are printed on the row looks the
+     same way.
+
+     The label is taken against the whole catalogue rather than against the rows
+     currently on screen, and that is the one place the two are deliberately
+     allowed to differ. `labelOf` drops the tier once a search has removed the twin
+     that made it ambiguous, so matching what is drawn would make „Thorsten (high)"
+     unfindable by typing „high": the tier is on the row until the moment the query
+     that names it takes it off. Against the full list every name that can ever
+     appear is reachable, which is the direction to be wrong in. */
+  const matches = (among: readonly Voice[]) => (voice: Voice) =>
+    !query || `${labelOf(voice, among)} ${factsOf(voice)}`.toLowerCase().includes(query);
 
   function voiceRow(voice: Voice, live: boolean, among: readonly Voice[]): HTMLElement {
     const notes = caveats(voice);
@@ -54,39 +84,26 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
   }
 
   function draw(): void {
-    const voices = spec.voices();
     const live = spec.current();
-    /* Azure leads with the recommended ones rather than sitting behind the fold,
-       and that is not a preference about cloud voices. `recommended` is stimmquelle's
-       editorial pick within its own piper catalogue and is hard-coded false for every
-       cloud and system voice — the package says so on the field. So folding by it
-       alone put every single voice a key had just unlocked behind „Mehr Stimmen",
-       which is the one thing somebody who has just typed a key is looking for. It is
-       the trap mitreden's picker documents and avoids for the same reason. */
-    const leads = (voice: Voice) => voice.recommended || voice.source === "azure";
-    const lead = voices.filter(leads);
-    const rest = voices.filter(voice => !leads(voice));
-    /* The four are stimmquelle's editorial pick, one per language-and-gender slot,
-       and with only German asked for they are one or two. If it has no opinion
-       about any of them — a machine offering nothing but its own voices — there is
-       nothing to lead with and the fold would hide the whole list. */
-    const shown = all || !lead.length ? [...lead, ...rest]
-      /* A chosen voice from behind the fold still shows: a group whose answer is
-         not among its rows reads as having lost it. */
-      : voices.filter(voice => leads(voice) || voice.id === live);
-
-    fill(list, ...shown.map(voice => voiceRow(voice, voice.id === live, shown)));
-    fill(more, rest.length && lead.length
-      ? el("button", {
-        class: "btn sm quiet", attrs: { type: "button", "aria-expanded": all },
-        text: all ? "Weniger Stimmen" : `Mehr Stimmen (${rest.length})`,
-        on: { click: () => { all = !all; draw(); } },
-      })
-      : null);
-    /* Nothing is chosen on a first run, and a group the keyboard cannot enter at
-       all is worse than one whose entry point is not the answer. */
+    /* Two lists, and the difference is deliberate: the rows are labelled against
+       what is on screen — `labelOf`'s whole point is that ambiguity is a fact about
+       the list somebody is reading — while the search matched against the whole
+       catalogue, for the reason given up there. */
+    const all = spec.voices();
+    const shown = all.filter(matches(all));
+    fill(list, ...(shown.length
+      ? shown.map(voice => voiceRow(voice, voice.id === live, shown))
+      : [el("p", { class: "empty", text: "Keine Stimme passt dazu." })]));
+    /* Nothing is chosen on a first run, and searching can hide the one that is: a
+       group the keyboard cannot enter at all is worse than one whose entry point
+       is not the answer. */
     if (!list.querySelector('.voice[tabindex="0"]')) list.querySelector<HTMLElement>(".voice")?.setAttribute("tabindex", "0");
   }
+
+  search.addEventListener("input", () => {
+    query = search.value.trim().toLowerCase();
+    draw();
+  });
 
   /** Arrow keys move the choice, as they do in any radio group. */
   list.addEventListener("keydown", event => {

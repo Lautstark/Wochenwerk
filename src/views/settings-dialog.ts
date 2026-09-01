@@ -89,6 +89,13 @@ export function openSettings(say: (line: string) => void) {
      installed, should show up without reloading the page. */
   let voices: Voice[] = [];
   let chosen: string | undefined;
+  /* The catalogue is a database read and, with a key, a request to Azure, so the
+     panel cannot be answered on the frame the dialog opens. Until it is, the
+     heading says it is loading rather than saying „keine gewählt" and the body
+     stays empty — an empty list is an answer, and it was giving the wrong one for
+     as long as the catalogue took to arrive. The Azure panel below does the same
+     with its own heading. */
+  let loaded = false;
   /* Said rather than swallowed. stimmquelle throws on a key it cannot use instead
      of returning the shipped voices alone, because a picker silently short of half
      its voices is a failure only the person who typed the key can fix. So the list
@@ -119,6 +126,7 @@ export function openSettings(say: (line: string) => void) {
       refused = (error as Error)?.message ?? "unbekannter Fehler";
       voices = await offered(false).catch(() => []);
     }
+    loaded = true;
     sync();
   }
 
@@ -247,12 +255,14 @@ export function openSettings(say: (line: string) => void) {
     /* One voice for the whole calendar, so the heading names it the way the other
        headings carry their state. */
     const named = nameOf(voices, chosen);
-    voice.state.textContent = chosen ? named || "gewählte Stimme fehlt" : "keine gewählt";
+    voice.state.textContent = !loaded ? "Wird geladen …"
+      : chosen ? named || "gewählte Stimme fehlt" : "keine gewählt";
     fill(voice.body,
       el("p", { class: "small muted", text: "Eine Stimme für den ganzen Kalender. Ein Termin wird beim Planen aufgenommen und am Board vorgelesen — nicht je Termin, je Karte oder je Person gewählt, sondern einmal hier." }),
       refused ? el("p", { class: "notice bad", text: `Azure nimmt den Schlüssel nicht an (${refused}). Unten stehen nur die Stimmen, die keinen brauchen.` }) : null,
       chosen && !named ? el("p", { class: "notice", text: "Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert." }) : null,
-      voices.length ? picker.node : el("p", { class: "empty", text: "keine Stimme verfügbar" }));
+      !loaded ? null
+        : voices.length ? picker.node : el("p", { class: "empty", text: "keine Stimme verfügbar" }));
     picker.draw();
 
     const cardList = [...shown().cards.values()];
