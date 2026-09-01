@@ -110,6 +110,11 @@ wall clock, because it is a promise about how long the child is standing there.
 
 **Choice, while it is running** — the whole announcement, alone.
 
+**A choice has no Ansage field at all.** What is said comes from the cards it
+offers and, once something picked, from the card that was picked — so there is
+nothing on the appointment to write, and a disabled field explaining that is
+still a field to read past. The words are written where they belong: on the card.
+
 **An open choice says only that there is something to choose, and names the
 cards.** Not itself: the title on a choice is what the parents filed the slot
 under — a *Nachmittagszeit* holding a Laufrad and a Spielplatz — and the child

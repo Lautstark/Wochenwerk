@@ -115,7 +115,13 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
   const word = () => box.value.trim() || instead();
 
   const hearing = (label: string, text: () => string) => playButton(label, text, words => { why.textContent = words; });
-  const hear = hearing("Ansage anhören", word);
+  /* Where the sentences do not come from this field — a birthday, a visit — there
+     is no word here to play, and asking for one said "Erst einen Namen eintippen"
+     about a sentence that was never going to contain a name. It plays what would
+     actually be said instead. */
+  const hear = hearing("Ansage anhören", () => fromPeople(shape())
+    ? couldSay("", shape())[0]?.text ?? ""
+    : word());
 
   /* Every sentence the word can turn up in, closed by default: six of them under
      each dialog would be more surface than the form they belong to. Absent

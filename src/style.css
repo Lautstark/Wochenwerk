@@ -245,9 +245,16 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 }
 @media (prefers-reduced-motion: reduce) { .card.saying { animation: none; } }
 
-/* The board's own sign for a choice nobody has made, in the day's ink. Dark
-   enough to hold against the plate it sits on, which is that same day at sixty
-   per cent — the mark and its ground are one colour at two strengths, which is
-   how the rail draws itself too. */
-.icon.choose { color: color-mix(in oklab, var(--day) 45%, #241c14); display: grid; place-items: center; }
-.icon.choose svg { width: 82%; height: 82%; }
+/* A choice nobody has made: a question mark, and under it the cards that would
+   answer it. The mark carries the day's ink — one colour at two strengths against
+   the plate it sits on, which is that same day at sixty per cent.
+
+   The row beneath is small and muted on purpose. These are not two appointments
+   and must not read as two: they are answers nobody has given, so they sit at a
+   third of the height and take some of their colour out. */
+.card.open .icons { flex-direction: column; gap: .1rem; }
+.ask { font-size: calc(var(--tile) * .5); line-height: .95; font-weight: 700;
+  color: color-mix(in oklab, var(--day) 45%, #241c14); }
+.offers { display: flex; align-items: center; justify-content: center; gap: .25rem; }
+.offers .icon { height: calc(var(--tile) * .26); }
+.offers img { opacity: .62; filter: saturate(.55); }

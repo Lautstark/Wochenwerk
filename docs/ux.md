@@ -29,12 +29,16 @@ A choice is where that stops being enough, and the reason is physical. What may 
 
 There is no separate choice appointment. There is one appointment, and it either shows its own symbols or offers cards — in which case an input picks one. Once picked, it is an ordinary appointment and nothing about it differs.
 
-An undecided appointment carries one symbol of its own — *hier wird ausgesucht* —
-and not a row of the options. It used to show the options, so that the board held
-up the same pictures as the cards lying on the table; one sign to learn once beat
-that, because two or three pictures on one card are a different sign every time.
-The cards on the table say what may be picked. The board says that picking is
-what happens now, and afterwards says what was picked.
+An undecided appointment is a question mark, and under it, small and muted, the
+cards that would answer it. The mark is the sign to learn — one shape, in the
+day's own ink, drawn rather than fetched so the day can colour it. The row
+beneath is what is lying on the table, quiet enough that nobody mistakes it for
+what is happening: those are not two appointments, they are two answers nobody
+has given yet.
+
+It used to show the options at full size and nothing else, which made a card that
+was a different sign every time. Afterwards it is what was picked, at full size
+like any other appointment.
 
 Its edge is dashed, and its ground is the day's colour rather than paper. That
 inverts the board's own rule — colour is the field, paper is a card — for the one

@@ -145,6 +145,13 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     });
   speech.box.value = draft.speech ?? "";
 
+  /* A choice has no Ansage of its own — what is said comes from the cards it
+     offers and, once something picked, from the card that was picked. A disabled
+     field explaining that is still a field to read past, so the whole block goes
+     rather than greying out. The words are written where they belong: on the
+     card. */
+  const ansage = field("Ansage", speech.node);
+
   const handle = openDialog({
     title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", closeLabel: "Schließen", wide: true,
     /* Two groups, in this order: when it happens, then what the board does with
@@ -153,7 +160,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        — and it sits *above* the symbol rather than below it so that the search,
        which grows to the height of its results, cannot push it around. */
     body: [el("div", { class: "stack" }, timeRow, wholeRow, repeatRow, seriesLine,
-      field("Ansage", speech.node), kinds, wantMore, chosen, search.node, offer, more)],
+      ansage, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
@@ -208,6 +215,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        "what may be picked" belongs to the choice alone. */
     search.node.hidden = false;
     offer.hidden = mode !== "choice";
+    ansage.hidden = mode === "choice";
 
     await resolve();
     fill(chosen, grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
