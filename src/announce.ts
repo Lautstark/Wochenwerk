@@ -26,7 +26,6 @@ export type Household = { cards: Map<string, Card>; people: Map<string, Person> 
 const FRAMES = {
   today: "Heute ist",
   and: ", und",
-  alsoToday: "heute ist",
   birthday: "hat Geburtstag",
   birthdays: "haben Geburtstag",
   birthdayOf: "Heute ist der Geburtstag von",
@@ -151,8 +150,17 @@ function dayLine(week: Appointment[], at: Date, now: string, household: Househol
   const born = birthdayLine(facts, household);
   if (born) return born;
   const day = `${WEEKDAYS[(at.getDay() + 6) % 7]}${DAYPARTS[daypartOf(now)]}`;
-  const clause = dayClause(facts, household);
-  return utter(fixed(FRAMES.today), fixed(day), ...(clause.length ? [fixed(FRAMES.and), ...clause] : []));
+  const guests = visitClause(facts, household);
+  const named = namedFact(facts, household);
+  /* A guest rides along on the day sentence — *und Oma kommt* adds a person to
+     it. A named fact does not: "Heute ist Donnerstagmorgen, und heute ist
+     Ferientag" says the same two words twice inside one sentence. It becomes its
+     own short sentence instead, which repeats *Heute ist* on purpose rather than
+     by accident — a parallel is easier for a two-year-old than an ellipsis, and
+     the second half is then the very clip the first half already used. */
+  return utter(fixed(FRAMES.today), fixed(day),
+    ...(guests.length ? [fixed(FRAMES.and), ...guests] : []),
+    ...(named ? [fixed(FRAMES.stop), fixed(FRAMES.today), own(named)] : []));
 }
 
 /* Whose birthday it is, and how old they are turning — the age from the person's
@@ -171,24 +179,24 @@ function birthdayLine(facts: Appointment[], household: Household): Utterance | u
   return undefined;
 }
 
-function dayClause(facts: Appointment[], household: Household): Part[] {
-  for (const fact of facts) {
-    const born = peopleOn(fact, household).filter(person => bornOn(person, fact.date));
-    if (born.length) return listing(born.map(person => person.name), fixed(FRAMES.and2))
-      .concat(fixed(born.length > 1 ? FRAMES.birthdays : FRAMES.birthday));
-  }
-  /* A guest is a person with no symbol on them — the same record, which is why
-     this asks what the appointment carries rather than what kind it is. */
+/* A guest is a person with no symbol on them — the same record, which is why this
+   asks what the appointment carries rather than what kind it is. */
+function visitClause(facts: Appointment[], household: Household): Part[] {
   for (const fact of facts) {
     const guests = peopleOn(fact, household);
-    if (guests.length && !fact.symbols.length) return listing(guests.map(person => person.name), fixed(FRAMES.and2))
-      .concat(fixed(guests.length > 1 ? FRAMES.visit : FRAMES.visits));
-  }
-  for (const fact of facts) {
-    const said = spokenName(fact, household.cards);
-    if (said) return [fixed(FRAMES.alsoToday), own(said)];
+    if (guests.length && !fact.symbols.length && !guests.some(person => bornOn(person, fact.date)))
+      return listing(guests.map(person => person.name), fixed(FRAMES.and2))
+        .concat(fixed(guests.length > 1 ? FRAMES.visit : FRAMES.visits));
   }
   return [];
+}
+/** A day fact with a word of its own: a holiday, a closed Kita. */
+function namedFact(facts: Appointment[], household: Household): string | undefined {
+  for (const fact of facts) {
+    const said = spokenName(fact, household.cards);
+    if (said) return said;
+  }
+  return undefined;
 }
 
 /* What the board draws as the lifted card. A nameless appointment says nothing
@@ -326,7 +334,7 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
   /* An all-day appointment is never running and never next: it is a fact about
      the day, and the day sentence is the only one that carries it. */
   if (shape.allDay) return days.map(day => ({
-    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.and), fixed(FRAMES.alsoToday), w),
+    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.stop), fixed(FRAMES.today), w),
     when: day.when,
   }));
 

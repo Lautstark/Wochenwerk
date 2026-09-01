@@ -47,6 +47,15 @@ describe("the day sentence", () => {
     expect(lines[0]).toBe("Heute ist der Geburtstag von Oma.");
   });
 
+  it("gives a named day fact its own sentence rather than a second *heute ist*", () => {
+    /* "Heute ist Donnerstagmorgen, und heute ist Ferientag" says the same two
+       words twice inside one sentence. Split, the repetition is a parallel a
+       two-year-old can follow, and the second half is the clip the first half
+       already used. */
+    const week = [appointment(undefined, undefined, { symbols: [], title: "Ferientag" })];
+    expect(said(week, at("09:00"), house())[0]).toBe("Heute ist Dienstagmorgen. Heute ist Ferientag.");
+  });
+
   it("carries a visit — a person with no symbol on them", () => {
     const week = [appointment(undefined, undefined, { symbols: [], people: ["o"] })];
     const lines = said(week, at("09:00"), house([], [person("o", "Oma")]));
@@ -182,6 +191,12 @@ describe("what is never said", () => {
     expect(lines.join(" ")).not.toContain("kindergaertnerin");
   });
 
+  it("has a vocabulary a person could actually sit down and record", () => {
+    /* The number is worth failing on: it is what a household is being asked for
+       before the first appointment, and it should not grow by accident. */
+    expect(vocabulary()).toHaveLength(new Set(vocabulary()).size);
+  });
+
   it("plays every fixed clip out of the vocabulary a recorder was given", () => {
     /* The household records a word per card, person and appointment when it makes
        one. Everything else has to have been recorded before the first appointment
@@ -279,10 +294,10 @@ describe("what a word can turn up in", () => {
        the weekday is the appointment's own, not a specimen. */
     const said = couldSay("Ferientag", { allDay: true, date: "2026-09-03" });
     expect(said.map(line => line.text)).toEqual([
-      "Heute ist Donnerstagmorgen, und heute ist Ferientag.",
-      "Heute ist Donnerstagmittag, und heute ist Ferientag.",
-      "Heute ist Donnerstagnachmittag, und heute ist Ferientag.",
-      "Heute ist Donnerstagabend, und heute ist Ferientag.",
+      "Heute ist Donnerstagmorgen. Heute ist Ferientag.",
+      "Heute ist Donnerstagmittag. Heute ist Ferientag.",
+      "Heute ist Donnerstagnachmittag. Heute ist Ferientag.",
+      "Heute ist Donnerstagabend. Heute ist Ferientag.",
     ]);
   });
 

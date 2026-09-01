@@ -26,6 +26,13 @@ they hold no clock time. Both are words rather than figures, so the ban on
 digits stands as written and each is a clip like any other; past twelve the
 sentence leaves the age out rather than reach for a word nobody recorded.
 
+**A guest rides along; a named fact does not.** *…, und Oma kommt* adds a person
+to the day sentence and reads as one thing. *…, und heute ist Ferientag* says the
+same two words twice inside one sentence, so it becomes a second short sentence
+instead — which repeats *Heute ist* on purpose rather than by accident. At this
+age a parallel is easier to follow than an ellipsis, and the repeat costs
+nothing: it is the clip the first half already used.
+
 **A birthday takes the whole day sentence.** On every other day that sentence
 answers *which day is it*, and the daypart is the useful half of the answer; on
 this one the answer is the birthday, and a child who is turning four is not
@@ -57,7 +64,8 @@ facts cost one line.
 | --- | --- |
 | always | *Heute ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
 | somebody's birthday | *Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
-| the day carries another all-day appointment | *Heute ist Dienstag, und Oma kommt.* |
+| a guest | *Heute ist Dienstagmorgen, und Oma kommt.* |
+| a day fact with a word of its own | *Heute ist Dienstagmorgen. Heute ist Ferientag.* |
 
 **Now** — what the board draws as the lifted card.
 
@@ -188,9 +196,9 @@ is *played* as a frame and a word: one clip after the other, in the order
 `announce` returns them. `Utterance.parts` is that order and `Utterance.text` is
 how the same thing reads.
 
-**Fifty-six clips exist before anything is planned**, and `vocabulary()` is the
-list: every frame, plus the twenty-eight weekday-and-daypart words, which are one
-clip each so that no seam ever falls inside a word. That list is what a recorder
+**Seventy-two clips exist before anything is planned**, and `vocabulary()` is
+the list: every frame, the twenty-eight weekday-and-daypart words — one clip each
+so that no seam ever falls inside a word — and the twelve ages. That list is what a recorder
 walks. A frame written anywhere but in `FRAMES` would be a clip nobody was asked
 to record — silence on the board, and nothing else to notice it — so a test
 plays a whole day and fails on any fixed part that is not in the vocabulary.
