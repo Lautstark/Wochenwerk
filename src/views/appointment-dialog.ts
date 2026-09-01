@@ -100,15 +100,18 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   const handle = openDialog({
     title: titleOf(draft, shown().cards) || "Neuer Termin", closeLabel: "Schließen", wide: true,
-    body: [el("div", { class: "stack" }, title, timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
+    body: [el("div", { class: "stack" }, timeRow, wholeRow, repeatRow, seriesLine, kinds, wantMore, chosen, search.node, offer, more)],
     footer: [existing ? removeButton : el("span"), spacer(),
       button("Abbrechen", "quiet", () => handle.close()), saveButton],
   });
   /* The name field is the heading. A second copy of it above, which cannot be
      typed in, says the same thing twice — so the sheet keeps its accessible name
-     and loses the visible one. */
+     and loses the visible one. The field then stands where that heading stood,
+     beside the ✕ rather than under it: a head holding nothing but a corner ✕ was
+     a whole row of the sheet spent on nothing. */
   const heading = handle.dialog.querySelector("h2");
   heading?.setAttribute("hidden", "");
+  handle.dialog.querySelector(".head")?.prepend(title);
 
   const read = () => {
     draft.title = title.value.trim() || undefined;
