@@ -314,6 +314,16 @@ describe("what a word can turn up in", () => {
     expect(said(week, at("08:30"), house(cards))[1]).toBe("Jetzt ist Spielplatz. Das hast du ausgesucht.");
   });
 
+  it("says nothing of its own even before the cards are added", () => {
+    /* A choice with no cards yet is still a choice: a name typed into it would
+       never be said, so the field must not offer one. Keyed on the count rather
+       than on being a choice at all, this fell back to the six word sentences —
+       "Jetzt ist Nachmittagszeit" — which is the word the parents filed it under. */
+    const said = couldSay("Nachmittagszeit", { offering: [] }).map(line => line.text);
+    expect(said.some(line => line.includes("Nachmittagszeit"))).toBe(false);
+    expect(said).toHaveLength(4);
+  });
+
   it("is about what was picked, once something picked", () => {
     const said = couldSay("Spielplatz", { picked: true }).map(line => line.text);
     expect(said).toContain("Jetzt ist Spielplatz. Das hast du ausgesucht.");

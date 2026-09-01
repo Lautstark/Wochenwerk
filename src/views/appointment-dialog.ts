@@ -129,7 +129,11 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         /* The cards, not the appointment's own name: "Jetzt darfst du aussuchen:
            Nachmittagszeit" is the word the parents filed it under, and the child
            is being offered a Laufrad and a Spielplatz. */
-        ...(draft.options.length && !draft.chosen
+        /* On the mode rather than on the count: a choice with no cards added yet
+           is still a choice, and a name typed into it would still never be said.
+           Keyed on the count, the field fell back to "Ohne Namen wird nichts
+           gesagt" — which promises that a name would change something. */
+        ...(mode === "choice" && !draft.chosen
           ? { offering: draft.options.map(id => cardSays(shown().cards.get(id)) ?? "") }
           : {}),
         picked: !!draft.chosen,

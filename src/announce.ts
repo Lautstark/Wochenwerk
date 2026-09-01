@@ -277,7 +277,9 @@ export type Possible = { text: string; when: string };
 export type Shape = {
   /** The one person it concerns, where it concerns exactly one. */
   who?: string;
-/** The words of the cards on offer, while nothing has picked one of them. */
+/* The words of the cards on offer, while nothing has picked one of them. Its
+     *presence* is what says this is a choice — an empty list is a choice whose
+     cards have not been added yet, which still says nothing of its own. */
   offering?: string[];
   /** Whether it can also turn up as an appointment that something picked. */
   picked?: boolean;
@@ -296,7 +298,7 @@ export type Shape = {
    birthday and a visit are said from the person — the day sentence asks about
    people before it asks about a name — and an open choice is said from the cards
    it offers, which is the whole of what it has to say until one is picked. */
-export const fromPeople = (shape: Shape) => !!(shape.birthday?.names.length || shape.visiting?.length || shape.offering?.length);
+export const fromPeople = (shape: Shape) => !!(shape.birthday?.names.length || shape.visiting?.length) || shape.offering !== undefined;
 
 export function couldSay(word: string, shape: Shape = {}): Possible[] {
   const said = word.trim();
@@ -333,9 +335,12 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
      Nachmittagszeit is the word the parents filed it under and not a thing that
      happens. Once something picked, the sentences below are about what was
      picked, in its word. */
-  if (shape.offering?.length) {
+  if (shape.offering) {
     const offered = shape.offering.filter(word => word.trim());
-    const named = offered.length === shape.offering.length && offered.length <= 3;
+    /* Named only where there is something to name and every one of them has a
+       word: none yet, or one missing, and the sentence points at the table
+       instead of reading out a list with a hole in it. */
+    const named = offered.length > 0 && offered.length === shape.offering.length && offered.length <= 3;
     return [
       { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.slot)) : FRAMES.look,
         when: "wenn die Wahl offen ist" },
