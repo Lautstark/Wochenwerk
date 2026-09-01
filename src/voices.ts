@@ -24,20 +24,19 @@ export type Voice = Offered;
  * `id` is exactly what speech is later asked for, so what gets stored is the id
  * and nothing has to be translated.
  *
- * **`ownsInference` is not claimed here, and that is why there is no German female
- * piper voice in the list.** stimmquelle's `browser` column is an answer about
+ * **`ownsInference` is claimed, and it is what puts a German female piper voice
+ * in the list.** stimmquelle's `browser` column is an answer about
  * `@diffusionstudio/vits-web` and nothing else, so a product that drives piper
- * itself is not subject to it; `de_DE-kerstin-low` is CC0 and shippable and is
+ * itself is not subject to it; `de_DE-kerstin-low` is CC0 and shippable and was
  * kept out by that column alone. The flag is a claim about what this product
- * drives, not a preference — wochenwerk does not call `usePiperRuntime` yet, and
- * claiming it would make her selectable here and fail at synthesis, which is the
- * failure the flag exists to prevent. Whoever wires playback sets it in the same
- * change that calls `usePiperRuntime`, and not before. mitreden and vorlaut both
- * claim it, which is why she is offered there.
+ * drives rather than a preference, and it became true in the change that wired
+ * playback: `src/speech.ts` calls `usePiperRuntime`. It must not outlive that
+ * call — without it the claim makes her selectable here and silent at synthesis,
+ * which is the failure the flag exists to prevent.
  */
 export async function offered(withKey = true): Promise<Voice[]> {
   const { azure } = await settings();
-  return [...await listVoices({ lang: "de", system: true, ...(withKey && azure ? { azure } : {}) })];
+  return [...await listVoices({ lang: "de", system: true, ownsInference: true, ...(withKey && azure ? { azure } : {}) })];
 }
 
 /** Who renders it: what somebody choosing is actually deciding between. */

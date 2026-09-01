@@ -144,3 +144,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   .card { border-radius: .5rem; }
   .face { width: 1.4rem; height: 1.4rem; }
 }
+
+/* The announcement's own setup state. Bottom left, so it never lands on the
+   ARASAAC notice, and invisible while it is empty. */
+.setup { position: fixed; left: .5rem; bottom: .25rem; margin: 0; max-width: 60vw;
+  font-size: 11px; line-height: 1.3; color: #6b645e; pointer-events: none; }

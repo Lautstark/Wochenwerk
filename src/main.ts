@@ -1,8 +1,10 @@
 import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, settings, week } from "./db.js";
+import { allCards, allPeople, settings, week, whenStuck } from "./db.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
+import { announceAt } from "./speech.js";
+import { el } from "./ui.js";
 
 /* The board has no planning logic. It reads the week the calendar wrote and draws
    it; the only thing it would ever write is the option an input picked. */
@@ -199,6 +201,30 @@ async function tick() {
   app.innerHTML = await build(at);
   setTimeout(tick, 60_000 - (at.getSeconds() * 1000 + at.getMilliseconds()) + 20);
 }
+
+/* Whatever an announcement could not do, for whoever is setting the board up —
+   never for the child, which is why it is small, in a corner, and says nothing
+   at all when there is nothing wrong. It lives outside `#app` because the minute
+   tick rewrites everything inside it. */
+const setup = document.body.appendChild(el("p", { class: "setup" }));
+const trouble = (words?: string) => { setup.textContent = words ?? ""; };
+whenStuck(trouble);
+
+/* The announcement is asked for, never volunteered. A key is what asks today:
+   ADR 002 has the reader arriving as an ordinary USB keyboard that types a tag's
+   UID, so a keypress is the door that input will come through as well, and the
+   button in the frame is the same door with no card in front of it.
+
+   Space, because a keypad or a single wired switch is what a button in a frame
+   is, and space is what one of those sends before it is configured to send
+   anything else. A modifier means somebody is at a real keyboard doing something
+   else, so it is left alone. */
+addEventListener("keydown", event => {
+  if (event.code !== "Space" || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  event.preventDefault();
+  void announceAt(new Date()).then(said => trouble(said.trouble));
+});
+
 await restore().catch(() => false);
 /* The board resolves references rather than searching, but a reference whose
    qualified path no longer matches is looked up by name — and that lookup answers

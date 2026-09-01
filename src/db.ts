@@ -12,6 +12,10 @@ interface Wochenwerk extends DBSchema {
   /* Not a kind of thing: one record holding what was set up once. Keyed like the
      rest so the store is one of the family, and there is only ever the one key. */
   settings: { key: string; value: Settings & { id: string } };
+  /* Spoken audio under stimmquelle's own name for it. A cache and nothing more:
+     losing it costs the time to speak a sentence again, and every key in it is
+     derivable from the text, so nothing here is a source of anything. */
+  clips: { key: string; value: { id: string; wav: Uint8Array } };
 }
 
 /* Version 2 dropped the separate visit/birthday record. Both are ordinary all-day
@@ -20,8 +24,21 @@ interface Wochenwerk extends DBSchema {
 type OldSpecial = { id: string; kind: "visit" | "birthday"; person: string; from: string; to: string };
 const cake: SymbolRef = { source: "metacom", id: "Feste/geburtstag.png", label: "Geburtstag" };
 
+const WAITING = "Die Datenbank wird von einem anderen Tab offen gehalten. Diese Seite neu laden.";
+/* A route says where that belongs on its own screen. The store does not own any
+   UI and is not about to start, but it is the only thing that knows. */
+let stuck: ((words: string) => void) | null = null;
+export const whenStuck = (say: (words: string) => void) => { stuck = say; };
+
 let opening: Promise<IDBPDatabase<Wochenwerk>> | null = null;
-const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
+/* Say so if it has not opened by now. `blocked` below is the callback for this and
+   it is not enough on its own: a request queued behind an upgrade another tab is
+   holding can simply never settle and never fire it either — observed, with the
+   board blank and nothing anywhere but a hang. Everything on both routes waits on
+   this promise, so whatever the reason, not having opened by now is the thing
+   worth saying, and the only screen that can say it is the one being looked at. */
+const PATIENCE = 4000;
+const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 7, {
   async upgrade(database, from, _to, transaction) {
     if (from < 1) {
       const appointments = database.createObjectStore("appointments", { keyPath: "id" });
@@ -100,6 +117,7 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
        until something reaches for it. Whoever merges second still has to bump the
        version, but this is the half that does not depend on anybody noticing. */
     if (!database.objectStoreNames.contains("settings")) database.createObjectStore("settings", { keyPath: "id" });
+    if (!database.objectStoreNames.contains("clips")) database.createObjectStore("clips", { keyPath: "id" });
   },
   /* A version bump waits for every open connection to close, and the board is a
      page that is never closed: it hangs on a wall. Without these three, deploying
@@ -119,15 +137,25 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
     globalThis.location?.reload();
   },
   /* We are the one waiting, on a tab too old to carry the handler above. Said out
-     loud rather than hung on, because the two are indistinguishable from a screen. */
+     loud rather than hung on, because the two are indistinguishable from a screen
+     — and the console is not a screen. Nothing resolves while a bump is blocked,
+     so a board left to itself simply stays blank; whoever is looking at it has to
+     be told on the board. */
   blocked() {
-    console.warn("Wochenwerk: die Datenbank wird gerade von einem anderen Tab offen gehalten. Board neu laden.");
+    console.warn(`Wochenwerk: ${WAITING}`);
+    stuck?.(WAITING);
   },
   /* The browser dropped the connection — a phone reclaiming memory, usually. Drop
      the cached promise so the next call opens a live one instead of reusing a
      handle every query now fails on. */
   terminated() { opening = null; },
-}));
+})));
+
+function waiting(opened: Promise<IDBPDatabase<Wochenwerk>>): Promise<IDBPDatabase<Wochenwerk>> {
+  const timer = setTimeout(() => stuck?.(WAITING), PATIENCE);
+  void opened.then(() => clearTimeout(timer), () => clearTimeout(timer));
+  return opened;
+}
 
 export const uuid = () => crypto.randomUUID();
 
@@ -309,3 +337,17 @@ export async function editSeries(series: string, change: Partial<Appointment>, f
   await Promise.all([...touched.map(appointment => writing.store.put({ ...appointment, ...change, id: appointment.id, date: appointment.date, series, updatedAt: Date.now() })), writing.done]);
   return touched.length;
 }
+
+/* The store stimmquelle's `remember` keeps spoken audio in. It owns the name —
+   the §3 fingerprint over the text, the voice and the output settings — and this
+   owns the lifetime, which is what that split is for: these bytes can always be
+   made again, so a failing write is a slow board and never a lost recording. */
+export const clips = {
+  async get(id: string) { return (await (await db()).get("clips", id))?.wav; },
+  async put(id: string, wav: Uint8Array) {
+    try { await (await db()).put("clips", { id, wav }); }
+    catch { /* A full quota costs the time to speak it again, and nothing else. */ }
+  },
+};
+/** Forget every spoken clip. They come back on their own, one sentence at a time. */
+export const forgetClips = async () => (await db()).clear("clips");
