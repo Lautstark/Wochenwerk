@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
 import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf,
-  saveSettings, saveVoice, setBirthday, settings, uuid, week } from "../src/db.js";
+  saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
 const shape = (start?: string, end?: string): Omit<Appointment, "id" | "date" | "series" | "updatedAt"> =>
@@ -57,6 +57,46 @@ describe("a series", () => {
     const [first] = await inSeries(id);
     await put({ ...first, title: "anders" });
     expect((await inSeries(id)).filter(item => item.title === "anders")).toHaveLength(1);
+  });
+});
+
+describe("an appointment turned into a series", () => {
+  const single = (date: string, extra: Partial<Appointment> = {}): Appointment =>
+    ({ id: uuid(), date, start: "09:00", end: "10:00", symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });
+
+  it("keeps the record it came from, and writes the rest around it", async () => {
+    const one = single(iso(monday), { title: "Kita" });
+    await put(one);
+    const id = await seriesFrom(one, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 13)));
+    const batch = await inSeries(id);
+    expect(batch).toHaveLength(4);
+    expect(batch[0].id).toBe(one.id);
+    expect(batch.every(item => item.title === "Kita")).toBe(true);
+    expect((await allSeries())[0].from).toBe(iso(monday));
+  });
+
+  it("leaves a choice resolved where it was resolved, and the copies undecided", async () => {
+    const one = single(iso(monday), { options: ["a", "b"], chosen: "a" });
+    await put(one);
+    const batch = await inSeries(await seriesFrom(one, { kind: "daily" }, iso(addDays(monday, 2))));
+    expect(batch.map(item => item.chosen)).toEqual(["a", undefined, undefined]);
+  });
+
+  it("does not stay behind when the pattern skips its own day", async () => {
+    const tuesday = iso(addDays(monday, 1));
+    const one = single(tuesday);
+    await put(one);
+    const id = await seriesFrom(one, { kind: "weekly", weekdays: [0, 2] }, iso(addDays(monday, 6)));
+    const batch = await inSeries(id);
+    expect(batch.map(item => item.date)).toEqual([iso(addDays(monday, 2))]);
+    expect((await week(monday)).some(item => item.id === one.id)).toBe(false);
+  });
+
+  it("cannot be given an end before it starts", async () => {
+    const one = single(iso(addDays(monday, 3)));
+    await put(one);
+    const id = await seriesFrom(one, { kind: "daily" }, iso(monday));
+    expect((await inSeries(id)).map(item => item.date)).toEqual([one.date]);
   });
 });
 

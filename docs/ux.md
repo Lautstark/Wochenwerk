@@ -72,6 +72,8 @@ An appointment may carry people, and may or may not show them. Where it does, th
 
 A repetition is a way of writing many appointments at once, never a rule stored instead of them. Creating one asks for a pattern and where it stops — a date, or a number of times — and writes exactly that many concrete appointments.
 
+An appointment written once that turns out to repeat is turned into a batch from the same fields, as long as it does not already belong to one: the record it already is becomes the first of the batch, so a choice resolved on it stays resolved and the copies start undecided. What already belongs to a batch is not asked again — changing that is extending or clearing it.
+
 Each carries the id of the batch it came from. That is what makes a series listable, extendable and clearable, and it is all the series is for: the appointments stand on their own, and the board never sees it.
 
 Everything that is otherwise hard falls out of this. A Kita day that falls away is one record deleted. A choice resolved on Monday is written to Monday's own record and does not follow the child to Tuesday. Last month's board keeps showing what was actually planned, because nothing is derived.

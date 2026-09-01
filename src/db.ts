@@ -244,6 +244,31 @@ export async function createSeries(pattern: Pattern, from: string, until: string
   return id;
 }
 
+/* Turning an appointment that already exists into a batch adopts the record rather
+   than replacing it: its id is what the week on screen already holds, and a choice
+   resolved on it stays resolved. The rest of the batch is written around it, and
+   the copies start undecided — a choice belongs to its own day.
+
+   A pattern that does not fall on this appointment's own weekday leaves it behind:
+   what was asked for is the batch, not the batch and the appointment. */
+export async function seriesFrom(appointment: Appointment, pattern: Pattern, until: string): Promise<string> {
+  const database = await db();
+  const id = uuid();
+  const stop = until < appointment.date ? appointment.date : until;
+  const dates = occurrences(pattern, appointment.date, stop);
+  const now = Date.now();
+  await database.put("series", { id, pattern, from: appointment.date, until: stop, allDay: !appointment.start, createdAt: now });
+  const writing = database.transaction("appointments", "readwrite");
+  await Promise.all([
+    ...dates.map(date => writing.store.put(date === appointment.date
+      ? { ...appointment, series: id, updatedAt: now }
+      : { ...appointment, id: uuid(), date, series: id, chosen: undefined, updatedAt: now })),
+    ...(dates.includes(appointment.date) ? [] : [writing.store.delete(appointment.id)]),
+    writing.done,
+  ]);
+  return id;
+}
+
 /** How many of a series a reach would touch, so the person is told before it happens. */
 export async function reachOf(series: string, from?: string): Promise<Appointment[]> {
   const all = await inSeries(series);

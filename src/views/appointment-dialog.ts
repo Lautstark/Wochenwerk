@@ -2,7 +2,7 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { addDays, allDay, board, clock, dayLabel, derivedName, iso, minute, titleOf,
   weekdays, type Appointment, type Pattern } from "../model.js";
-import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, uuid } from "../db.js";
+import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
@@ -151,7 +151,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         draft.options = [...draft.options, id]; await load(); void sync();
       })));
 
-    repeatRow.hidden = existing;
+    /* A batch is not only asked for when the appointment is new: one that turned
+       out to repeat is turned into one here. What already belongs to a batch keeps
+       its pattern — changing that is extending or clearing it, not asking again. */
+    repeatRow.hidden = !!draft.series;
     days.hidden = repeat !== "weekly";
     untilRow.hidden = repeat === "none";
     if (!until.value) until.value = iso(addDays(new Date(`${draft.date}T00:00`), 55));
@@ -212,7 +215,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
       if (!scope) return;
       if (scope !== "one") { await editSeries(draft.series, shape, scope === "from" ? draft.date : undefined); handle.close(); return done(); }
     }
-    if (!existing) {
+    if (!draft.series) {
       /* A multi-day all-day appointment is a daily batch: one record per day, the
          same mechanism a weekly Kita uses, only shorter. */
       const spans = whole.checked && spanTo.value > draft.date && repeat === "none";
@@ -220,7 +223,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         const pattern: Pattern = spans ? { kind: "daily" }
           : repeat === "weekly" ? { kind: "weekly", weekdays: weekly } : repeat === "yearly" ? { kind: "yearly" } : { kind: "daily" };
         const stop = spans ? spanTo.value : (until.value || draft.date);
-        await createSeries(pattern, draft.date, stop < draft.date ? draft.date : stop, shape);
+        const from = draft.date;
+        if (existing) await seriesFrom({ ...draft, ...shape }, pattern, stop);
+        else await createSeries(pattern, from, stop < from ? from : stop, shape);
         handle.close();
         return done();
       }
