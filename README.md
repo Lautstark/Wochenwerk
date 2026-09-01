@@ -16,7 +16,9 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 
 Nothing licensed is served by this app. Symbols are read from your own folder in the browser through [`@lautstark/bildquelle`](https://github.com/Lautstark/bildquelle), which hands them to the page as object URLs and transmits nothing. Open **Kalender → Einstellungen → Ordner wählen** and point it at your **unframed** set — `Symbole_PNG/PNG_ohne_Rahmen`. The framed one carries a black border and a printed caption, neither of which the board wants.
 
-Until a folder is connected the board draws each symbol's name instead of its picture. That state is for whoever is setting it up, not for the child.
+Which set a household draws from follows from the folder and is never picked: with a folder connected the symbols are METACOM's, and without one they come from [ARASAAC](https://arasaac.org), which needs no setup. So a household with no folder still gets pictures. What draws a name instead of a picture is narrower than it used to be — a symbol already stored as a METACOM reference while the folder is missing. That state is for whoever is setting it up, not for the child.
+
+ARASAAC's licence asks for its notice wherever its symbols are shown, so the board, the calendar and the symbol search each carry it whenever what they draw came from ARASAAC.
 
 Chromium on a desktop only for the folder picker: `showDirectoryPicker` is absent from Safari, from Firefox and from every browser on Android. Where it is missing the same panel reads a folder as an upload instead, and either browser can read a ZIP.
 
@@ -35,6 +37,6 @@ npm run build
 
 Both read and write the same IndexedDB store, so a change in the calendar reaches the board within a minute. The board runs on the real wall clock: the current weekday, the dates of the week and the now state come from the system time, and it redraws on every minute boundary.
 
-An empty database seeds itself with a mock household routine for the current week, so there is something to look at before anything has been planned.
+Nothing is seeded. A new database is empty and the board says so until a week has been planned in the calendar — a household's own routine is what the board is for, and a mock one could not be told apart from it.
 
 Still missing: the shared folder that [ADR 002](docs/decisions/002-browser-only-and-a-shared-folder.md) proposes as the store, any NFC input, and speech. There is no server, no account and no authentication, and there is not meant to be.

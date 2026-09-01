@@ -2,7 +2,7 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, fill, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, uuid } from "../db.js";
-import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
+import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
 import { load, shown } from "../store.js";
 import { cardThumb, face, overflow, row } from "./pieces.js";
 import { editCard } from "./card-dialog.js";
@@ -45,7 +45,9 @@ export function openSettings(say: (line: string) => void) {
     const status = metacom.status();
     symbols.state.textContent = says(status);
     fill(symbols.body,
-      el("p", { class: "small muted", text: "METACOM wird aus deinem eigenen Ordner gelesen. Nichts davon verlässt den Browser. ARASAAC braucht keine Einrichtung." }),
+      el("p", { class: "small muted", text: "Woher die Symbole kommen, wird nicht ausgewählt: Es folgt aus dem Ordner. Mit verbundenem Ordner zeichnet Wochenwerk mit METACOM aus deiner eigenen Lizenz, und nichts davon verlässt den Browser. Ohne Ordner kommen die Symbole von ARASAAC, das keine Einrichtung braucht." }),
+      el("p", { class: "small", text: sourceInUse() === "metacom"
+        ? "Gesucht und gezeichnet wird gerade mit METACOM." : "Gesucht und gezeichnet wird gerade mit ARASAAC." }),
       needsAttention(status) ? el("p", { class: "notice bad", text: says(status) }) : null,
       el("div", { class: "acts" },
         button(supportsPicker ? "Ordner wählen" : "Ordner hochladen", "sm",

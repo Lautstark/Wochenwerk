@@ -20,6 +20,12 @@ export const reconnect = () => metacom.requestPermission();
 export const rebuild = () => metacom.rebuildIndex();
 export const forget = () => metacom.forget();
 
+/* Which source the household draws from. It is derived and never chosen: a
+   connected METACOM folder is the answer, and without one it is ARASAAC. So there
+   is no preference to keep, nothing that can disagree with the folder, and no
+   household that has to pick before it can search. */
+export const sourceInUse = (): ProviderId => (metacom.isReady() ? "metacom" : "arasaac");
+
 export const search = (source: ProviderId, query: string): Promise<Candidate[]> => getProvider(source).search(query);
 export const refFor = (source: ProviderId, candidate: Candidate): SymbolRef => ({ source, id: candidate.id, label: candidate.label });
 export const owed = (refs: SymbolRef[]) => attributionsFor(refs.map(ref => ref.source));

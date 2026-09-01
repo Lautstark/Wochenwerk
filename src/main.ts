@@ -2,7 +2,7 @@ import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, iso, minute, mondayOf, reading, shownCards, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, week } from "./db.js";
-import { pictureFor, pictures, restore } from "./symbols.js";
+import { owed, pictureFor, pictures, restore } from "./symbols.js";
 
 /* The board has no planning logic. It reads the week the calendar wrote and draws
    it; the only thing it would ever write is the option an input picked. */
@@ -172,7 +172,17 @@ async function build(at: Date): Promise<string> {
   track.splice(draw.todayIndex, 0, "var(--rail)");
   cells.splice(draw.todayIndex, 0, rail);
   if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>/kalender.html</code></small></p>`;
-  return `<div class="week" style="grid-template-columns:${track.join(" ")}">${cells.join("")}</div>`;
+  /* What ARASAAC's licence asks for is a notice beside the pictures, so it is asked
+     of what this week actually draws rather than of everything the household owns.
+     METACOM comes out of a folder the household licensed itself and owes nothing,
+     so a board that draws from a connected folder carries no line at all. */
+  const drawn: SymbolRef[] = [
+    ...appointments.flatMap(appointment => appointment.symbols),
+    ...appointments.flatMap(appointment => shownCards(appointment)).map(id => cards.get(id)?.symbol).filter(Boolean) as SymbolRef[],
+  ];
+  const credit = owed(drawn);
+  return `<div class="week" style="grid-template-columns:${track.join(" ")}">${cells.join("")}</div>`
+    + (credit.length ? `<p class="credit">${escape(credit.join(" "))}</p>` : "");
 }
 
 /* Redraw on every minute boundary rather than on an interval, so the board never

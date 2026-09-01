@@ -1,9 +1,9 @@
 import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
-import { addDays, dayLabel, iso, weekdays } from "./model.js";
+import { addDays, dayLabel, iso, shownCards, weekdays, type SymbolRef } from "./model.js";
 import { el, fill, button } from "./ui.js";
-import { load, shown, subscribe } from "./store.js";
-import { metacom, restore } from "./symbols.js";
+import { load, shown, subscribe, type Week } from "./store.js";
+import { metacom, owed, restore } from "./symbols.js";
 import { weekGrid } from "./views/week-grid.js";
 import { blankAppointment, editAppointment } from "./views/appointment-dialog.js";
 import { openSettings } from "./views/settings-dialog.js";
@@ -18,6 +18,15 @@ const say = (text: string) => { talk.say(text); };
 
 const label = el("b");
 const empty = el("p", { class: "notice", text: "Noch nichts geplant. Klick in eine Spalte, um einen Termin anzulegen." });
+/* ARASAAC's licence is a condition on showing its pictures, so the notice is asked
+   of the symbols this week draws — not of the collection the household happens to
+   be searching in. A week drawn from the household's own METACOM folder owes
+   nothing and leaves the line empty. */
+const credit = el("p", { class: "credit" });
+const drawn = (current: Week): SymbolRef[] => [
+  ...current.appointments.flatMap(appointment => appointment.symbols),
+  ...current.appointments.flatMap(shownCards).map(id => current.cards.get(id)?.symbol).filter(Boolean) as SymbolRef[],
+];
 const grid = weekGrid(
   appointment => editAppointment(appointment, true, () => void load()),
   (date, start) => editAppointment(blankAppointment(date, start), false, () => void load()),
@@ -55,10 +64,11 @@ fill(app, el("div", { class: "shell" },
     el("div", { class: "topbar__nav" },
       el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: "/", target: "_blank", rel: "noopener" } }),
       button("Einstellungen", "sm", () => openSettings(say)))),
-  empty, grid.node, line));
+  empty, grid.node, el("footer", { class: "foot" }, line, credit)));
 
 subscribe(current => {
   empty.hidden = current.appointments.length > 0;
+  credit.textContent = owed(drawn(current)).join(" ");
   apply();
 });
 metacom.subscribe(() => void load());
