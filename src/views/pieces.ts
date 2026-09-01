@@ -115,12 +115,12 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
   const lines = el("div", { class: "sentences" });
   const all = el("details", { class: "sentences__fold" }, el("summary", {}), lines);
 
-  return {
-    node: el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, hear), why, all),
-    box,
-    /* Called whenever the name it stands in for changes, so neither the
-       placeholder nor the list promises a word the record has stopped having. */
-    draw: () => {
+  /* Called whenever the name it stands in for changes, and whenever this field is
+     typed in — the second is the one that was missing, so the list went on
+     showing sentences built from the title while somebody typed the word that
+     replaces it. What is written here is what the board will say, so it is what
+     the list has to be made of. */
+  function draw() {
       box.placeholder = instead() || "Ohne Namen wird nichts gesagt";
       const possible = couldSay(word(), shape());
       all.hidden = !possible.length;
@@ -136,6 +136,11 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
           el("span", { class: "sentence__text", text: line.text }),
           el("span", { class: "sentence__when", text: line.when }));
       }));
-    },
+  }
+  box.addEventListener("input", draw);
+
+  return {
+    node: el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, hear), why, all),
+    box, draw,
   };
 }

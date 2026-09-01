@@ -218,6 +218,22 @@ describe("what is never said", () => {
   });
 });
 
+describe("the word that is said", () => {
+  it("prefers the Ansage over the title, which only stands in for it", () => {
+    /* The board draws symbols and never a title, so a title is free to carry
+       what the child is not told — a room, a practice, a surname. `speech` is
+       what is said instead, and it wins wherever it is set. */
+    const week = [appointment("08:00", "09:00", { title: "Frühförderung, SPZ Raum 3", speech: "Spielstunde" })];
+    expect(said(week, at("08:30"), house())[1]).toBe("Jetzt ist Spielstunde.");
+    expect(couldSay("Spielstunde")[0]!.text).toBe("Jetzt ist Spielstunde.");
+  });
+
+  it("falls back to the title where no Ansage was written", () => {
+    const week = [appointment("08:00", "09:00", { title: "Turnen" })];
+    expect(said(week, at("08:30"), house())[1]).toBe("Jetzt ist Turnen.");
+  });
+});
+
 describe("what a word can turn up in", () => {
   it("says nothing at all without a word", () => {
     /* The list is shown while a name is being typed, and a frame with a hole in
