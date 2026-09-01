@@ -4,6 +4,7 @@ import { addDays, allDay, board, clock, dayLabel, derivedName, iso, minute, titl
   weekdays, type Appointment, type Pattern } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, reboundSeries, remove, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
+import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
 import { editCard } from "./card-dialog.js";
@@ -49,6 +50,16 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
     search.clear(); sync();
   });
+
+  /* The week's map only knows the symbols that were already on the board, so a
+     symbol just picked out of the search has no picture in it and drew as its own
+     label. What is picked here is resolved here — once per symbol, and kept, so a
+     redraw does not ask the provider again. */
+  const known = new Map(shown().pictures);
+  const resolve = async () => {
+    const missing = draft.symbols.filter(symbol => !pictureFor(known, symbol));
+    if (missing.length) for (const [at, url] of await pictures(missing)) known.set(at, url);
+  };
   const offer = el("div", { class: "stack" });
 
   const repeatPick = el("select", { class: "field", on: { change: () => { repeat = repeatPick.value as Repeat; sync(); } } },
@@ -124,8 +135,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     search.node.hidden = mode !== "symbols";
     offer.hidden = mode !== "choice";
 
+    await resolve();
     fill(chosen, mode === "symbols"
-      ? grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label), true,
+      ? grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
           () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); })))
       : grid(...draft.options.map(id => pickerItem(cardById(id)?.name ?? "?", cardThumb(cardById(id)), true,
           () => { draft.options = draft.options.filter(other => other !== id); void sync(); }))));
