@@ -231,7 +231,11 @@ export const dayFact = (appointment: Appointment): string | undefined => {
 export const cardSays = (card: Card | undefined): string | undefined =>
   card?.speech?.trim() || card?.name.trim() || undefined;
 export const spokenName = (appointment: Appointment, byId: Map<string, Card>): string | undefined =>
-  appointment.speech?.trim() || appointment.title?.trim() || cardSays(byId.get(appointment.chosen ?? ""));
+  /* A decided choice is what it became, and the card's word comes first for that
+     reason: the title on a choice is what the parents filed it under — a
+     "Nachmittagszeit" that holds a Laufrad and a Spielplatz — and the child was
+     never offered that word. Everywhere else the record's own comes first. */
+  cardSays(byId.get(appointment.chosen ?? "")) || appointment.speech?.trim() || appointment.title?.trim();
 /** The colour an appointment wears: its card's, or one derived from its symbol. */
 /* A colour with no record behind it, for every appointment alike. A card used to
    carry a chosen tone and does not any more: once a choice draws a symbol like

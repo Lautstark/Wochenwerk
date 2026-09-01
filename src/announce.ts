@@ -51,7 +51,6 @@ const FRAMES = {
   afterChoose: "Danach darfst du aussuchen.",
   thenChoose: "Dann darfst du aussuchen.",
   done: "Heute kommt nichts mehr.",
-  sleep: "Einmal schlafen, dann ist",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
   or: "oder",
@@ -226,7 +225,7 @@ function nowLine(running: Appointment | undefined, now: string, week: Appointmen
 
 function nextLine(week: Appointment[], at: Date, now: string, running: Appointment | undefined, household: Household): Utterance[] {
   const next = timedOn(week, iso(at)).find(item => item.start! > now);
-  if (!next) return [restOfIt(week, at, household)];
+  if (!next) return [restOfIt()];
   /* *Danach* presumes something to be after. Where nothing is running there is
      nothing for it to follow, so the same appointment is *dann*. */
   const soon = minute(next.start!) - minute(now) <= SOON;
@@ -248,13 +247,13 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
   return [about(next, utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : [])))];
 }
 
-/* Sleeps are the one unit a two-year-old already owns, and exactly one of them is
-   as far as it reaches. Beyond Sunday there is nothing to look into — the board
-   holds one week — so the sentence simply ends there. */
-function restOfIt(week: Appointment[], at: Date, household: Household): Utterance {
-  const tomorrow = timedOn(week, iso(addDays(at, 1)))[0];
-  const said = tomorrow ? spokenName(tomorrow, household.cards) : undefined;
-  return said ? about(tomorrow!, utter(fixed(FRAMES.done), fixed(FRAMES.sleep), own(said))) : utter(fixed(FRAMES.done));
+/* The day is as far as it goes. *Einmal schlafen, dann ist Kita* was the one
+   sentence that reached past it, and it reached for a moment nobody presses in:
+   it needed the day emptied out and something on the next one, which is bedtime,
+   when a board on a wall is behind somebody's back. What the board is for is the
+   day in front of the child, and it says so and stops. */
+function restOfIt(): Utterance {
+  return utter(fixed(FRAMES.done));
 }
 
 /* An open choice, and it is the whole announcement. The options are named only
@@ -278,8 +277,8 @@ export type Possible = { text: string; when: string };
 export type Shape = {
   /** The one person it concerns, where it concerns exactly one. */
   who?: string;
-  /** A card is offered before it is picked; an appointment may be either. */
-  offered?: boolean;
+/** The words of the cards on offer, while nothing has picked one of them. */
+  offering?: string[];
   /** Whether it can also turn up as an appointment that something picked. */
   picked?: boolean;
   /** All day rather than at a time: a different set of sentences entirely. */
@@ -292,11 +291,12 @@ export type Shape = {
   date?: string;
 };
 
-/* Whether the sentence comes from the people on the record rather than from its
-   word. A birthday and a visit do, and nothing typed into the Ansage field
-   changes them — `dayClause` asks about people before it asks about a name — so
-   the field has to say so rather than take a word it will not use. */
-export const fromPeople = (shape: Shape) => !!(shape.birthday?.names.length || shape.visiting?.length);
+/* Whether the sentences come from somewhere other than this record's own word,
+   so that the Ansage field can say so rather than take one it will not use. A
+   birthday and a visit are said from the person — the day sentence asks about
+   people before it asks about a name — and an open choice is said from the cards
+   it offers, which is the whole of what it has to say until one is picked. */
+export const fromPeople = (shape: Shape) => !!(shape.birthday?.names.length || shape.visiting?.length || shape.offering?.length);
 
 export function couldSay(word: string, shape: Shape = {}): Possible[] {
   const said = word.trim();
@@ -327,6 +327,24 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     when: day.when,
   }));
 
+  /* A choice that nothing has picked says only that there is something to pick,
+     and names the cards rather than itself. Until then it is not an appointment
+     the child has: nobody can be told that Nachmittagszeit is now, because
+     Nachmittagszeit is the word the parents filed it under and not a thing that
+     happens. Once something picked, the sentences below are about what was
+     picked, in its word. */
+  if (shape.offering?.length) {
+    const offered = shape.offering.filter(word => word.trim());
+    const named = offered.length === shape.offering.length && offered.length <= 3;
+    return [
+      { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.slot)) : FRAMES.look,
+        when: "wenn die Wahl offen ist" },
+      { text: FRAMES.afterChoose, when: "davor, wenn etwas läuft" },
+      { text: FRAMES.soonChoose, when: "bis 20 Minuten davor" },
+      { text: FRAMES.thenChoose, when: "in einer Lücke davor" },
+    ];
+  }
+
   if (!said) return [];
   const w = own(said), who = shape.who ? own(shape.who) : undefined;
   const tail = shape.picked ? [fixed(FRAMES.decided)] : [];
@@ -341,18 +359,12 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
   }));
 
   const possible: Possible[] = [];
-  if (shape.offered) possible.push(
-    { text: line(fixed(FRAMES.choose), w, fixed(FRAMES.slot)), when: "wenn die Wahl offen ist" },
-    { text: FRAMES.afterChoose, when: "davor, wenn etwas läuft" },
-    { text: FRAMES.soonChoose, when: "bis 20 Minuten davor" },
-  );
   possible.push(
     { text: who ? line(who, fixed(FRAMES.nowFor), w, ...tail) : line(fixed(FRAMES.now), w, ...tail), when: "während er läuft" },
     { text: who ? line(who, fixed(FRAMES.comma), w, fixed(FRAMES.ending)) : line(w, fixed(FRAMES.ending)), when: "in der letzten Viertelstunde" },
     { text: line(fixed(FRAMES.soon), w, ...tail), when: "bis 20 Minuten vorher" },
     { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft" },
     { text: line(fixed(FRAMES.then), w, ...tail), when: "in einer Lücke davor" },
-    { text: line(fixed(FRAMES.done), fixed(FRAMES.sleep), w), when: "am Abend davor" },
   );
   return possible;
 }

@@ -19,12 +19,17 @@ the rail carries — *morgens, mittags, nachmittags, abends* — and otherwise i
 order of what happens. *Nach dem Mittagessen* is a time a three-year-old can act
 on. *Um halb zwei* is not.
 
-Two numbers survive. **Nights**, because sleeping is the unit they already own:
-*einmal schlafen, dann …*, and never more than once. And **an age**, on the one
+One number survives: **an age**, on the one
 day it is what everything is about — a three-year-old holds their age the way
-they hold no clock time. Both are words rather than figures, so the ban on
-digits stands as written and each is a clip like any other; past twelve the
-sentence leaves the age out rather than reach for a word nobody recorded.
+they hold no clock time. A word rather than a figure, so the ban on digits stands
+as written and it is a clip like any other; past twelve the sentence leaves the
+age out rather than reach for a word nobody recorded.
+
+**And the day is as far as it goes.** *Einmal schlafen, dann ist Kita* used to
+reach into tomorrow, and it reached for a moment nobody presses in: it needed the
+day emptied out and something on the next one, which is bedtime, when a board on
+a wall is behind somebody's back. What the board is for is the day in front of
+the child. It says the day is over and stops.
 
 **A guest rides along; a named fact does not.** *…, und Oma kommt* adds a person
 to the day sentence and reads as one thing. *…, und heute ist Ferientag* says the
@@ -92,7 +97,6 @@ list, so it is only done where there is exactly one.
 | next is an open choice | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
 | nothing left today | *Heute kommt nichts mehr.* |
-| nothing left today, and tomorrow has something | *Einmal schlafen, dann ist Kita.* |
 
 **What is hours away is not named.** Told at nine in the morning that supper
 comes after Kita, a two-year-old has been given a word and no time to hang it
@@ -106,9 +110,17 @@ wall clock, because it is a promise about how long the child is standing there.
 
 **Choice, while it is running** — the whole announcement, alone.
 
+**An open choice says only that there is something to choose, and names the
+cards.** Not itself: the title on a choice is what the parents filed the slot
+under — a *Nachmittagszeit* holding a Laufrad and a Spielplatz — and the child
+was never offered that word. Until something picks one, there is no appointment
+here to announce; the slot exists for the parents and not yet for the child. Once
+something picked, every sentence is about what was picked, in its word, and the
+title is not consulted at all.
+
 | when | said |
 | --- | --- |
-| open, up to three options | *Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Leg eine Karte in den Schlitz.* |
+| open, up to three options | *Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Leg eine Karte in den Schlitz.* |
 | open, more than three | *Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.* |
 | decided, and running | *Jetzt ist Schwimmbad. Das hast du ausgesucht.* |
 | decided, and ahead | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |

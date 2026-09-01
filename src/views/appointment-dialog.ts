@@ -126,7 +126,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
       return {
         /* One person is an address; two is a list, and a list is not an address. */
         who: on.length === 1 ? on[0]!.name : undefined,
-        offered: draft.options.length > 0 && !draft.chosen,
+        /* The cards, not the appointment's own name: "Jetzt darfst du aussuchen:
+           Nachmittagszeit" is the word the parents filed it under, and the child
+           is being offered a Laufrad and a Spielplatz. */
+        ...(draft.options.length && !draft.chosen
+          ? { offering: draft.options.map(id => cardSays(shown().cards.get(id)) ?? "") }
+          : {}),
         picked: !!draft.chosen,
         allDay: whole.checked,
         date: draft.date,

@@ -137,14 +137,18 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
          instead of inviting one. */
       const own = fromPeople(shape());
       box.disabled = own;
-      box.placeholder = own ? "Wird von der Person gesagt" : instead() || "Ohne Namen wird nichts gesagt";
+      box.placeholder = own
+        ? (shape().offering?.length ? "Wird von den Karten gesagt" : "Wird von der Person gesagt")
+        : instead() || "Ohne Namen wird nichts gesagt";
       /* A whole sentence for a day, a word for everything else. The placeholder
          shows one of the two and cannot say which it is, so the label does. */
       box.title = shape().allDay ? "Ein ganzer Satz über den Tag" : "Ein Wort, das in jeden Satz passt";
       const possible = list ? couldSay(own ? "" : word(), shape()) : [];
       all.hidden = !possible.length;
       all.querySelector("summary")!.textContent = own
-        ? `Was an diesem Tag gesagt wird (${possible.length})`
+        ? (shape().offering?.length
+            ? `Was gesagt wird, solange nichts gewählt ist (${possible.length})`
+            : `Was an diesem Tag gesagt wird (${possible.length})`)
         : `Alle Sätze mit diesem Wort (${possible.length})`;
       fill(lines, ...possible.map(line => {
         return el("div", { class: "sentence" }, hearing("Satz anhören", () => line.text),

@@ -138,10 +138,12 @@ describe("what comes next", () => {
     expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen.");
   });
 
-  it("ends the day with one sleep, and only as far as the week reaches", () => {
+  it("ends at the end of the day and does not reach into the next one", () => {
+    /* *Einmal schlafen, dann ist Kita* needed the day emptied out and something
+       on the next one — which is bedtime, when a board on a wall is behind
+       somebody's back. The day in front of the child is what this is for. */
     const tomorrow = appointment("08:45", "14:00", { title: "Kita", date: "2026-09-02" });
-    expect(said([...week(), tomorrow], at("13:00"), house())[2])
-      .toBe("Heute kommt nichts mehr. Einmal schlafen, dann ist Kita.");
+    expect(said([...week(), tomorrow], at("13:00"), house())[2]).toBe("Heute kommt nichts mehr.");
     expect(said(week(), at("13:00"), house())[2]).toBe("Heute kommt nichts mehr.");
   });
 });
@@ -282,8 +284,10 @@ describe("what a word can turn up in", () => {
     const said = couldSay("Turnen").map(line => line.text);
     expect(said).toContain("Jetzt ist Turnen.");
     expect(said).toContain("Gleich kommt Turnen.");
-    expect(said).toContain("Heute kommt nichts mehr. Einmal schlafen, dann ist Turnen.");
+    /* Every line is about the word. "Heute kommt nichts mehr" is not — it
+       belongs to no appointment and is prepared with the voice, not with this. */
     expect(said.every(line => line.includes("Turnen"))).toBe(true);
+    expect(said).toHaveLength(5);
   });
 
   it("addresses the one person it concerns", () => {
@@ -292,10 +296,28 @@ describe("what a word can turn up in", () => {
     expect(said).toContain("Mia, Turnen ist gleich fertig.");
   });
 
-  it("gives a card the sentence it is offered with, and the one it is named in", () => {
-    const said = couldSay("Schwimmbad", { offered: true, picked: true }).map(line => line.text);
-    expect(said).toContain("Jetzt darfst du aussuchen: Schwimmbad. Leg eine Karte in den Schlitz.");
-    expect(said).toContain("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
+  it("names the cards while a choice is open, and says nothing about itself", () => {
+    /* "Jetzt darfst du aussuchen: Nachmittagszeit" is the word the parents filed
+       it under; the child is being offered a Laufrad and a Spielplatz. And until
+       something picks one, there is no appointment to announce. */
+    const said = couldSay("Nachmittagszeit", { offering: ["Laufrad fahren", "Spielplatz"] }).map(line => line.text);
+    expect(said[0]).toBe("Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Leg eine Karte in den Schlitz.");
+    expect(said.some(line => line.includes("Nachmittagszeit"))).toBe(false);
+    expect(said).toHaveLength(4);
+  });
+
+  it("says what was picked, not what the parents filed it under", () => {
+    /* The title on a choice is a parent's word for the slot. The child was
+       offered a Laufrad and a Spielplatz and never that. */
+    const cards = [card("s", "Spielplatz")];
+    const week = [appointment("08:00", "09:00", { title: "Nachmittagszeit", options: ["s"], chosen: "s", symbols: [] })];
+    expect(said(week, at("08:30"), house(cards))[1]).toBe("Jetzt ist Spielplatz. Das hast du ausgesucht.");
+  });
+
+  it("is about what was picked, once something picked", () => {
+    const said = couldSay("Spielplatz", { picked: true }).map(line => line.text);
+    expect(said).toContain("Jetzt ist Spielplatz. Das hast du ausgesucht.");
+    expect(said).toContain("Spielplatz ist gleich fertig.");
   });
 
   it("gives an all-day appointment the day sentence, once per daypart", () => {
