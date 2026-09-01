@@ -83,37 +83,38 @@ export const cardThumb = (card: Card | undefined, known = shown().pictures) =>
  * choosing a word for a two-year-old without hearing it is choosing blind, and
  * the same trap was already there for the voice itself.
  */
+/* One kind of play button, made in one place, for every surface that offers to
+   say something. The Ansage field once had a worded "Anhören" while the
+   sentences under it carried ▶ — two answers to "how do I hear this" on one
+   panel — and a third surface was about to invent a fourth.
+
+   Busy is the button dimming, not its face changing: a glyph swapped for "…"
+   inside a pill resizes it, and a control that jumps under the pointer reads as
+   a different control. `.btn:disabled` already carries the dimming. */
+export function playButton(label: string, text: () => string, trouble: (words: string) => void): HTMLButtonElement {
+  const node = button("▶", "quiet icon sm", () => {});
+  node.setAttribute("aria-label", label);
+  node.addEventListener("click", async () => {
+    const said = text();
+    trouble("");
+    if (!said) { trouble("Erst einen Namen eintippen."); return; }
+    node.disabled = true;
+    const why = await preview(said);
+    node.disabled = false;
+    /* Said beside the thing rather than handed upwards: every surface this sits
+       on is a panel with no status line of its own, and a problem with one word
+       belongs next to that word rather than at the far end of a sheet. */
+    if (why) trouble(why);
+  });
+  return node;
+}
+
 export function speechField(instead: () => string, shape: () => Shape = () => ({})) {
   const box = input("text", { attrs: { autocomplete: "off" } });
   const why = el("p", { class: "hint", attrs: { role: "status" } });
   const word = () => box.value.trim() || instead();
 
-  /* One kind of play button, made in one place. The field had a worded one and
-     the sentences an icon, which is two answers to the question "how do I hear
-     this" on one panel — and the wording was the odd one out, since every row
-     underneath it already said ▶.
-
-     Busy is the button dimming, not its face changing: a glyph swapped for "…"
-     inside a pill resizes it, and a control that jumps under the pointer reads
-     as a different control. `.btn:disabled` already carries the dimming. */
-  const hearing = (label: string, text: () => string) => {
-    const node = button("▶", "quiet icon sm", () => {});
-    node.setAttribute("aria-label", label);
-    node.addEventListener("click", async () => {
-      const said = text();
-      why.textContent = "";
-      if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
-      node.disabled = true;
-      const trouble = await preview(said);
-      node.disabled = false;
-      /* Said here rather than handed upwards: both places this sits are panels
-         with no status line of their own, and a problem with one word belongs
-         beside that word rather than at the far end of a sheet. */
-      if (trouble) why.textContent = trouble;
-    });
-    return node;
-  };
-
+  const hearing = (label: string, text: () => string) => playButton(label, text, words => { why.textContent = words; });
   const hear = hearing("Ansage anhören", word);
 
   /* Every sentence the word can turn up in, closed by default: six of them under

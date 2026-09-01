@@ -4,6 +4,7 @@ import { addDays, allDay, board, bornOn, cardSays, clock, dateLabel, dayLabel, d
   strays, titleOf, weekdays, type Appointment, type Pattern, type Person } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
+import { birthdayOf, birthdaySheet } from "./birthday-sheet.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face, speechField } from "./pieces.js";
 import { symbolSearch } from "./symbol-search.js";
@@ -18,6 +19,12 @@ export const blankAppointment = (date: string, start?: string): Appointment => (
 });
 
 export function editAppointment(appointment: Appointment, existing: boolean, done: () => void) {
+  /* A birthday has nothing this form can safely change — see birthday-sheet.ts.
+     The branch is here rather than at the call site so that every way into the
+     editor goes through it, including one somebody adds later. */
+  const born = existing ? birthdayOf(appointment, shown().people) : [];
+  if (born.length) return birthdaySheet(appointment, born);
+
   const draft: Appointment = structuredClone(appointment);
   /* A batch brings its own rule into the dialog rather than an empty one, so what
      stands there is what is stored, and changing it changes that. */
