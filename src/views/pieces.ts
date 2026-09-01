@@ -88,25 +88,33 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
   const why = el("p", { class: "hint", attrs: { role: "status" } });
   const word = () => box.value.trim() || instead();
 
-  const play = (text: string, node: HTMLButtonElement, label: string) => async () => {
-    why.textContent = "";
-    node.disabled = true;
-    const was = node.textContent;
-    node.textContent = "…";
-    const trouble = await preview(text);
-    node.disabled = false;
-    node.textContent = was ?? label;
-    /* Said here rather than handed upwards: both places this sits are panels with
-       no status line of their own, and a problem with one word belongs beside
-       that word rather than at the far end of a sheet. */
-    if (trouble) why.textContent = trouble;
+  /* One kind of play button, made in one place. The field had a worded one and
+     the sentences an icon, which is two answers to the question "how do I hear
+     this" on one panel — and the wording was the odd one out, since every row
+     underneath it already said ▶.
+
+     Busy is the button dimming, not its face changing: a glyph swapped for "…"
+     inside a pill resizes it, and a control that jumps under the pointer reads
+     as a different control. `.btn:disabled` already carries the dimming. */
+  const hearing = (label: string, text: () => string) => {
+    const node = button("▶", "quiet icon sm", () => {});
+    node.setAttribute("aria-label", label);
+    node.addEventListener("click", async () => {
+      const said = text();
+      why.textContent = "";
+      if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
+      node.disabled = true;
+      const trouble = await preview(said);
+      node.disabled = false;
+      /* Said here rather than handed upwards: both places this sits are panels
+         with no status line of their own, and a problem with one word belongs
+         beside that word rather than at the far end of a sheet. */
+      if (trouble) why.textContent = trouble;
+    });
+    return node;
   };
 
-  const hear = button("Anhören", "quiet sm", () => {
-    const said = word();
-    if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
-    void play(said, hear, "Anhören")();
-  });
+  const hear = hearing("Ansage anhören", word);
 
   /* Every sentence the word can turn up in, closed by default: six of them under
      each dialog would be more surface than the form they belong to. Absent
@@ -134,13 +142,7 @@ export function speechField(instead: () => string, shape: () => Shape = () => ({
         ? `Was an diesem Tag gesagt wird (${possible.length})`
         : `Alle Sätze mit diesem Wort (${possible.length})`;
       fill(lines, ...possible.map(line => {
-        /* `quiet icon sm` is the family's own icon-only button — pill radius,
-           its own padding, line-height 1. A local class here fought `sm`'s
-           padding and produced a hover fill wider than the glyph. */
-        const one = button("▶", "quiet icon sm", () => {});
-        one.setAttribute("aria-label", "Satz anhören");
-        one.addEventListener("click", () => void play(line.text, one, "▶")());
-        return el("div", { class: "sentence" }, one,
+        return el("div", { class: "sentence" }, hearing("Satz anhören", () => line.text),
           el("span", { class: "sentence__text", text: line.text }),
           el("span", { class: "sentence__when", text: line.when }));
       }));

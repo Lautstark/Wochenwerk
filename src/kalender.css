@@ -222,7 +222,7 @@ a.btn { text-decoration: none; }
 /* The word a record is said with, beside the button that says it. */
 .speech-row { display: flex; gap: .4rem; align-items: center; }
 .speech-row .field { flex: 1 1 auto; min-width: 0; }
-.speech-row .btn { flex: 0 0 auto; white-space: nowrap; }
+.speech-row .btn { flex: 0 0 auto; }
 
 /* Every sentence the word turns up in. Closed by default and gone entirely while
    there is no word — a list of frames with a hole in each one answers nothing. */
