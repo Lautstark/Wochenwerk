@@ -1,0 +1,76 @@
+name: Deploy to GitHub Pages
+
+# The shape is bildhaft's deploy.yml by way of vorlaut-editor's: check, then
+# build, then deploy, with pull requests checked and never published. Wochenwerk
+# has no Playwright and no Python, so the check job is the three commands the
+# repository already runs by hand.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish; queue at most one more. Cancelling half way
+# leaves Pages serving whatever it had got to.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npm run check
+      # `npm test` is tools/no-private.mjs and then vitest. The first is why a
+      # household's own week cannot reach a public site through a fixture; it
+      # passes with a note where .private-names is absent, which is the case
+      # here and is the point — see its header.
+      - name: Nobody real, and the tests
+        run: npm test
+
+  build:
+    needs: check
+    # Pull requests are checked but never published.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Build
+        # Derived from the repository name, so it follows a rename for free.
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

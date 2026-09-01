@@ -171,7 +171,7 @@ async function build(at: Date): Promise<string> {
   const cells: string[] = dates.map((date, index) => column(draw, date, index, appointments.filter(appointment => appointment.date === date)));
   track.splice(draw.todayIndex, 0, "var(--rail)");
   cells.splice(draw.todayIndex, 0, rail);
-  if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>/kalender.html</code></small></p>`;
+  if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>${import.meta.env.BASE_URL}kalender.html</code></small></p>`;
   /* What ARASAAC's licence asks for is a notice beside the pictures, so it is asked
      of what this week actually draws rather than of everything the household owns.
      METACOM comes out of a folder the household licensed itself and owes nothing,

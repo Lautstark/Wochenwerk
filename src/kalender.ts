@@ -62,7 +62,7 @@ fill(app, el("div", { class: "shell" },
       button("Heute", "quiet sm", () => void step(0)),
       label),
     el("div", { class: "topbar__nav" },
-      el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: "/", target: "_blank", rel: "noopener" } }),
+      el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: import.meta.env.BASE_URL, target: "_blank", rel: "noopener" } }),
       button("Einstellungen", "sm", () => openSettings(say)))),
   empty, grid.node, el("footer", { class: "foot" }, line, credit)));
 
