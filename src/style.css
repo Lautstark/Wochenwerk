@@ -31,17 +31,22 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    the right one for the thing lying over all of them. */
 .band { position: absolute; z-index: 3; left: 0; right: 0; top: var(--head-day); height: var(--band);
   display: grid; align-content: start; pointer-events: none; --paper: #fff; }
-.span { display: flex; align-items: center; gap: .3rem; min-width: 0; margin: .2rem .3rem .25rem;
-  padding: .18rem .5rem .18rem .22rem; border-radius: 999px; background: var(--paper);
-  color: var(--ink); font-size: clamp(.7rem, .95vw, .95rem); font-weight: 700;
-  box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18); }
-.span__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Centred, because the picture is about the whole stretch and not about the day
+   it happens to start on. */
+.span { display: flex; align-items: center; justify-content: center; gap: .3rem; min-width: 0;
+  margin: .2rem .3rem .25rem; padding: .18rem .3rem; border-radius: 999px;
+  background: var(--paper); box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18); }
 /* Cut flat where it leaves the week. The shape is the whole statement. */
 .span--from { border-top-left-radius: .2rem; border-bottom-left-radius: .2rem; margin-left: 0; }
 .span--into { border-top-right-radius: .2rem; border-bottom-right-radius: .2rem; margin-right: 0; }
 /* A stretch that is over greys like a day that is over. Only when the whole of it
    is behind us: one that still covers today is not over, whatever it started. */
 .span.gone { filter: grayscale(.9); opacity: .72; }
+/* The part of a stretch that is behind us, greyed where a day would be greyed.
+   A mask over the past columns rather than a gradient inside each bar: the
+   columns are not equally wide — today is wider, and the rail sits among them —
+   so a percentage along a bar would not land on the day it means. */
+.band__gone { backdrop-filter: grayscale(.9) brightness(.82); pointer-events: none; }
 .span .badge { width: 1.4rem; height: 1.4rem; }
 .span .face { width: 1.4rem; height: 1.4rem; box-shadow: 0 0 0 .12rem var(--paper); }
 .span .face + .face { margin-left: -.4rem; }

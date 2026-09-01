@@ -1,5 +1,5 @@
 import "./style.css";
-import { addDays, allDay, birthdayName, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, titleOf, undecided, weekdays,
+import { addDays, allDay, birthdayName, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, allSeries, pullFromFolder, settings, week, whenStuck } from "./db.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
@@ -219,8 +219,12 @@ async function build(at: Date): Promise<string> {
   /* One bar per stretch, laid over the week. The rail sits inside the grid as a
      column of its own, so a stretch that crosses today crosses it too — which is
      what a stretch does. */
+  /* The board says everything in pictures. A stretch carrying neither a picture
+     nor a person has nothing to say here and is left to the calendar — the same
+     rule the head's pills have always followed. */
   const runs = runsOf(appointments, dates, new Map(seriesList.map(item => [item.id, item])))
-    .filter(run => !draw.birthday(run.appointment));
+    .filter(run => !draw.birthday(run.appointment))
+    .filter(run => drawnSymbols(run.appointment, cards).length || run.appointment.people.length);
   const column_ = (index: number) => index + 1 + (index >= draw.todayIndex ? 1 : 0);
   const lanes = runs.length ? Math.max(...runs.map(run => run.lane)) + 1 : 0;
   const band = !runs.length ? "" : `<div class="band" style="grid-template-columns:${track.join(" ")}">
@@ -231,10 +235,10 @@ async function build(at: Date): Promise<string> {
       return `<div class="span${run.before ? " span--from" : ""}${run.after ? " span--into" : ""}${over ? " gone" : ""}"
         style="grid-column:${first} / span ${last - first + 1}; grid-row:${run.lane + 1}">
         ${symbol ? `<span class="badge">${picture(draw, symbol)}</span>` : ""}
-        <span class="span__name">${escape(titleOf(run.appointment, cards, people) || "Ganztägig")}</span>
         ${run.appointment.people.length ? faces(draw, run.appointment.people, run.days[0]) : ""}
       </div>`;
-    }).join("")}</div>`;
+    }).join("")}
+    ${draw.todayIndex > 0 ? `<div class="band__gone" style="grid-column:1 / ${column_(draw.todayIndex)}; grid-row:1 / span ${lanes}"></div>` : ""}</div>`;
   const grown = lanes ? ` --band:${(lanes * 1.95 + 0.3).toFixed(2)}rem; --head:calc(var(--head-day) + var(--band))` : "";
   return `<div class="week" style="grid-template-columns:${track.join(" ")};${grown}">${cells.join("")}${band}</div>`
     + (credit.length ? `<p class="credit">${escape(credit.join(" "))}</p>` : "");
