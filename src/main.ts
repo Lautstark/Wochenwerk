@@ -2,7 +2,7 @@ import "./style.css";
 import { addDays, allDay, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, pullFromFolder, settings, week, whenStuck } from "./db.js";
-import { ablage, watchFolder } from "./folder.js";
+import { ablage, adopted, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { announceAt } from "./speech.js";
 import { el } from "./ui.js";
@@ -270,4 +270,5 @@ await pullFromFolder().catch(() => undefined);
    in index order unless it is told which fassung was meant. See `urlFor`. */
 preferRendering((await settings()).metacomRendering ?? null);
 void tick();
-watchFolder(() => void pullFromFolder().then(tick));
+/* Somebody else's edit, arriving as a file that changed under this browser. */
+if (await adopted()) watchFolder(() => void pullFromFolder().then(tick));

@@ -16,7 +16,10 @@ export const KINDS = ["termine", "karten", "personen", "serien"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Filed = Appointment | Card | Person | Series;
 
-export const ablage = new Ablage({ app: "wochenwerk", kinds: KINDS });
+/* The marker is a kind the folder knows about but no record ever lives in, so it
+   is listed here and nowhere that iterates over records. */
+const MARKER = "ablage";
+export const ablage = new Ablage({ app: "wochenwerk", kinds: [...KINDS, MARKER] });
 export const supported = Ablage.supported;
 
 /** Whether the folder is the store rather than a copy of one. */
@@ -51,6 +54,17 @@ export async function pushKind(kind: Kind, records: Filed[]): Promise<void> {
   }
   for (const id of there.keys()) if (!here.has(id)) await ablage.remove(kind, id);
 }
+
+/* The folder is not the truth the moment it is chosen — it is the truth once it
+   holds a complete copy. Between those two is a half-written folder, and reading
+   one of those back over a full calendar is how a week gets deleted. So adoption
+   ends by writing a marker, and nothing reads the folder back until it is there.
+   The marker is the answer to "is this folder a Wochenwerk store, or a folder
+   somebody is in the middle of making into one?" */
+export const adopted = async (): Promise<boolean> =>
+  isStore() && !isStale() && (await ablage.list(MARKER)).length > 0;
+export const markAdopted = () =>
+  ablage.write(MARKER, { id: "00000000-0000-4000-8000-000000000000", updatedAt: Date.now() });
 
 export const readKind = <T extends Filed>(kind: Kind) => ablage.all(kind) as Promise<T[]>;
 export const changes = () => ablage.poll();

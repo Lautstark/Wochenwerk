@@ -4,7 +4,7 @@ import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "
 import { el, fill, button } from "./ui.js";
 import { pullFromFolder, settings } from "./db.js";
 import { load, shown, subscribe, type Week } from "./store.js";
-import { ablage, watchFolder } from "./folder.js";
+import { ablage, adopted, watchFolder } from "./folder.js";
 import { metacom, owed, preferRendering, restore } from "./symbols.js";
 import { weekGrid } from "./views/week-grid.js";
 import { blankAppointment, editAppointment } from "./views/appointment-dialog.js";
@@ -85,5 +85,7 @@ await pullFromFolder().catch(() => undefined);
    the household's answer is handed to it once the folder is back. */
 preferRendering((await settings()).metacomRendering ?? null);
 await load(0);
-/* Somebody else's edit, arriving as a file that changed under this browser. */
-watchFolder(() => void pullFromFolder().then(() => load()));
+/* Somebody else's edit, arriving as a file that changed under this browser. Only
+   once the folder is the store: a folder mid-adoption changes constantly, and all
+   of those changes are ours. */
+if (await adopted()) watchFolder(() => void pullFromFolder().then(() => load()));

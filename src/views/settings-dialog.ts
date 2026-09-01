@@ -85,9 +85,10 @@ function whereSays(status: AblageStatus): string {
     case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
   }
 }
-const actionSays = (id: string) =>
-  id === "choose" ? "Ordner wählen" : id === "confirm" ? "Erneut erlauben"
-    : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
+const actionSays = (id: string, connected: boolean) =>
+  id === "choose" ? (connected ? "Anderer Ordner" : "Ordner wählen")
+    : id === "confirm" ? "Erneut erlauben" : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
+const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
 
 export function openSettings(say: (line: string) => void) {
   const ablage = makePanel("Ablage");
@@ -278,23 +279,29 @@ export function openSettings(say: (line: string) => void) {
   function sync() {
     const status = metacom.status();
     /* Where the household keeps its week. Not a backup: connecting a folder makes
-       it the store, and this browser holds a copy of it from that moment. */
+       it the store, and this browser holds a copy of it from that moment. Once one
+       is connected there is nothing left to explain — the heading names it, and
+       what belongs here is what is in it. */
     const where = ablageStatus();
+    const connected = isStore();
     ablage.state.textContent = whereSays(where);
     fill(ablage.body,
-      el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser. Mit einem Ordner liegt er dort, und jedes Gerät, das ihn erreicht, sieht dieselbe Woche." }),
+      connected ? null : el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser. Mit einem Ordner liegt er dort, und jedes Gerät, das ihn erreicht, sieht dieselbe Woche." }),
+      connected ? el("p", { class: "small", text: `Der Kalender liegt in „${folderName(where)}“. Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche.` }) : null,
       ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
-      el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
-        button(actionSays(action.id), action.primary ? "sm" : "sm quiet", () => void run(async () => {
-          await action.run();
-          if (action.id === "choose") say(await adoptFolder() === "pushed"
-            ? "Der Ordner war leer — was hier lag, liegt jetzt dort."
-            : "Der Ordner hatte schon einen Kalender — der gilt jetzt hier.");
-          else if (action.id === "confirm" || action.id === "retry") await pullFromFolder();
-        }, "")))),
       where.kind === "conflicted"
-        ? el("p", { class: "notice bad", text: `${where.ids.length} Termin(e) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
-        : null);
+        ? el("p", { class: "notice bad", text: `${where.ids.length} Datei(en) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
+        : null,
+      el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
+        button(actionSays(action.id, connected), action.id === "forget" ? "sm destructive" : connected ? "sm quiet" : "sm",
+          () => void run(async () => {
+            await action.run();
+            if (action.id !== "choose") return;
+            const went = await adoptFolder();
+            say(went === "pushed" ? "Der Ordner war leer — was hier lag, liegt jetzt dort."
+              : went === "pulled" ? "Der Ordner hatte schon einen Kalender — der gilt jetzt hier."
+              : "Der Ordner konnte nicht vollständig beschrieben werden. Der Kalender bleibt in diesem Browser.");
+          }, "")))));
 
     symbols.state.textContent = says(status);
     fill(symbols.body,

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
+import { adopted, file, isStore, KINDS, markAdopted, pushKind, readKind, unfile } from "./folder.js";
 import { addDays, iso, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
@@ -201,9 +201,16 @@ export const remove = (id: string) => drop("appointments", id);
 /* Where a folder is the store, the folder is the truth: on start it is read and
    the browser's copy is replaced wholesale. A replace needs no reconciliation and
    no tombstones — it is not a merge — which is the whole reason two-way sync is
-   not being attempted. See sicherung's adr/0001. */
-export async function pullFromFolder(): Promise<void> {
-  if (!isStore()) return;
+   not being attempted.
+
+   But it only replaces a folder that has finished becoming the store. A folder
+   halfway through adoption, or one that was picked by mistake, holds fewer
+   records than the browser does, and reading that back is indistinguishable from
+   "everything was deleted elsewhere". It is not the same thing, and guessing cost
+   somebody their calendar once. So the marker decides, and its absence means the
+   folder is not read. See sicherung's adr/0001. */
+export async function pullFromFolder(): Promise<boolean> {
+  if (!isStore() || !(await adopted())) return false;
   const database = await db();
   const [appointments, cards, people, series] = await Promise.all([
     readKind<Appointment>("termine"), readKind<Card>("karten"),
@@ -221,19 +228,30 @@ export async function pullFromFolder(): Promise<void> {
     ...series.map(record => writing.objectStore("series").put(record)),
     writing.done,
   ]);
+  return true;
 }
 
 /* Connecting a folder for the first time is the migration with a before and an
    after. An empty folder adopts what this browser already holds; a folder that
-   has records in it replaces what this browser holds, because from that moment
-   it is the truth. Which happened is reported rather than assumed: the two are
-   not interchangeable and somebody is entitled to know which one they got. */
-export async function adoptFolder(): Promise<"pushed" | "pulled"> {
-  const counts = await Promise.all(KINDS.map(async kind => (await readKind(kind)).length));
-  if (counts.some(count => count > 0)) { await pullFromFolder(); return "pulled"; }
-  await mirror("termine", "serien");
-  await pushKind("karten", await allCards());
-  await pushKind("personen", await allPeople());
+   already carries the marker replaces what this browser holds, because from that
+   moment it is the truth. Which happened is reported rather than assumed.
+
+   The push is checked before the marker is written, record by record, because
+   a write that quietly did nothing — the folder went out of reach halfway, the
+   browser withdrew permission — leaves a folder that looks like a calendar and
+   is a fraction of one. Unverified, it is not adopted, and the browser stays the
+   truth. */
+export async function adoptFolder(): Promise<"pushed" | "pulled" | "incomplete"> {
+  if (await adopted()) { await pullFromFolder(); return "pulled"; }
+  const mine: Record<string, { id: string; updatedAt: number }[]> = {
+    termine: await allAppointments(), serien: await allSeries(),
+    karten: await allCards(), personen: await allPeople(),
+  };
+  for (const kind of KINDS) await pushKind(kind, mine[kind] as never);
+  for (const kind of KINDS) {
+    if ((await readKind(kind)).length !== mine[kind].length) return "incomplete";
+  }
+  await markAdopted();
   return "pushed";
 }
 
