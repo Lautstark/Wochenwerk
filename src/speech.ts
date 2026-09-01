@@ -1,6 +1,6 @@
 import { asBlob, remember, say, usePiperRuntime, type OnnxModule } from "@lautstark/stimmquelle";
 import { piperRuntime } from "@lautstark/stimmquelle/runtime";
-import { announce, SAMPLE, type Utterance } from "./announce.js";
+import { announce, type Utterance } from "./announce.js";
 import { allCards, allPeople, clips, settings, week } from "./db.js";
 import { mondayOf } from "./model.js";
 
@@ -92,6 +92,24 @@ const spoken = async () => {
      places for the same reason: readyPiper() above drives piper itself. */
   return { ownsInference: true as const, ...(azure ? { azure } : {}) };
 };
+
+/**
+ * What a voice is tried out on: the voice introducing itself, and nothing about
+ * this household.
+ *
+ * It was a line off the board — „Jetzt ist Frühstück" — on the argument that you
+ * should hear the register you are choosing for. But a preview is not the board
+ * talking, it is a voice answering *what do you sound like*, and a sentence about
+ * breakfast makes somebody read the words instead of listening to who is saying
+ * them. Generic is also the honest choice for a household calendar: nothing here
+ * is anybody's business but the household's, and a specimen that names no meal,
+ * no day and no person cannot leak one.
+ *
+ * One fixed sentence rather than whatever the week holds at that minute, because
+ * the question is which of thirty voices to take, and two voices are only
+ * comparable on the same words.
+ */
+export const SAMPLE = "Das ist meine Stimme. So höre ich mich an.";
 
 /**
  * One fixed sentence in one voice, so a voice can be heard before it is chosen.

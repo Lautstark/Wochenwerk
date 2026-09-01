@@ -103,8 +103,10 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
       attrs: { type: "button", "aria-label": `${name} probehören`, title: "Probe hören" },
       on: { click: () => void hear(voice, play, name) },
     });
+    /* No `--live` class beside it: `aria-checked` is the state, and the paint hangs
+       off that attribute in the stylesheet, so the two cannot disagree. */
     const pick = el("button", {
-      class: `voice${live ? " voice--live" : ""}`,
+      class: "voice",
       attrs: { type: "button", role: "radio", "aria-checked": live },
       on: { click: () => spec.pick(voice.id) },
     },

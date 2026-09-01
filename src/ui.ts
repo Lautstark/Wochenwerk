@@ -19,7 +19,17 @@ function apply(node: HTMLElement, props: Props): void {
   if (props.class) node.setAttribute("class", props.class);
   if (props.text !== undefined) node.textContent = props.text;
   for (const [name, value] of Object.entries(props.attrs ?? {})) {
-    if (value === false || value === null || value === undefined) node.removeAttribute(name);
+    if (value === null || value === undefined) node.removeAttribute(name);
+    /* An ARIA state is a word, not a bare attribute. `hidden` and `disabled` mean
+       something by being present at all, so `true` writes "" and `false` takes them
+       off — but `aria-checked=""` is not checked, it is unreadable, and a radio that
+       is not the answer has to say `aria-checked="false"` rather than say nothing.
+       Two call sites wrote `"aria-checked": live` and `"aria-pressed": active` and
+       both silently produced neither state; the picker only looked right because a
+       class beside it was carrying the paint. Answered here, because the next call
+       site would get it wrong the same way. */
+    else if (name.startsWith("aria-") && typeof value === "boolean") node.setAttribute(name, String(value));
+    else if (value === false) node.removeAttribute(name);
     else node.setAttribute(name, value === true ? "" : String(value));
   }
   for (const [name, value] of Object.entries(props.style ?? {})) node.style.setProperty(name, value);
