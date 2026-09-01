@@ -1,12 +1,52 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
-import { button, el, fill, spacer } from "../ui.js";
+import { listVoices } from "@lautstark/stimmquelle";
+import { button, el, field, fill, input, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
-import { clearAll, clearAppointments, removeCard, removePerson, uuid } from "../db.js";
+import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, rebuild, reconnect, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
 import { load, shown } from "../store.js";
 import { cardThumb, face, overflow, row } from "./pieces.js";
 import { editCard } from "./card-dialog.js";
 import { editPerson, pickFile } from "./person-dialog.js";
+
+/**
+ * Azure's own region names. A datalist suggests rather than restricts, so a
+ * region newer than this file still works by typing it — and the region is what
+ * a rejected key usually turns out to be.
+ */
+const AZURE_REGIONS = [
+  "westeurope", "northeurope", "germanywestcentral", "switzerlandnorth",
+  "francecentral", "uksouth", "swedencentral", "norwayeast", "eastus", "eastus2",
+  "westus", "westus2", "westus3", "centralus", "southcentralus", "canadacentral",
+  "brazilsouth", "australiaeast", "southeastasia", "eastasia", "japaneast",
+  "japanwest", "koreacentral", "centralindia", "southafricanorth", "uaenorth",
+];
+
+type Azure = { key: string; region: string };
+type Answer = { ok: true; count: number } | { ok: false; code: "unreachable" | "refused" | "failed"; words: string };
+
+/**
+ * Whether Azure answers for this key and this region. „Gespeichert" describes
+ * the database; the person who typed a key wants to know whether Microsoft
+ * answers, and each way it does not points somewhere different: a region name
+ * that is not one is a hostname that never resolves, so the fetch dies as a
+ * TypeError before any status exists, while a live region with a wrong key
+ * answers 401.
+ *
+ * `listVoices` throws on a key that does not work rather than quietly handing
+ * back the shipped voices alone — which is what makes it a probe and not just a
+ * list. The count it returns is every voice this calendar can then speak in.
+ */
+async function probeAzure(azure: Azure): Promise<Answer> {
+  try {
+    return { ok: true, count: (await listVoices({ lang: "de", azure })).length };
+  } catch (error) {
+    const words = error instanceof Error ? error.message : String(error);
+    const code = error instanceof TypeError ? "unreachable"
+      : /rejected the key|401|403/.test(words) ? "refused" : "failed";
+    return { ok: false, code, words };
+  }
+}
 
 interface Panel { node: HTMLDetailsElement; state: HTMLElement; body: HTMLElement }
 
@@ -23,13 +63,14 @@ function makePanel(label: string): Panel {
 
 export function openSettings(say: (line: string) => void) {
   const symbols = makePanel("Symbole");
+  const speech = makePanel("Sprachausgabe");
   const cards = makePanel("Karten");
   const people = makePanel("Personen");
   const data = makePanel("Daten");
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
-    body: [symbols.node, cards.node, people.node, data.node],
+    body: [symbols.node, speech.node, cards.node, people.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
   });
 
@@ -40,6 +81,101 @@ export function openSettings(say: (line: string) => void) {
     sync();
   };
 
+
+  /* The probe line, and it is the same element for the life of the dialog: a live
+     region that is removed and put back announces nothing, because what a reader
+     is told about is a change inside something already on screen. Empty when there
+     is no key — never hidden, and a <p> with no text takes no room. §3.8.
+
+     It reports inside a modal, so it is a second region and a legitimate one: the
+     page's own status line is inert behind `showModal()`. */
+  const probe = el("p", { class: "small muted", attrs: { role: "status" } });
+  const wording = (answer: Answer) => answer.ok
+    ? `${answer.count} ${answer.count === 1 ? "Stimme" : "Stimmen"} verfügbar`
+    : answer.code === "unreachable" ? "Die Region antwortet nicht — stimmt der Regionsname?"
+      : answer.code === "refused" ? "Azure lehnt den Schlüssel ab."
+        : "Die Abfrage ist fehlgeschlagen — später noch einmal versuchen.";
+
+  /* Drawn on opening and after a save or a forget, and deliberately not from
+     sync(): this panel holds a field somebody is typing into, and a card edited in
+     another panel must not carry a half-typed key away with it.
+
+     `known` is the answer a save has just had. Azure would say the same thing
+     twice, and the second ask would be a round trip nobody is waiting for. */
+  async function drawSpeech(known?: Answer) {
+    const azure = (await settings()).azure;
+    /* Which key, not merely that there is one: the last four characters tell two
+       keys apart without showing either. It sits in the heading, so the answer is
+       there before the panel is opened. §3.5. */
+    speech.state.textContent = azure ? `Schlüssel ••••${azure.key.slice(-4)}` : "Kein Schlüssel";
+
+    const key = input("password", { attrs: { autocomplete: "off", placeholder: azure ? `••••${azure.key.slice(-4)}` : "" } });
+    const region = input("text", { attrs: { list: "azure-regionen", spellcheck: "false" } });
+    region.value = azure?.region ?? "westeurope";
+    const save = button("Speichern", "sm primary", () => void keep(key.value, region.value, save));
+
+    fill(speech.body,
+      probe,
+      el("p", { class: "small muted", text: "Azure ist kostenpflichtig und braucht ein Konto. Dein Schlüssel bleibt in diesem Browser; die Anfrage geht von hier direkt zu Microsoft, nie über einen Server von uns." }),
+      el("p", { class: "small muted", text: "Schlüssel und Stimme gelten für den ganzen Kalender — nicht pro Termin, nicht pro Karte und nicht pro Serie." }),
+      el("div", { class: "row-of" }, field("Schlüssel", key), field("Region", region)),
+      el("datalist", { attrs: { id: "azure-regionen" } }, ...AZURE_REGIONS.map(name => el("option", { attrs: { value: name } }))),
+      el("p", { class: "small muted", text: "Die Region steht im Azure-Portal bei deiner Speech-Ressource, z. B. westeurope." }),
+      el("div", { class: "acts" }, save,
+        azure ? button("Schlüssel entfernen", "sm destructive", () => void forgetKey()) : null));
+
+    if (!azure) return void (probe.textContent = "");
+    if (known) return void (probe.textContent = wording(known));
+    probe.textContent = "Frage Azure …";
+    const answer = await probeAzure(azure);
+    probe.textContent = wording(answer);
+  }
+
+  /* Checked before it is stored, so a typo is a sentence now rather than a silent
+     appointment later. The button says what it is doing meanwhile: the check is a
+     network round trip, and a button that does nothing visible for two seconds is
+     a button you press again. */
+  async function keep(typed: string, where: string, press: HTMLButtonElement) {
+    /* The field is empty every time the panel draws, so an untouched one must not
+       mean „kein Schlüssel": a save that only moves the region keeps the key it
+       already has. Removing it is its own button, not a way to save. */
+    const key = typed.trim() || (await settings()).azure?.key;
+    if (!key) return say("Erst einen Schlüssel eintippen.");
+    const region = where.trim() || "westeurope";
+    const was = press.textContent;
+    press.disabled = true;
+    press.textContent = "Wird geprüft …";
+    try {
+      const answer = await probeAzure({ key, region });
+      if (!answer.ok) {
+        /* A key belongs to one region, and the wrong pairing answers exactly the
+           same 401 as a wrong key — saying which is more use than repeating Azure. */
+        const why = answer.code === "refused"
+          ? "Azure hat den Schlüssel abgelehnt. Meistens ist es die Region: sie muss die der Speech-Ressource sein, nicht die deines Kontos."
+          : answer.code === "unreachable" ? "Die Region antwortet nicht — stimmt der Regionsname?"
+            : `Azure hat nicht geantwortet (${answer.words}).`;
+        /* Into the probe line as well as the page's, because the page's is behind a
+           modal and inert: this is the answer to the question the panel asks, and
+           it has to be readable beside the field it is about. §3.8. */
+        probe.textContent = why;
+        return say(`Hat nicht geklappt: ${why}`);
+      }
+      await saveAzure({ key, region });
+      say(`Azure Speech freigeschaltet — ${answer.count} Stimmen stehen zur Wahl.`);
+      await drawSpeech(answer);
+    } catch (error) {
+      say(`Hat nicht geklappt: ${(error as Error)?.message ?? "unbekannter Fehler"}`);
+    } finally {
+      press.disabled = false;
+      press.textContent = was;
+    }
+  }
+
+  async function forgetKey() {
+    await saveAzure(undefined);
+    say("Azure Speech wieder abgeschaltet.");
+    await drawSpeech();
+  }
 
   function sync() {
     const status = metacom.status();
@@ -113,4 +249,9 @@ export function openSettings(say: (line: string) => void) {
     }
   };
   sync();
+  /* The key is in the database, so this one heading cannot be answered on the frame
+     the dialog opens. It says it is fetching rather than saying nothing: a state is
+     what the heading is for, and empty is not one. */
+  speech.state.textContent = "Wird geladen …";
+  void drawSpeech();
 }

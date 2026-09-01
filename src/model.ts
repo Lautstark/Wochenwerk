@@ -82,6 +82,20 @@ export type Series = { id: string; pattern: Pattern; from: string; until: string
 export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string };
 export const bornOn = (person: Person, date: string) => !!person.birthday && person.birthday.slice(5) === date.slice(5);
 
+/* One record, and everything the household has chosen is in it — never localStorage,
+   which is a second store to be restored from and survives the database being
+   cleared. conventions.md §1.2 and §1.3.
+
+   And one for the whole calendar: not one per appointment, not per card, not per
+   series. mitreden keeps a voice here too, but as the default for the *next*
+   Sammlung, because it has many of them and each carries its own. Wochenwerk is one
+   household on one shelf. There is one key and one voice, and a setting that could
+   differ between two weeks would be one nobody could answer from the wall. */
+export type Settings = {
+  /** Azure Speech, if a key has been typed. db.ts says what keeping it here means. */
+  azure?: { key: string; region: string };
+};
+
 /* Appointments that run at the same time share the width of their day. Both routes
    lay them out the same way, so the board and the calendar never disagree about
    what is parallel to what. */

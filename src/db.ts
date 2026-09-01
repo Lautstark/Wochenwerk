@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { addDays, iso, occurrences, TONES, type Card, type Appointment, type Pattern, type Person, type Series, type SymbolRef } from "./model.js";
+import { addDays, iso, occurrences, TONES, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
    convention, and the shape a folder of one file per record maps onto when the
@@ -9,7 +9,12 @@ interface Wochenwerk extends DBSchema {
   series: { key: string; value: Series };
   people: { key: string; value: Person };
   cards: { key: string; value: Card };
+  /* One record under one key. A store with a single row reads oddly until you try
+     the alternative: a preference kept anywhere else is a preference restored from
+     one place and overwritten from another. conventions.md §1.2. */
+  settings: { key: typeof SETTINGS; value: Settings };
 }
+const SETTINGS = "settings";
 
 /* Version 2 dropped the separate visit/birthday record. Both are ordinary all-day
    appointments now: the person hangs off the appointment like on any other, and a
@@ -18,7 +23,7 @@ type OldSpecial = { id: string; kind: "visit" | "birthday"; person: string; from
 const cake: SymbolRef = { source: "metacom", id: "Feste/geburtstag.png", label: "Geburtstag" };
 
 let opening: Promise<IDBPDatabase<Wochenwerk>> | null = null;
-const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 5, {
+const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
   async upgrade(database, from, _to, transaction) {
     if (from < 1) {
       const appointments = database.createObjectStore("appointments", { keyPath: "id" });
@@ -86,10 +91,46 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 5, {
     if (from > 0 && from < 5) {
       for (const store of ["appointments", "series", "cards", "people"] as const) transaction.objectStore(store).clear();
     }
+    /* Version 6 gives the household somewhere to keep what it has chosen: one
+       record, out-of-line under its own name, holding every preference there is.
+       Nothing is carried across, because nothing was ever kept anywhere else. */
+    if (from < 6) database.createObjectStore(SETTINGS);
   },
 }));
 
 export const uuid = () => crypto.randomUUID();
+
+/** What the household has chosen, all of it, or an empty record on a first run. */
+export async function settings(): Promise<Settings> {
+  return (await (await db()).get(SETTINGS, SETTINGS)) ?? {};
+}
+export async function saveSettings(value: Settings): Promise<void> {
+  await (await db()).put(SETTINGS, value, SETTINGS);
+}
+
+/*
+ * The Azure Speech key, and what keeping it here means.
+ *
+ * It never leaves this browser. The request for a voice goes from the tab
+ * straight to Microsoft and the audio comes straight back; nothing passes
+ * through a server of ours, because there is not one. What is stored is what
+ * somebody typed into their own browser on their own machine — the same
+ * exposure as the `.env` file it replaces.
+ *
+ * That is safe *because* of who typed it. A key baked into a build would not
+ * be: a page served to anyone else hands its key to everyone who opens it, and
+ * nothing in the page can tell the two apart. stimmquelle's CONTRACT.md §8 is
+ * the reasoning, and it is why there is a field to type into rather than a
+ * constant in this repository.
+ */
+export async function saveAzure(azure: Settings["azure"]): Promise<void> {
+  const now = await settings();
+  if (!azure) {
+    const { azure: _forgotten, ...rest } = now;
+    return saveSettings(rest);
+  }
+  await saveSettings({ ...now, azure });
+}
 
 /** One week is a range over the date index, not a filter over everything. */
 export async function week(monday: Date): Promise<Appointment[]> {
