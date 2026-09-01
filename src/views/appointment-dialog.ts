@@ -146,10 +146,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   speech.box.value = draft.speech ?? "";
 
   /* A choice has no Ansage of its own — what is said comes from the cards it
-     offers and, once something picked, from the card that was picked. A disabled
-     field explaining that is still a field to read past, so the whole block goes
-     rather than greying out. The words are written where they belong: on the
-     card. */
+     offers and, once something picked, from the card that was picked. The block
+     stays anyway, disabled and saying so: hiding it took the sentences with it,
+     and those four are the ones nobody can check anywhere else — a card's word
+     can be heard on the card, but „Schau mal, du darfst aussuchen" is only ever
+     built here, out of the cards this appointment happens to offer. The words are
+     still written where they belong: on the card. */
   const ansage = field("Ansage", speech.node);
 
   const handle = openDialog({
@@ -215,7 +217,6 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        "what may be picked" belongs to the choice alone. */
     search.node.hidden = false;
     offer.hidden = mode !== "choice";
-    ansage.hidden = mode === "choice";
 
     await resolve();
     fill(chosen, grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
