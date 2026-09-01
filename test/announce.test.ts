@@ -96,8 +96,8 @@ describe("what is running", () => {
 
   it("offers playing in a gap, but not once the day is done", () => {
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
-    expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts. Du kannst spielen.");
-    expect(said(week, at("19:00"), house())[1]).toBe("Gerade ist nichts.");
+    expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts geplant. Du kannst spielen.");
+    expect(said(week, at("19:00"), house())[1]).toBe("Gerade ist nichts geplant.");
   });
 });
 
@@ -116,7 +116,7 @@ describe("what comes next", () => {
     /* Kita until two, supper at six. At nine in the morning "danach kommt
        Abendessen" is a word with no time to hang it on. */
     const week = [appointment("08:45", "14:00", { title: "Kita" }), appointment("18:00", "19:00", { title: "Abendessen" })];
-    expect(said(week, at("09:00"), house())[2]).toBe("Danach hast du frei.");
+    expect(said(week, at("09:00"), house())[2]).toBe("Danach ist nichts geplant.");
   });
 
   it("measures the wait from the end of what is running, not from now", () => {
@@ -130,7 +130,7 @@ describe("what comes next", () => {
     /* Two sentences, not three: *Du kannst spielen* and *danach hast du frei* are
        one thing said twice. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
-    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts. Du kannst spielen."]);
+    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts geplant. Du kannst spielen."]);
   });
 
   it("still names a choice that is genuinely next", () => {
@@ -143,8 +143,8 @@ describe("what comes next", () => {
        on the next one — which is bedtime, when a board on a wall is behind
        somebody's back. The day in front of the child is what this is for. */
     const tomorrow = appointment("08:45", "14:00", { title: "Kita", date: "2026-09-02" });
-    expect(said([...week(), tomorrow], at("13:00"), house())[2]).toBe("Heute kommt nichts mehr.");
-    expect(said(week(), at("13:00"), house())[2]).toBe("Heute kommt nichts mehr.");
+    expect(said([...week(), tomorrow], at("13:00"), house())[2]).toBe("Heute ist nichts mehr geplant.");
+    expect(said(week(), at("13:00"), house())[2]).toBe("Heute ist nichts mehr geplant.");
   });
 });
 

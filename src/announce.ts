@@ -41,16 +41,21 @@ const FRAMES = {
   now: "Jetzt ist",
   nowFor: ", jetzt ist",
   ending: "ist gleich fertig",
-  nothing: "Gerade ist nichts.",
-  nothingYet: "Gerade ist nichts. Du kannst spielen.",
+  /* One word for the whole of it: *geplant*. What is empty on this board is
+     empty because nobody planned anything there, and saying that plainly beats
+     *du hast frei*, which frames a child's afternoon as time off from something.
+     It is a word from the planning side of the app, and it is the same word in
+     all four sentences so that it is learned once. */
+  nothing: "Gerade ist nichts geplant.",
+  nothingYet: "Gerade ist nichts geplant. Du kannst spielen.",
   soon: "Gleich kommt",
   after: "Danach kommt",
   then: "Dann kommt",
-  free: "Danach hast du frei.",
+  free: "Danach ist nichts geplant.",
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
   thenChoose: "Dann darfst du aussuchen.",
-  done: "Heute kommt nichts mehr.",
+  done: "Heute ist nichts mehr geplant.",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
   or: "oder",

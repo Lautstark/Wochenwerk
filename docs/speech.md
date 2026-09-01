@@ -79,7 +79,7 @@ facts cost one line.
 | an appointment is running | *Jetzt ist Frühstück.* |
 | it concerns exactly one person | *Mia, jetzt ist Turnen.* |
 | it ends within one grid step | *Frühstück ist gleich fertig.* |
-| nothing is running | *Gerade ist nichts. Du kannst spielen.* |
+| nothing is running | *Gerade ist nichts geplant. Du kannst spielen.* |
 
 Addressing one child by name is the difference between an announcement and
 being meant, and it is free: `people` is already on the record. Two names is a
@@ -92,11 +92,17 @@ list, so it is only done where there is exactly one.
 | within ~20 minutes | *Gleich kommt Kita.* |
 | further off, but soon after what is running | *Danach kommt Kita.* |
 | further off, and nothing is running | *Dann kommt Kita.* |
-| nothing near, and something is running | *Danach hast du frei.* |
+| nothing near, and something is running | *Danach ist nichts geplant.* |
 | nothing near, and nothing is running | nothing — the *now* sentence has said it |
 | next is an open choice | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
-| nothing left today | *Heute kommt nichts mehr.* |
+| nothing left today | *Heute ist nichts mehr geplant.* |
+
+**An empty stretch is empty because nobody planned anything there**, and the
+board says that in one word — *geplant* — in all four of the sentences about
+nothing happening. It used to say *du hast frei*, which frames a child's
+afternoon as time off from something they owed. It is a word from the planning
+side of the app and it is the same word every time, so it is learned once.
 
 **What is hours away is not named.** Told at nine in the morning that supper
 comes after Kita, a two-year-old has been given a word and no time to hang it
@@ -281,7 +287,7 @@ repeat, not a queue.
 
 **The card is lit for exactly as long as the sentence about it.** Every sentence
 knows which appointment it is about, or that it is about none — the day sentence
-is about none, and so is *danach hast du frei* — and the board follows that from
+is about none, and so is *danach ist nichts geplant* — and the board follows that from
 one sentence to the next: nothing, then the running card, then the one that is
 coming. A card still lit under the following sentence would point at the wrong
 thing, which is worse than pointing at nothing.
