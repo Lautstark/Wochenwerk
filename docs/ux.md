@@ -67,7 +67,7 @@ Each day is a solid field of its weekday colour and each appointment is a light 
 The board answers those three questions with colour alone, and it answers them the same way at both scales — across the week and inside the current day:
 
 - **over** — strongly greyed: the day colour is nearly gone, symbols stay recognisable but flat;
-- **now** — full strength: the current day is at its brightest, and inside it the running appointment lifts off the board as a white card with a light halo;
+- **now** — full strength: the current day is at its brightest, and inside it the running appointment lifts off the board as a white card, shadowed onto the field and framed in the day's own colour at full strength. The frame is drawn inside the card and scales with its height, so a quarter of an hour is framed thinly rather than filled in, and the gap that keeps two appointments countable stays day colour;
 - **ahead** — the weekday colour stays, but quieter than today.
 
 There is no now line, no marker travelling down the column and no exact clock scale. The current appointment *is* the now indicator, which is the form a two-year-old can read.

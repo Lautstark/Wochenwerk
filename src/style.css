@@ -165,10 +165,40 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .card .face + .face { margin-left: -.42rem; }
 
 /* Now is not a line and not a marker: the appointment that is running lies on top of
-   the board. The white surface grows past its slot and casts a real shadow onto the
-   day below it; everything already done fades back towards the day colour. */
-.card.current { z-index: 9; --tile: 13rem; background: #fff; border-radius: .9rem;
-  box-shadow: 0 0 0 .5rem #fff, 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
+   the board. It is lifted by its shadow and picked out by a frame of the day's own
+   colour at full strength — the one place on the board where the day is a line
+   around a card rather than the field behind it; everything already done fades back
+   towards the day colour.
+
+   Both of those stay inside the slot the duration gave the card. The white surface
+   used to grow half a rem past it instead, and the layout keeps five pixels between
+   one card and the next: the halo crossed all five and lay three pixels deep on the
+   card below, so wherever one appointment ends as the next begins the two ran
+   together into a single white shape. What says *now* may not eat the gap that says
+   *and then* — that gap is day colour on purpose, and it is what keeps two
+   appointments countable. The frame is drawn inward for the same reason the shadow
+   may be drawn outward: one is the card's own surface, the other is only light. */
+.card.current { z-index: 9; --tile: 13rem; background: #fff; border-radius: .9rem; padding: 0;
+  box-shadow: 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
+/* Drawn on the row inside rather than on the card, because only inside the card can
+   it be measured against the card — the card is the size container, and a container
+   cannot query itself. A quarter of an hour is fourteen pixels tall, and a frame
+   that took five of them from each side would be a chip of day colour with the
+   picture squeezed out of it. So: full thickness from half an hour upwards, and
+   thinning below that.
+
+   A border rather than an inset shadow, because a border is part of the box: the
+   picture inside gives the frame its room and stays whole, where a shadow would
+   have been painted over the top of it and cut the picture's edges off. The card's
+   padding moves in here with it, so what is inside a card that is not running sits
+   exactly where it did.
+
+   The radius is inherited rather than repeated, which is also what rounds the inside
+   of the frame: a border's inner edge is its outer radius less its own width, so the
+   white follows the line the way the line follows the card, at whatever width the
+   line came out at. Squared off inside a rounded card it read as a photograph taped
+   over the corners. */
+.card.current .icons { padding: .2rem; border: min(.3rem, 16cqh) solid var(--day); border-radius: inherit; }
 .card.past { background: color-mix(in oklab, var(--day) 7%, #d3cec9); box-shadow: none; }
 /* On today the field behind a past card is the muted end of the gradient, and the
    card's own paper is a near neighbour of it — close enough that the card would
@@ -181,7 +211,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
    colour cuts it out of the card underneath, and its shadow puts it in front. */
 .card.parallel { box-shadow: 0 0 0 .24rem var(--field), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
 .day.today .card.past.parallel { box-shadow: inset 0 0 0 .11rem var(--seam), 0 0 0 .24rem var(--spent), 0 .5rem 1.2rem rgba(0, 0, 0, .34); }
-.card.parallel.current { box-shadow: 0 0 0 .5rem #fff, 0 0 0 .78rem var(--field), 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
+.card.parallel.current { box-shadow: 0 0 0 .24rem var(--field), 0 .15rem .4rem rgba(0, 0, 0, .22), 0 1.3rem 2.6rem rgba(0, 0, 0, .45); }
 
 /* An appointment that is still to be chosen. It carries one sign of its own —
    *here you choose* — and that sign has to read as a different kind of thing from
