@@ -5,7 +5,8 @@ import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
   renderings, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
-import { nameOf, offered, type Voice } from "../voices.js";
+import { labelOf, nameOf, offered, type Voice } from "../voices.js";
+import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { cardEditor } from "./card-editor.js";
@@ -108,6 +109,15 @@ export function openSettings(say: (line: string) => void) {
     voices: () => voices,
     current: () => chosen,
     pick: id => { if (id && id !== chosen) void choose(id); },
+    /* Trouble is reported here rather than thrown back into the row: the picker
+       draws a button, and what to say when a voice will not speak is this
+       dialog's business. A refused Azure key and a model that would not download
+       both arrive this way, and both are worth hearing about by name — pressing
+       ▶ on one voice says nothing about the twenty beside it. */
+    hear: async (voice, onProgress) => {
+      try { await hearSample(voice.id, onProgress); }
+      catch (error) { say(`${labelOf(voice, voices)} konnte nicht sprechen: ${(error as Error)?.message ?? "unbekannter Fehler"}`); }
+    },
   });
 
   /* Choosing writes. There is no pending state and no Save: the panel's heading

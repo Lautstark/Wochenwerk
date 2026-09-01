@@ -54,6 +54,18 @@ const FRAMES = {
   look: "Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.",
 } as const;
 
+/* What a voice is tried out on before it is chosen, built out of the frames above
+   rather than written beside them, so a specimen cannot drift out of the register
+   the board actually speaks in: the two sentences it says most, with two ordinary
+   household words in them.
+
+   One fixed sentence, and not whatever the week happens to hold at that minute.
+   vorlaut previews the board being worked on, which is right there — you are
+   listening to one voice and want to hear your own content in it. The question
+   here is a different one: which of thirty voices to pick. Two voices are only
+   comparable on the same words. */
+export const SAMPLE = `${FRAMES.now} Frühstück. ${FRAMES.after} Kita.`;
+
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
 /* They compound onto the weekday — Dienstagmorgen, Dienstagabend — so the day and
    the daypart cost one clip rather than two, and no seam falls inside a word. */

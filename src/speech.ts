@@ -1,6 +1,6 @@
 import { asBlob, remember, say, usePiperRuntime, type OnnxModule } from "@lautstark/stimmquelle";
 import { piperRuntime } from "@lautstark/stimmquelle/runtime";
-import { announce, type Utterance } from "./announce.js";
+import { announce, SAMPLE, type Utterance } from "./announce.js";
 import { allCards, allPeople, clips, settings, week } from "./db.js";
 import { mondayOf } from "./model.js";
 
@@ -63,10 +63,16 @@ const sound = (blob: Blob, mine: number) => new Promise<void>(done => {
    backend that cannot be prepared ahead of time, and the one that costs nothing
    to try. `speak` refuses a `system:` id rather than inventing audio with no
    sound in it, so the two are asked differently on purpose. */
-async function utter(line: Utterance, voice: string, mine: number): Promise<void> {
-  if (voice.startsWith("system:")) return say(line.text, voice);
+async function utter(text: string, voice: string, mine: number, onProgress?: (share: number) => void): Promise<void> {
+  if (voice.startsWith("system:")) return say(text, voice);
   if (voice.startsWith("piper:")) readyPiper();
-  const { wav } = await remember(clips, line.text, voice, await spoken());
+  const { wav } = await remember(clips, text, voice, {
+    ...await spoken(),
+    /* Only the share, because that is all a caller can draw. A piper voice is
+       63 MB on its first sentence and silent while it arrives, which is long
+       enough to read as a button that did nothing. */
+    ...(onProgress ? { onProgress: (p: { share: number }) => onProgress(p.share) } : {}),
+  });
   if (generation !== mine) return;
   return sound(asBlob(wav), mine);
 }
@@ -77,8 +83,31 @@ async function utter(line: Utterance, voice: string, mine: number): Promise<void
    where a person can be told about it. */
 const spoken = async () => {
   const { azure } = await settings();
-  return azure ? { azure } : {};
+  /* `ownsInference` again, and this is the second of the two doors stimmquelle's
+     README names: being listed and being allowed to speak are separate questions,
+     asked in separate places, and a product has to answer both. voices.ts claims
+     it for the picker. Without the same claim here `speak()` refuses every `low`
+     model — which is `de_DE-kerstin-low`, the one German female piper voice there
+     is, offered in the picker and refused at synthesis. The claim is true in both
+     places for the same reason: readyPiper() above drives piper itself. */
+  return { ownsInference: true as const, ...(azure ? { azure } : {}) };
 };
+
+/**
+ * One fixed sentence in one voice, so a voice can be heard before it is chosen.
+ *
+ * Hearing a voice and choosing it are two decisions, and the first must not
+ * commit to the second — which is why this takes the voice it is handed rather
+ * than the one in the settings record. It goes through the same door everything
+ * else does: the same interruption rule, so a second press takes the speaker off
+ * the first, and the same clip cache, so listening to a voice twice asks the
+ * network or the synthesiser once.
+ */
+export async function hearSample(voice: string, onProgress?: (share: number) => void): Promise<void> {
+  stop();
+  const mine = ++generation;
+  await utter(SAMPLE, voice, mine, onProgress);
+}
 
 /** What the board would say at this moment, without saying it. */
 export async function saying(at: Date): Promise<Utterance[]> {
@@ -106,7 +135,7 @@ export async function announceAt(at: Date): Promise<Announced> {
   if (!voice) return { lines: lines.map(line => line.text), trouble: "Noch keine Stimme gewählt — Kalender → Einstellungen → Stimme." };
   for (const line of lines) {
     if (generation !== mine) break;
-    try { await utter(line, voice, mine); }
+    try { await utter(line.text, voice, mine); }
     catch (error) {
       /* Stop at the first one that will not speak. Carrying on would say the
          second half of an announcement whose first half nobody heard, which is

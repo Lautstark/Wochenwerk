@@ -24,6 +24,11 @@ import { caveats, factsOf, labelOf, type Voice } from "../voices.js";
  * was doing and does it under search as well as before it, which a fold cannot —
  * mitreden and vorlaut both landed here, and neither has one.
  *
+ * Every row can be heard before it is picked, which is vorlaut's ▶ and not
+ * mitreden's list — and it is here now only because there is something to play:
+ * the board's own speech path, one fixed sentence through it, and the same
+ * interruption rule, so a second press takes the speaker off the first.
+ *
  * What is still deliberately missing is mitreden's language chips: this asks for
  * German and nothing else, so every chip would say Deutsch.
  */
@@ -37,6 +42,9 @@ export interface VoiceChoiceSpec {
   voices: () => readonly Voice[];
   current: () => string | undefined;
   pick: (id: string) => void;
+  /** Speak the sample in this voice. Reports what it is doing through `share`,
+   *  and reports its own trouble: nothing is thrown back here. */
+  hear: (voice: Voice, onProgress: (share: number) => void) => Promise<void>;
 }
 
 export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
@@ -67,20 +75,46 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
   const matches = (among: readonly Voice[]) => (voice: Voice) =>
     !query || `${labelOf(voice, among)} ${factsOf(voice)}`.toLowerCase().includes(query);
 
+  /* Hearing a voice and choosing it are two decisions, and the first must not
+     commit to the second. So a row is two buttons in a wrapper rather than one
+     button — which is also the only way it can be: a button inside a button is
+     not something a browser will render. vorlaut's shape, for vorlaut's reason. */
+  async function hear(voice: Voice, press: HTMLButtonElement, name: string): Promise<void> {
+    const idle = press.textContent;
+    press.disabled = true;
+    press.textContent = "…";
+    press.setAttribute("aria-label", `${name} wird abgespielt`);
+    /* A piper voice arrives as a 63 MB download on its first sentence, and a
+       button that sits there saying nothing for a minute is a button somebody
+       presses again. Whole per cent, because it is a number read at a glance. */
+    try { await spec.hear(voice, share => { press.textContent = share > 0 && share < 1 ? `${Math.round(share * 100)}` : "…"; }); }
+    finally {
+      press.disabled = false;
+      press.textContent = idle;
+      press.setAttribute("aria-label", `${name} probehören`);
+    }
+  }
+
   function voiceRow(voice: Voice, live: boolean, among: readonly Voice[]): HTMLElement {
     const notes = caveats(voice);
-    const row = el("button", {
+    const name = labelOf(voice, among);
+    const play = el("button", {
+      class: "btn quiet play", text: "▶",
+      attrs: { type: "button", "aria-label": `${name} probehören`, title: "Probe hören" },
+      on: { click: () => void hear(voice, play, name) },
+    });
+    const pick = el("button", {
       class: `voice${live ? " voice--live" : ""}`,
       attrs: { type: "button", role: "radio", "aria-checked": live },
       on: { click: () => spec.pick(voice.id) },
     },
-      el("span", { class: "voice__name", text: labelOf(voice, among) }),
+      el("span", { class: "voice__name", text: name }),
       el("span", { class: "voice__facts small muted", text: factsOf(voice) }),
       ...notes.map(note => el("span", { class: "voice__hint small", text: note })));
     /* Roving tabindex: Tab leaves the group rather than walking every row of it. */
-    row.tabIndex = live ? 0 : -1;
-    row.dataset.id = voice.id;
-    return row;
+    pick.tabIndex = live ? 0 : -1;
+    pick.dataset.id = voice.id;
+    return el("div", { class: "voiceRow" }, play, pick);
   }
 
   function draw(): void {
