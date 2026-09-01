@@ -61,7 +61,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      whole sentence beside a one-word sibling. */
   const kinds = el("div", { class: "segmented" },
     button("festgelegt", "sm", () => { mode = "symbols"; sync(); }),
-    button("wählbar", "sm", () => { mode = "choice"; sync(); }));
+    /* Dropped on the way over rather than at the save that would have dropped
+       them anyway, so what stands in the sheet is what will be stored. */
+    button("wählbar", "sm", () => { mode = "choice"; draft.symbols = []; sync(); }));
   const chosen = el("div", { class: "chosen" });
   const search = symbolSearch(ref => {
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
@@ -216,17 +218,20 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
     kinds.children[0].classList.toggle("primary", mode === "symbols");
     kinds.children[1].classList.toggle("primary", mode === "choice");
-    /* A choice carries a symbol of its own now, so the picker stopped being one
-       half of a toggle: both kinds answer "what is drawn" the same way, and only
-       "what may be picked" belongs to the choice alone. */
-    search.node.hidden = false;
+    /* A choice has no symbol of its own to pick. The board draws a question mark
+       over it while it is open and the picked card's picture after that, so
+       `symbols` is never what is drawn on one — the save has always thrown away
+       whatever was picked here. The picker was a control with nothing behind it,
+       and the search under it invited using one. What a choice is made of is
+       cards, and that is the one list it shows. */
+    search.node.hidden = mode === "choice";
+    chosen.hidden = mode === "choice";
     offer.hidden = mode !== "choice";
 
     await resolve();
     fill(chosen, grid(...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
       () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); }))));
-    if (!draft.symbols.length) fill(chosen, el("p", { class: "empty",
-      text: mode === "choice" ? "noch kein Symbol für die Wahl" : "noch kein Symbol" }));
+    if (!draft.symbols.length) fill(chosen, el("p", { class: "empty", text: "noch kein Symbol" }));
 
     if (!making) fill(offer,
       /* What is already on offer, removable. It used to share `chosen` with the
