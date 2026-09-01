@@ -79,7 +79,7 @@ facts cost one line.
 | an appointment is running | *Jetzt ist Frühstück.* |
 | it concerns exactly one person | *Mia, jetzt ist Turnen.* |
 | it ends within one grid step | *Frühstück ist gleich fertig.* |
-| nothing is running | *Gerade ist nichts geplant. Du kannst spielen.* |
+| nothing is running | *Gerade ist nichts geplant.* |
 
 Addressing one child by name is the difference between an announcement and
 being meant, and it is free: `people` is already on the record. Two names is a
@@ -99,8 +99,10 @@ list, so it is only done where there is exactly one.
 | nothing left today | *Heute ist nichts mehr geplant.* |
 
 **An empty stretch is empty because nobody planned anything there**, and the
-board says that in one word — *geplant* — in all four of the sentences about
-nothing happening. It used to say *du hast frei*, which frames a child's
+board says that in one word — *geplant* — in every sentence about nothing
+happening. It says only that. There was a *Du kannst spielen* on the end of it
+where the day still had something coming, and that was the board telling a child
+what to do with their own time, which is not what it is for. It used to say *du hast frei*, which frames a child's
 afternoon as time off from something they owed. It is a word from the planning
 side of the app and it is the same word every time, so it is learned once.
 

@@ -47,7 +47,6 @@ const FRAMES = {
      It is a word from the planning side of the app, and it is the same word in
      all four sentences so that it is learned once. */
   nothing: "Gerade ist nichts geplant.",
-  nothingYet: "Gerade ist nichts geplant. Du kannst spielen.",
   soon: "Gleich kommt",
   after: "Danach kommt",
   then: "Dann kommt",
@@ -208,13 +207,12 @@ function namedFact(facts: Appointment[], _household: Household): string | undefi
    whose word nobody has written, and inventing one from its file name is the
    thing docs/speech.md exists to forbid. */
 function nowLine(running: Appointment | undefined, now: string, week: Appointment[], today: string, household: Household): Utterance[] {
-  if (!running) {
-    /* Only where the day still has something in it. In the evening the gap is not
-       a gap, and *du kannst spielen* would be the wrong thing to tell a child at
-       eight — the next sentence says the day is over instead. */
-    const more = timedOn(week, today).some(item => item.start! > now);
-    return [utter(fixed(more ? FRAMES.nothingYet : FRAMES.nothing))];
-  }
+  /* One sentence for an empty moment, whatever comes after it. There used to be
+     two — the gap before something added *Du kannst spielen* — and the addition
+     was the board telling a child what to do with their own time, which is not
+     what it is for. It says what is true and stops; the next sentence says
+     whether anything is coming. */
+  if (!running) return [utter(fixed(FRAMES.nothing))];
   const said = spokenName(running, household.cards);
   if (!said) return [];
   /* Addressed by name where the appointment concerns exactly one person: that is
@@ -388,7 +386,7 @@ export function standing(): string[] {
   const line = (...parts: Part[]) => utter(...parts).text;
   return [
     ...DAYS.map(day => line(fixed(FRAMES.today), fixed(day))),
-    FRAMES.nothing, FRAMES.nothingYet, FRAMES.done, FRAMES.free, FRAMES.look,
+    FRAMES.nothing, FRAMES.done, FRAMES.free, FRAMES.look,
     FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
   ];
 }

@@ -94,9 +94,11 @@ describe("what is running", () => {
     expect(said(week, at("08:50"), house())[1]).toBe("Frühstück ist gleich fertig.");
   });
 
-  it("offers playing in a gap, but not once the day is done", () => {
+  it("says the same thing about an empty moment, whatever comes after it", () => {
+    /* It used to add *Du kannst spielen* where the day still had something in
+       it, which was the board telling a child what to do with their own time. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
-    expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts geplant. Du kannst spielen.");
+    expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts geplant.");
     expect(said(week, at("19:00"), house())[1]).toBe("Gerade ist nichts geplant.");
   });
 });
@@ -130,7 +132,7 @@ describe("what comes next", () => {
     /* Two sentences, not three: *Du kannst spielen* and *danach hast du frei* are
        one thing said twice. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
-    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts geplant. Du kannst spielen."]);
+    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
   });
 
   it("still names a choice that is genuinely next", () => {
