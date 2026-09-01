@@ -1,5 +1,5 @@
 import { el, fill } from "../ui.js";
-import { caveats, factsOf, type Voice } from "../voices.js";
+import { caveats, factsOf, labelOf, type Voice } from "../voices.js";
 
 /**
  * The list the calendar's one voice is chosen from.
@@ -37,14 +37,14 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
   const more = el("div", { class: "acts" });
   const node = el("div", { class: "stack" }, list, more);
 
-  function voiceRow(voice: Voice, live: boolean): HTMLElement {
+  function voiceRow(voice: Voice, live: boolean, among: readonly Voice[]): HTMLElement {
     const notes = caveats(voice);
     const row = el("button", {
       class: `voice${live ? " voice--live" : ""}`,
       attrs: { type: "button", role: "radio", "aria-checked": live },
       on: { click: () => spec.pick(voice.id) },
     },
-      el("span", { class: "voice__name", text: voice.name }),
+      el("span", { class: "voice__name", text: labelOf(voice, among) }),
       el("span", { class: "voice__facts small muted", text: factsOf(voice) }),
       ...notes.map(note => el("span", { class: "voice__hint small", text: note })));
     /* Roving tabindex: Tab leaves the group rather than walking every row of it. */
@@ -67,7 +67,7 @@ export function voiceChoice(spec: VoiceChoiceSpec): VoiceChoice {
          not among its rows reads as having lost it. */
       : voices.filter(voice => voice.recommended || voice.id === live);
 
-    fill(list, ...shown.map(voice => voiceRow(voice, voice.id === live)));
+    fill(list, ...shown.map(voice => voiceRow(voice, voice.id === live, shown)));
     fill(more, rest.length && lead.length
       ? el("button", {
         class: "btn sm quiet", attrs: { type: "button", "aria-expanded": all },

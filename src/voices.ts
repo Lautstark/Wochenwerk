@@ -1,4 +1,4 @@
-import { listVoices, type Offered } from "@lautstark/stimmquelle";
+import { labelOf, listVoices, type Offered } from "@lautstark/stimmquelle";
 import { settings } from "./db.js";
 
 /* Which voices there are is stimmquelle's question, not this calendar's. The
@@ -79,5 +79,14 @@ export function caveats(voice: Voice): string[] {
   return said;
 }
 
-export const nameOf = (voices: readonly Voice[], id: string | undefined) =>
-  voices.find(voice => voice.id === id)?.name ?? "";
+/* What to call a voice, asked of the list it is being shown in rather than of the
+   voice alone. Two of the German piper voices are both named „Thorsten" and differ
+   only in tier, and this calendar used to tell them apart by download size alone —
+   63 MB against 114. `labelOf` is stimmquelle's answer, and it is asked per list
+   because the fold changes which list somebody is looking at: a label fixed against
+   a list nobody is reading moves the ambiguity instead of removing it. */
+export { labelOf };
+export const nameOf = (voices: readonly Voice[], id: string | undefined) => {
+  const voice = voices.find(item => item.id === id);
+  return voice ? labelOf(voice, voices) : "";
+};
