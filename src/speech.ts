@@ -119,6 +119,8 @@ export async function saying(at: Date): Promise<Utterance[]> {
 }
 
 export type Announced = { lines: string[]; trouble?: string };
+/** Which appointment is being talked about right now, or nothing between them. */
+export type Showing = (id: string | undefined) => void;
 
 /**
  * Say it. Two or three sentences, in order, and a press during them starts again.
@@ -127,21 +129,30 @@ export type Announced = { lines: string[]; trouble?: string };
  * child: no voice chosen yet, or a voice that would not speak. The board has one
  * quiet line for exactly that, the same one the missing symbol folder uses.
  */
-export async function announceAt(at: Date): Promise<Announced> {
+export async function announceAt(at: Date, showing: Showing = () => {}): Promise<Announced> {
   stop();
+  showing(undefined);
   const mine = ++generation;
   const lines = await saying(at);
   const { voice } = await settings();
   if (!voice) return { lines: lines.map(line => line.text), trouble: "Noch keine Stimme gewählt — Kalender → Einstellungen → Stimme." };
   for (const line of lines) {
     if (generation !== mine) break;
+    /* Lit while it is being said and let go the moment it is not, so the two
+       cannot drift apart: a card still lit under the following sentence points
+       at the wrong thing, which is worse than pointing at nothing. */
+    showing(line.about);
     try { await utter(line.text, voice, mine); }
     catch (error) {
       /* Stop at the first one that will not speak. Carrying on would say the
          second half of an announcement whose first half nobody heard, which is
          worse than silence: the child is told what comes next and not what is. */
+      showing(undefined);
       return { lines: lines.map(item => item.text), trouble: `Die Ansage ging nicht: ${(error as Error)?.message ?? "unbekannter Fehler"}` };
     }
   }
+  /* Only where this press still owns the speaker: a newer one has already put its
+     own card up, and clearing here would take that one down again. */
+  if (generation === mine) showing(undefined);
   return { lines: lines.map(line => line.text) };
 }

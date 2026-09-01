@@ -208,9 +208,21 @@ answers it.
 ## The button
 
 A press interrupts whatever is speaking and starts again; a second press is a
-repeat, not a queue. While it speaks, the appointment it names lifts on the
-board, so the sound and the picture answer together — which is the pairing
-[hardware.md](hardware.md) sketches for its information cards.
+repeat, not a queue.
+
+**The card is lit for exactly as long as the sentence about it.** Every sentence
+knows which appointment it is about, or that it is about none — the day sentence
+is about none, and so is *danach hast du frei* — and the board follows that from
+one sentence to the next: nothing, then the running card, then the one that is
+coming. A card still lit under the following sentence would point at the wrong
+thing, which is worse than pointing at nothing.
+
+A ring rather than a fill, because the card's own colour is already saying
+whether it is over, now or ahead and must not have to give that up. It breathes,
+because a still outline on a board full of pictures is not what pulls a
+two-year-old's eye, and it holds still for anyone whose system asks for less
+motion. This is the pairing [hardware.md](hardware.md) sketches for its
+information cards: a spoken cue and a temporary visual focus, together.
 
 Build it as one function, and give the button, a keypress and a card UID the
 same door. Then the *jetzt* / *heute* / *morgen* cards that hardware.md leaves

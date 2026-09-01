@@ -155,3 +155,15 @@ header { display: flex; align-items: center; justify-content: space-between; gap
    ARASAAC notice, and invisible while it is empty. */
 .setup { position: fixed; left: .5rem; bottom: .25rem; margin: 0; max-width: 60vw;
   font-size: 11px; line-height: 1.3; color: #6b645e; pointer-events: none; }
+
+/* The card the voice is on. A ring rather than a fill, so it reads the same on an
+   ordinary card, on the lifted current one and on a greyed past one, and none of
+   the three has to give up what its own colour already says. It breathes, because
+   a still outline on a board full of pictures is not what pulls a two-year-old's
+   eye — and it stops for anyone who has asked the system for less motion. */
+.card.saying { z-index: 10; outline: .3rem solid rgba(47, 42, 38, .85); outline-offset: .2rem;
+  animation: saying 1.15s ease-in-out infinite; }
+@keyframes saying {
+  50% { outline-color: rgba(47, 42, 38, .3); outline-offset: .5rem; }
+}
+@media (prefers-reduced-motion: reduce) { .card.saying { animation: none; } }

@@ -93,7 +93,7 @@ function card(draw: Drawing, { appointment, top, height, lane, lanes }: Placed) 
   const icons = shown.map(item => item.symbol
     ? `<span class="icon">${picture(draw, item.symbol)}</span>`
     : `<span class="icon"><span class="missing">${escape(item.name)}</span></span>`).join("");
-  return `<div class="${classes}" style="${box}"><span class="icons">${icons}</span>${crowd}</div>`;
+  return `<div class="${classes}" style="${box}" data-id="${escape(appointment.id)}"><span class="icons">${icons}</span>${crowd}</div>`;
 }
 
 /* Everything that lasts all day sits at the top of the day rather than in the
@@ -199,6 +199,7 @@ const app = document.querySelector<HTMLElement>("#app")!;
 async function tick() {
   const at = new Date();
   app.innerHTML = await build(at);
+  light(lit);
   setTimeout(tick, 60_000 - (at.getSeconds() * 1000 + at.getMilliseconds()) + 20);
 }
 
@@ -207,6 +208,17 @@ async function tick() {
    at all when there is nothing wrong. It lives outside `#app` because the minute
    tick rewrites everything inside it. */
 const setup = document.body.appendChild(el("p", { class: "setup" }));
+
+/* Which card the voice is on. Held rather than only applied, because the board
+   rewrites itself on every minute boundary and a sentence outlives that: without
+   this the light would go out mid-word, at a moment that has nothing to do with
+   the announcement. */
+let lit: string | undefined;
+function light(id?: string) {
+  lit = id;
+  for (const node of app.querySelectorAll(".card.saying")) node.classList.remove("saying");
+  if (id) app.querySelector(`.card[data-id="${CSS.escape(id)}"]`)?.classList.add("saying");
+}
 const trouble = (words?: string) => { setup.textContent = words ?? ""; };
 whenStuck(trouble);
 
@@ -225,7 +237,7 @@ addEventListener("keydown", event => {
   /* Cleared before rather than after: a sentence takes seconds to speak, and a
      line about what went wrong last time is still on the wall for all of them. */
   trouble();
-  void announceAt(new Date()).then(said => trouble(said.trouble));
+  void announceAt(new Date(), light).then(said => trouble(said.trouble));
 });
 
 await restore().catch(() => false);

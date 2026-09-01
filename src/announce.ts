@@ -16,7 +16,7 @@ import { addDays, allDay, board, bornOn, cardSays, daypartTimes, iso, minute, re
 /** One clip. `own` marks a word that came out of a household record. */
 export type Part = { say: string; own: boolean };
 /** One utterance: the clips it is played from, and how the whole of it reads. */
-export type Utterance = { parts: Part[]; text: string };
+export type Utterance = { parts: Part[]; text: string; about?: string };
 export type Household = { cards: Map<string, Card>; people: Map<string, Person> };
 
 /* The fixed half of the vocabulary, in one object because that is what makes it
@@ -92,6 +92,12 @@ const utter = (...parts: Part[]): Utterance => {
   const text = parts.reduce((line, part) => line && !/^[,.:;!?]/.test(part.say) ? `${line} ${part.say}` : line + part.say, "");
   return { parts, text: /[.!?]$/.test(text) ? text : `${text}.` };
 };
+
+/* Which appointment a sentence is about, where it is about one. The board lifts
+   that card while the sentence plays, so the sound and the picture answer the
+   same question at the same moment — which is most of what makes an announcement
+   legible to somebody who cannot yet follow a sentence on its own. */
+const about = (appointment: Appointment, line: Utterance): Utterance => ({ ...line, about: appointment.id });
 
 const byStart = (a: Appointment, b: Appointment) => snapped(a.start!) - snapped(b.start!) || snapped(a.end!) - snapped(b.end!);
 const timedOn = (week: Appointment[], date: string) => week.filter(item => item.date === date && !allDay(item)).sort(byStart);
@@ -177,9 +183,9 @@ function nowLine(running: Appointment | undefined, now: string, week: Appointmen
   const people = peopleOn(running, household);
   const who = people.length === 1 ? own(people[0]!.name) : undefined;
   if (minute(running.end!) - minute(now) <= board.snap)
-    return [utter(...(who ? [who, fixed(FRAMES.comma)] : []), own(said), fixed(FRAMES.ending))];
+    return [about(running, utter(...(who ? [who, fixed(FRAMES.comma)] : []), own(said), fixed(FRAMES.ending)))];
   const decided = running.chosen ? [fixed(FRAMES.decided)] : [];
-  return [utter(...(who ? [who, fixed(FRAMES.nowFor)] : [fixed(FRAMES.now)]), own(said), ...decided)];
+  return [about(running, utter(...(who ? [who, fixed(FRAMES.nowFor)] : [fixed(FRAMES.now)]), own(said), ...decided))];
 }
 
 function nextLine(week: Appointment[], at: Date, now: string, running: Appointment | undefined, household: Household): Utterance[] {
@@ -199,11 +205,11 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
        is time to play, and saying it twice in two wordings is worse than once. */
     return running ? [utter(fixed(FRAMES.free))] : [];
   }
-  if (undecided(next)) return [utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose))];
+  if (undecided(next)) return [about(next, utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose)))];
   const said = spokenName(next, household.cards);
   if (!said) return [];
   const when = soon ? FRAMES.soon : running ? FRAMES.after : FRAMES.then;
-  return [utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : []))];
+  return [about(next, utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : [])))];
 }
 
 /* Sleeps are the one unit a two-year-old already owns, and exactly one of them is
@@ -212,7 +218,7 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
 function restOfIt(week: Appointment[], at: Date, household: Household): Utterance {
   const tomorrow = timedOn(week, iso(addDays(at, 1)))[0];
   const said = tomorrow ? spokenName(tomorrow, household.cards) : undefined;
-  return said ? utter(fixed(FRAMES.done), fixed(FRAMES.sleep), own(said)) : utter(fixed(FRAMES.done));
+  return said ? about(tomorrow!, utter(fixed(FRAMES.done), fixed(FRAMES.sleep), own(said))) : utter(fixed(FRAMES.done));
 }
 
 /* An open choice, and it is the whole announcement. The options are named only
@@ -220,7 +226,7 @@ function restOfIt(week: Appointment[], at: Date, household: Household): Utteranc
    describe a table the child is looking at, wrongly. */
 function choosing(running: Appointment, household: Household): Utterance {
   const said = running.options.map(id => cardSays(household.cards.get(id))).filter((word): word is string => !!word);
-  return said.length === running.options.length && said.length <= 3
+  return about(running, said.length === running.options.length && said.length <= 3
     ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.slot))
-    : utter(fixed(FRAMES.look));
+    : utter(fixed(FRAMES.look)));
 }
