@@ -226,19 +226,27 @@ async function build(at: Date): Promise<string> {
     .filter(run => !draw.birthday(run.appointment))
     .filter(run => drawnSymbols(run.appointment, cards).length || run.appointment.people.length);
   const column_ = (index: number) => index + 1 + (index >= draw.todayIndex ? 1 : 0);
+  const todayColumn = column_(draw.todayIndex);
   const lanes = runs.length ? Math.max(...runs.map(run => run.lane)) + 1 : 0;
   const band = !runs.length ? "" : `<div class="band" style="grid-template-columns:${track.join(" ")}">
     ${runs.map(run => {
       const first = column_(dates.indexOf(run.days[0])), last = column_(dates.indexOf(run.days[run.days.length - 1]));
       const symbol = drawnSymbols(run.appointment, cards)[0];
       const over = run.days[run.days.length - 1] < dates[draw.todayIndex];
+      /* Where today falls inside the stretch, counted in the bar's own columns —
+         the bar borrows the week's tracks, so the boundary is a grid line and
+         never a percentage along a bar whose days are not equally wide. */
+      const cut = todayColumn > first && todayColumn <= last ? todayColumn - first + 1 : 0;
       return `<div class="span${run.before ? " span--from" : ""}${run.after ? " span--into" : ""}${over ? " gone" : ""}"
         style="grid-column:${first} / span ${last - first + 1}; grid-row:${run.lane + 1}">
-        ${symbol ? `<span class="badge">${picture(draw, symbol)}</span>` : ""}
-        ${run.appointment.people.length ? faces(draw, run.appointment.people, run.days[0]) : ""}
+        <span class="span__what">
+          ${symbol ? `<span class="badge">${picture(draw, symbol)}</span>` : ""}
+          ${run.appointment.people.length ? faces(draw, run.appointment.people, run.days[0]) : ""}
+        </span>
+        ${cut ? `<i class="span__gone" style="grid-column:1 / ${cut}"></i>` : ""}
       </div>`;
     }).join("")}
-    ${draw.todayIndex > 0 ? `<div class="band__gone" style="grid-column:1 / ${column_(draw.todayIndex)}; grid-row:1 / span ${lanes}"></div>` : ""}</div>`;
+    </div>`;
   const grown = lanes ? ` --band:${(lanes * 1.95 + 0.3).toFixed(2)}rem; --head:calc(var(--head-day) + var(--band))` : "";
   return `<div class="week" style="grid-template-columns:${track.join(" ")};${grown}">${cells.join("")}${band}</div>`
     + (credit.length ? `<p class="credit">${escape(credit.join(" "))}</p>` : "");

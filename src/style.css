@@ -31,11 +31,15 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    the right one for the thing lying over all of them. */
 .band { position: absolute; z-index: 3; left: 0; right: 0; top: var(--head-day); height: var(--band);
   display: grid; align-content: start; pointer-events: none; --paper: #fff; }
+/* The bar borrows the week's own columns, so what is inside it can be placed on a
+   day boundary. `overflow: hidden` is what makes the pill clip its own lining. */
+.span { display: grid; grid-template-columns: subgrid; align-items: center; min-width: 0;
+  margin: .2rem .3rem .25rem; border-radius: 999px; overflow: hidden;
+  background: var(--paper); box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18); }
 /* Centred, because the picture is about the whole stretch and not about the day
    it happens to start on. */
-.span { display: flex; align-items: center; justify-content: center; gap: .3rem; min-width: 0;
-  margin: .2rem .3rem .25rem; padding: .18rem .3rem; border-radius: 999px;
-  background: var(--paper); box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18); }
+.span__what { position: relative; z-index: 1; grid-area: 1 / 1 / 2 / -1; display: flex;
+  align-items: center; justify-content: center; gap: .3rem; min-width: 0; padding: .18rem .3rem; }
 /* Cut flat where it leaves the week. The shape is the whole statement. */
 .span--from { border-top-left-radius: .2rem; border-bottom-left-radius: .2rem; margin-left: 0; }
 .span--into { border-top-right-radius: .2rem; border-bottom-right-radius: .2rem; margin-right: 0; }
@@ -43,10 +47,15 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    is behind us: one that still covers today is not over, whatever it started. */
 .span.gone { filter: grayscale(.9); opacity: .72; }
 /* The part of a stretch that is behind us, greyed where a day would be greyed.
-   A mask over the past columns rather than a gradient inside each bar: the
-   columns are not equally wide — today is wider, and the rail sits among them —
-   so a percentage along a bar would not land on the day it means. */
-.band__gone { backdrop-filter: grayscale(.9) brightness(.82); pointer-events: none; }
+   Inside the bar rather than over the week: a mask laid across the past columns
+   dims everything behind it, and over a day carrying no stretch that is a grey
+   band across nothing.
+
+   It is the bar's own ground that darkens, under the picture rather than over it
+   — a wash across a symbol makes it harder to read, and a symbol on the board is
+   the whole message. */
+.span__gone { grid-row: 1; align-self: stretch;
+  background: color-mix(in oklab, var(--ink) 26%, var(--paper)); }
 .span .badge { width: 1.4rem; height: 1.4rem; }
 .span .face { width: 1.4rem; height: 1.4rem; box-shadow: 0 0 0 .12rem var(--paper); }
 .span .face + .face { margin-left: -.4rem; }
