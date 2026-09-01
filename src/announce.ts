@@ -218,3 +218,52 @@ function choosing(running: Appointment, household: Household): Utterance {
     ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.slot))
     : utter(fixed(FRAMES.look)));
 }
+
+/* Every sentence a record can turn up in, for whoever is writing its word.
+
+   Derived from the same frames the board speaks from rather than listed by hand,
+   so a rule that changes here changes what the calendar promises in the same
+   commit. It is also an honest preview of what a household would have to record:
+   the fixed half of each line is a clip that exists once for everything, and only
+   the word in it is theirs. See docs/speech.md. */
+export type Possible = { text: string; when: string };
+export type Shape = {
+  /** The one person it concerns, where it concerns exactly one. */
+  who?: string;
+  /** A card is offered before it is picked; an appointment may be either. */
+  offered?: boolean;
+  /** Whether it can also turn up as an appointment that something picked. */
+  picked?: boolean;
+  /** All day rather than at a time: a different set of sentences entirely. */
+  allDay?: boolean;
+};
+
+export function couldSay(word: string, shape: Shape = {}): Possible[] {
+  const said = word.trim();
+  if (!said) return [];
+  const line = (...parts: Part[]) => utter(...parts).text;
+  const w = own(said), who = shape.who ? own(shape.who) : undefined;
+  const tail = shape.picked ? [fixed(FRAMES.decided)] : [];
+
+  /* An all-day appointment is never running and never next: it is a fact about
+     the day, and the day sentence is the only one that carries it. */
+  if (shape.allDay) return [
+    { text: line(fixed(FRAMES.today), fixed("Dienstagmorgen"), fixed(FRAMES.and), fixed(FRAMES.alsoToday), w), when: "im Tagessatz, jeden Druck" },
+  ];
+
+  const possible: Possible[] = [];
+  if (shape.offered) possible.push(
+    { text: line(fixed(FRAMES.choose), w, fixed(FRAMES.slot)), when: "wenn die Wahl offen ist" },
+    { text: FRAMES.afterChoose, when: "davor, wenn etwas läuft" },
+    { text: FRAMES.soonChoose, when: "bis 20 Minuten davor" },
+  );
+  possible.push(
+    { text: who ? line(who, fixed(FRAMES.nowFor), w, ...tail) : line(fixed(FRAMES.now), w, ...tail), when: "während er läuft" },
+    { text: who ? line(who, fixed(FRAMES.comma), w, fixed(FRAMES.ending)) : line(w, fixed(FRAMES.ending)), when: "in der letzten Viertelstunde" },
+    { text: line(fixed(FRAMES.soon), w, ...tail), when: "bis 20 Minuten vorher" },
+    { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft" },
+    { text: line(fixed(FRAMES.then), w, ...tail), when: "in einer Lücke davor" },
+    { text: line(fixed(FRAMES.done), fixed(FRAMES.sleep), w), when: "am Abend davor" },
+  );
+  return possible;
+}

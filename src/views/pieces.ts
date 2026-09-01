@@ -1,7 +1,8 @@
 import { menuOn } from "@lautstark/design/menu";
-import { button, el, input } from "../ui.js";
+import { button, el, fill, input } from "../ui.js";
 import { pictureFor } from "../symbols.js";
 import { preview } from "../speech.js";
+import { couldSay, type Shape } from "../announce.js";
 import { type Card, type Person, type SymbolRef } from "../model.js";
 import { shown } from "../store.js";
 
@@ -82,28 +83,56 @@ export const cardThumb = (card: Card | undefined, known = shown().pictures) =>
  * choosing a word for a two-year-old without hearing it is choosing blind, and
  * the same trap was already there for the voice itself.
  */
-export function speechField(instead: () => string) {
+export function speechField(instead: () => string, shape: () => Shape = () => ({})) {
   const box = input("text", { attrs: { autocomplete: "off" } });
   const why = el("p", { class: "hint", attrs: { role: "status" } });
-  const play = button("Anhören", "quiet sm", async () => {
-    const said = box.value.trim() || instead();
+  const word = () => box.value.trim() || instead();
+
+  const play = (text: string, node: HTMLButtonElement, label: string) => async () => {
     why.textContent = "";
-    if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
-    play.disabled = true;
-    play.textContent = "Spricht …";
-    const trouble = await preview(said);
-    play.disabled = false;
-    play.textContent = "Anhören";
+    node.disabled = true;
+    const was = node.textContent;
+    node.textContent = "…";
+    const trouble = await preview(text);
+    node.disabled = false;
+    node.textContent = was ?? label;
     /* Said here rather than handed upwards: both places this sits are panels with
        no status line of their own, and a problem with one word belongs beside
        that word rather than at the far end of a sheet. */
     if (trouble) why.textContent = trouble;
+  };
+
+  const hear = button("Anhören", "quiet sm", () => {
+    const said = word();
+    if (!said) { why.textContent = "Erst einen Namen eintippen."; return; }
+    void play(said, hear, "Anhören")();
   });
-  const node = el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, play), why);
+
+  /* Every sentence the word can turn up in, closed by default: six of them under
+     each dialog would be more surface than the form they belong to. Absent
+     entirely until there is a word, because a list of frames with a hole in each
+     one answers nothing. */
+  const lines = el("div", { class: "sentences" });
+  const all = el("details", { class: "sentences__fold" }, el("summary", {}), lines);
+
   return {
-    node, box,
-    /* Called whenever the name it stands in for changes, so the placeholder never
-       promises a word the record has since stopped having. */
-    draw: () => { box.placeholder = instead() || "Ohne Namen wird nichts gesagt"; },
+    node: el("div", { class: "speech" }, el("div", { class: "speech-row" }, box, hear), why, all),
+    box,
+    /* Called whenever the name it stands in for changes, so neither the
+       placeholder nor the list promises a word the record has stopped having. */
+    draw: () => {
+      box.placeholder = instead() || "Ohne Namen wird nichts gesagt";
+      const possible = couldSay(word(), shape());
+      all.hidden = !possible.length;
+      all.querySelector("summary")!.textContent = `Alle Sätze mit diesem Wort (${possible.length})`;
+      fill(lines, ...possible.map(line => {
+        const one = button("▶", "quiet sm round", () => {});
+        one.setAttribute("aria-label", "Satz anhören");
+        one.addEventListener("click", () => void play(line.text, one, "▶")());
+        return el("div", { class: "sentence" }, one,
+          el("span", { class: "sentence__text", text: line.text }),
+          el("span", { class: "sentence__when", text: line.when }));
+      }));
+    },
   };
 }

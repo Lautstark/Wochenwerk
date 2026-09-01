@@ -31,7 +31,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
   /* What the board says when this card is offered or named. Empty means the name
      itself, which is the ordinary case — the field is here for where the written
      and the spoken word come apart. docs/speech.md. */
-  const speech = speechField(() => name.value.trim() || draft.name);
+  const speech = speechField(() => name.value.trim() || draft.name, () => ({ offered: true, picked: true }));
   speech.box.value = draft.speech ?? "";
 
   const slot = el("div", { class: "slot" });

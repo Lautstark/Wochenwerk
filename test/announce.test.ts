@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announce, vocabulary, type Household, type Part } from "../src/announce.js";
+import { announce, couldSay, vocabulary, type Household, type Part } from "../src/announce.js";
 import type { Appointment, Card, Person, SymbolRef } from "../src/model.js";
 
 /* 2026-09-01 is a Tuesday, and 09-02 the Wednesday after it. */
@@ -215,5 +215,43 @@ describe("what is never said", () => {
       expect(spoken, `at ${moment.toTimeString().slice(0, 5)}`).not.toMatch(/\d/);
       expect(spoken.length, `at ${moment.toTimeString().slice(0, 5)}`).toBeLessThan(180);
     }
+  });
+});
+
+describe("what a word can turn up in", () => {
+  it("says nothing at all without a word", () => {
+    /* The list is shown while a name is being typed, and a frame with a hole in
+       it answers nothing — so there is no list until there is something to put
+       in it. */
+    expect(couldSay("")).toEqual([]);
+    expect(couldSay("   ")).toEqual([]);
+  });
+
+  it("is built from the frames the board actually speaks from", () => {
+    const said = couldSay("Turnen").map(line => line.text);
+    expect(said).toContain("Jetzt ist Turnen.");
+    expect(said).toContain("Gleich kommt Turnen.");
+    expect(said).toContain("Heute kommt nichts mehr. Einmal schlafen, dann ist Turnen.");
+    expect(said.every(line => line.includes("Turnen"))).toBe(true);
+  });
+
+  it("addresses the one person it concerns", () => {
+    const said = couldSay("Turnen", { who: "Mia" }).map(line => line.text);
+    expect(said).toContain("Mia, jetzt ist Turnen.");
+    expect(said).toContain("Mia, Turnen ist gleich fertig.");
+  });
+
+  it("gives a card the sentence it is offered with, and the one it is named in", () => {
+    const said = couldSay("Schwimmbad", { offered: true, picked: true }).map(line => line.text);
+    expect(said).toContain("Jetzt darfst du aussuchen: Schwimmbad. Leg eine Karte in den Schlitz.");
+    expect(said).toContain("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
+  });
+
+  it("gives an all-day appointment only the day sentence", () => {
+    /* It is never running and never next: it is a fact about the day, and the
+       day sentence is the only one that carries it. */
+    const said = couldSay("Ferientag", { allDay: true });
+    expect(said).toHaveLength(1);
+    expect(said[0]!.text).toContain("und heute ist Ferientag.");
   });
 });

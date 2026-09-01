@@ -103,7 +103,15 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      the ordinary case: the board draws symbols and never a title, so a title is
      free to carry what the child is not told — a room, a practice, a surname —
      and this is where the two come apart. docs/speech.md. */
-  const speech = speechField(() => title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "");
+  const speech = speechField(
+    () => title.value.trim() || cardSays(shown().cards.get(draft.chosen ?? "")) || "",
+    () => ({
+      /* One person is an address; two is a list, and a list is not an address. */
+      who: draft.people.length === 1 ? shown().people.find(person => person.id === draft.people[0])?.name : undefined,
+      offered: draft.options.length > 0 && !draft.chosen,
+      picked: !!draft.chosen,
+      allDay: whole.checked,
+    }));
   speech.box.value = draft.speech ?? "";
 
   const handle = openDialog({

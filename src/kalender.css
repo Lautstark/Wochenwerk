@@ -223,3 +223,16 @@ a.btn { text-decoration: none; }
 .speech-row { display: flex; gap: .4rem; align-items: center; }
 .speech-row .field { flex: 1 1 auto; min-width: 0; }
 .speech-row .btn { flex: 0 0 auto; white-space: nowrap; }
+
+/* Every sentence the word turns up in. Closed by default and gone entirely while
+   there is no word — a list of frames with a hole in each one answers nothing. */
+.sentences__fold > summary { font-size: .82rem; color: var(--muted); cursor: pointer; padding: .3rem 0; }
+.sentences { display: flex; flex-direction: column; }
+.sentence { display: flex; align-items: center; gap: .55rem; padding: .35rem 0;
+  border-bottom: 1px solid var(--line); }
+.sentence:last-child { border-bottom: 0; }
+.sentence__text { flex: 1 1 auto; min-width: 0; font-size: .88rem; }
+/* When it is said, in the words the rules are written in rather than in minutes:
+   for whoever is planning, "in der letzten Viertelstunde" carries more than 15. */
+.sentence__when { flex: 0 0 auto; font-size: .75rem; color: var(--muted); }
+.btn.round { min-width: 1.9rem; padding-inline: 0; }

@@ -142,6 +142,17 @@ card offered at two and named at three is one noun in two frames; had it carried
 *Jetzt ist ins Schwimmbad gehen*. Nothing catches that but an ear, which is why
 the rule is on the record rather than on the frame.
 
+**And the word is written where it can be heard.** An appointment and a card
+each carry an Ansage field with a button that says it, and a fold under it
+listing every sentence the word can turn up in — `couldSay`, derived from the
+same frames the board speaks from rather than written out again, so a rule that
+changes changes both in one commit. It is the honest preview of what recording
+would ask for, too: the fixed half of every line is a clip that exists once for
+everything, and only the word inside it is the household's.
+
+There is no list until there is a word. A frame with a hole in it answers
+nothing, and the field is looked at while a name is still being typed.
+
 **The second string is an override, not a translation.** `speech` on either
 record is for where the written and the spoken word come apart — a card called
 *Schwimmbad Aquarena*, an appointment titled *Turnen, Halle 2* — and
