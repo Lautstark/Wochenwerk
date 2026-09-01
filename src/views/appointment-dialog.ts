@@ -55,9 +55,13 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const wholeRow = el("label", { class: "choice" }, whole, el("span", { text: "Ganztägig" }));
   const seriesLine = el("p", { class: "small muted" });
 
+  /* What the two sides differ in is whether the appointment is already answered,
+     so that is what they are named after. „Symbole" named the half rather than the
+     answer — both sides carry symbols now — and „Das Kind wählt" said it in a
+     whole sentence beside a one-word sibling. */
   const kinds = el("div", { class: "segmented" },
-    button("Symbole", "sm", () => { mode = "symbols"; sync(); }),
-    button("Das Kind wählt", "sm", () => { mode = "choice"; sync(); }));
+    button("festgelegt", "sm", () => { mode = "symbols"; sync(); }),
+    button("wählbar", "sm", () => { mode = "choice"; sync(); }));
   const chosen = el("div", { class: "chosen" });
   const search = symbolSearch(ref => {
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
