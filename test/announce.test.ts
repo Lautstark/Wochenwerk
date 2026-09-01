@@ -25,11 +25,11 @@ const said = (week: Appointment[], at: Date, home: Household) => announce(week, 
 describe("the day sentence", () => {
   it("compounds the weekday with the daypart", () => {
     const day = (time: string) => said([], at(time), house())[0];
-    expect(day("06:30")).toBe("Heute ist Dienstagmorgen.");
-    expect(day("08:00")).toBe("Heute ist Dienstagmorgen.");
-    expect(day("12:00")).toBe("Heute ist Dienstagmittag.");
-    expect(day("15:30")).toBe("Heute ist Dienstagnachmittag.");
-    expect(day("19:15")).toBe("Heute ist Dienstagabend.");
+    expect(day("06:30")).toBe("Es ist Dienstagmorgen.");
+    expect(day("08:00")).toBe("Es ist Dienstagmorgen.");
+    expect(day("12:00")).toBe("Es ist Dienstagmittag.");
+    expect(day("15:30")).toBe("Es ist Dienstagnachmittag.");
+    expect(day("19:15")).toBe("Es ist Dienstagabend.");
   });
 
   it("gives the whole day sentence to a birthday, with the age spelled out", () => {
@@ -47,13 +47,13 @@ describe("the day sentence", () => {
     expect(lines[0]).toBe("Heute ist der Geburtstag von Oma.");
   });
 
-  it("gives a named day fact its own sentence rather than a second *heute ist*", () => {
-    /* "Heute ist Donnerstagmorgen, und heute ist Ferientag" says the same two
-       words twice inside one sentence. Split, the repetition is a parallel a
-       two-year-old can follow, and the second half is the clip the first half
-       already used. */
+  it("gives a named day fact its own sentence rather than a clause on the day", () => {
+    /* A day fact arrives as a whole sentence with a subject of its own, so
+       "Es ist Donnerstagmorgen, und heute ist Ferientag" would hang two sentences
+       off one *und*. Split, the two stand in the same shape and a two-year-old can
+       follow the parallel. */
     const week = [appointment(undefined, undefined, { symbols: [], title: "Ferientag" })];
-    expect(said(week, at("09:00"), house())[0]).toBe("Heute ist Dienstagmorgen. Heute ist Ferientag.");
+    expect(said(week, at("09:00"), house())[0]).toBe("Es ist Dienstagmorgen. Heute ist Ferientag.");
   });
 
   it("lets a day say what no frame could have produced", () => {
@@ -64,13 +64,13 @@ describe("the day sentence", () => {
     const week = [appointment(undefined, undefined, {
       symbols: [], title: "Besuch im Saarland", speech: "Heute fahren wir ins Saarland.",
     })];
-    expect(said(week, at("09:00"), house())[0]).toBe("Heute ist Dienstagmorgen. Heute fahren wir ins Saarland.");
+    expect(said(week, at("09:00"), house())[0]).toBe("Es ist Dienstagmorgen. Heute fahren wir ins Saarland.");
   });
 
   it("carries a visit — a person with no symbol on them", () => {
     const week = [appointment(undefined, undefined, { symbols: [], people: ["o"] })];
     const lines = said(week, at("09:00"), house([], [person("o", "Oma")]));
-    expect(lines[0]).toBe("Heute ist Dienstagmorgen, und Oma kommt.");
+    expect(lines[0]).toBe("Es ist Dienstagmorgen, und Oma kommt.");
   });
 });
 
@@ -159,7 +159,7 @@ describe("what comes next", () => {
     /* Two sentences, not three: *Gerade ist nichts geplant* and *danach ist
        nichts geplant* are one thing said twice. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
-    expect(said(week, at("10:00"), house())).toEqual(["Heute ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
+    expect(said(week, at("10:00"), house())).toEqual(["Es ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
   });
 
   it("still names a choice that is genuinely next", () => {
@@ -229,7 +229,7 @@ describe("what is never said", () => {
        contributes no sentence at all. */
     const week = [appointment("08:00", "09:00"), appointment("09:15", "12:00")];
     const lines = said(week, at("08:30"), house());
-    expect(lines).toEqual(["Heute ist Dienstagmorgen."]);
+    expect(lines).toEqual(["Es ist Dienstagmorgen."]);
     expect(lines.join(" ")).not.toContain("kindergaertnerin");
   });
 
@@ -366,10 +366,10 @@ describe("what a word can turn up in", () => {
        the weekday is the appointment's own, not a specimen. */
     const said = couldSay("Heute ist Ferientag.", { allDay: true, date: "2026-09-03" });
     expect(said.map(line => line.text)).toEqual([
-      "Heute ist Donnerstagmorgen. Heute ist Ferientag.",
-      "Heute ist Donnerstagmittag. Heute ist Ferientag.",
-      "Heute ist Donnerstagnachmittag. Heute ist Ferientag.",
-      "Heute ist Donnerstagabend. Heute ist Ferientag.",
+      "Es ist Donnerstagmorgen. Heute ist Ferientag.",
+      "Es ist Donnerstagmittag. Heute ist Ferientag.",
+      "Es ist Donnerstagnachmittag. Heute ist Ferientag.",
+      "Es ist Donnerstagabend. Heute ist Ferientag.",
     ]);
   });
 

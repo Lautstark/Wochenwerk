@@ -31,12 +31,21 @@ day emptied out and something on the next one, which is bedtime, when a board on
 a wall is behind somebody's back. What the board is for is the day in front of
 the child. It says the day is over and stops.
 
+**The day sentence says which moment it is, not which day.** *Es ist
+Dienstagabend*, not *Heute ist Dienstagabend*: *heute* names the whole of Tuesday
+and then hands back a quarter of it, which is what a person says about a date and
+not about where they are standing. The child is standing in front of today — it is
+the one word on this board that never has to be said. It stays where the day is
+genuinely the subject: *Heute ist der Geburtstag von Mia*, *Heute ist nichts mehr
+geplant*, and a day fact's own *Heute ist Ferientag*.
+
 **A guest rides along; a named fact does not.** *…, und Oma kommt* adds a person
-to the day sentence and reads as one thing. *…, und heute ist Ferientag* says the
-same two words twice inside one sentence, so it becomes a second short sentence
-instead — which repeats *Heute ist* on purpose rather than by accident. At this
-age a parallel is easier to follow than an ellipsis, and the repeat costs
-nothing: it is the clip the first half already used.
+to the day sentence and reads as one thing — the sentence keeps the subject it
+started with. A named fact arrives as a whole sentence of the household's own,
+with a subject of its own, so *…, und heute ist Ferientag* would hang two
+sentences off one *und*. It becomes a second short sentence instead. The two then
+stand in the same shape, *Es ist …* and *Heute ist …*, and at this age a parallel
+is easier to follow than an ellipsis.
 
 **A birthday takes the whole day sentence.** On every other day that sentence
 answers *which day is it*, and the daypart is the useful half of the answer; on
@@ -67,10 +76,10 @@ facts cost one line.
 
 | when | said |
 | --- | --- |
-| always | *Heute ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
+| always | *Es ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
 | somebody's birthday | *Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
-| a guest | *Heute ist Dienstagmorgen, und Oma kommt.* |
-| a day fact with something of its own to say | *Heute ist Dienstagmorgen. Heute fahren wir ins Saarland.* |
+| a guest | *Es ist Dienstagmorgen, und Oma kommt.* |
+| a day fact with something of its own to say | *Es ist Dienstagmorgen. Heute fahren wir ins Saarland.* |
 
 **Now** — what the board draws as the lifted card.
 

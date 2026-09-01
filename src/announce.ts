@@ -24,7 +24,12 @@ export type Household = { cards: Map<string, Card>; people: Map<string, Person> 
    to exist before the first appointment is planned. A frame written inline
    somewhere else would be a clip nothing had asked anybody to record. */
 const FRAMES = {
-  today: "Heute ist",
+  /* *Es ist Dienstagabend*, not *Heute ist Dienstagabend*. The sentence says which
+     moment it is, and a moment is not a day: *heute* names the whole of Tuesday
+     and then hands back a quarter of it, which is a thing a person says about a
+     date and not about where they are standing. The child is standing in front of
+     today — it is the one word on this board that never has to be said. */
+  day: "Es ist",
   and: ", und",
   birthday: "hat Geburtstag",
   birthdays: "haben Geburtstag",
@@ -147,7 +152,7 @@ export function announce(week: Appointment[], at: Date, household: Household): U
   return [dayLine(week, at, now, household), ...nowLine(running, now, week, today, household), ...nextLine(week, at, now, running, household)];
 }
 
-/* Heute ist Dienstagmorgen — plus at most one clause, because an all-day
+/* Es ist Dienstagmorgen — plus at most one clause, because an all-day
    appointment is the one thing the day carries that the other two sentences will
    never reach. A birthday and a visit are the shapes product.md names; anything
    else all-day is said by its own spoken word or not at all. */
@@ -160,16 +165,17 @@ function dayLine(week: Appointment[], at: Date, now: string, household: Househol
      still carries the daypart, drawn, all day. */
   const born = birthdayLine(facts, household);
   if (born) return born;
-  const day = `${WEEKDAYS[(at.getDay() + 6) % 7]}${DAYPARTS[daypartOf(now)]}`;
+  const dayWord = `${WEEKDAYS[(at.getDay() + 6) % 7]}${DAYPARTS[daypartOf(now)]}`;
   const guests = visitClause(facts, household);
   const named = namedFact(facts, household);
   /* A guest rides along on the day sentence — *und Oma kommt* adds a person to
-     it. A named fact does not: "Heute ist Donnerstagmorgen, und heute ist
-     Ferientag" says the same two words twice inside one sentence. It becomes its
-     own short sentence instead, which repeats *Heute ist* on purpose rather than
-     by accident — a parallel is easier for a two-year-old than an ellipsis, and
-     the second half is then the very clip the first half already used. */
-  return utter(fixed(FRAMES.today), fixed(day),
+     it, and the sentence still has the one subject it started with. A named fact
+     does not: it arrives as a whole sentence of the household's own, with a
+     subject of its own — see `dayFact` — so "Es ist Donnerstagmorgen, und heute
+     ist Ferientag" hangs two sentences off one *und*. It becomes its own short
+     sentence instead. The two then stand in the same shape, *Es ist …* and *Heute
+     ist …*, and a parallel is easier for a two-year-old than an ellipsis. */
+  return utter(fixed(FRAMES.day), fixed(dayWord),
     ...(guests.length ? [fixed(FRAMES.and), ...guests] : []),
     ...(named ? [fixed(FRAMES.stop), own(named)] : []));
 }
@@ -347,7 +353,7 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     }];
   }
   if (shape.visiting?.length) return days.map(day => ({
-    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.and), ...names(shape.visiting!),
+    text: line(fixed(FRAMES.day), fixed(day.word), fixed(FRAMES.and), ...names(shape.visiting!),
       fixed(shape.visiting!.length > 1 ? FRAMES.visit : FRAMES.visits)),
     when: day.when,
   }));
@@ -382,7 +388,7 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
   /* An all-day fact says a sentence rather than a word — see `dayFact`. It is
      handed one, so nothing here wraps it. */
   if (shape.allDay) return days.map(day => ({
-    text: line(fixed(FRAMES.today), fixed(day.word), fixed(FRAMES.stop), w),
+    text: line(fixed(FRAMES.day), fixed(day.word), fixed(FRAMES.stop), w),
     when: day.when,
   }));
 
@@ -405,7 +411,7 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
 export function standing(): string[] {
   const line = (...parts: Part[]) => utter(...parts).text;
   return [
-    ...DAYS.map(day => line(fixed(FRAMES.today), fixed(day))),
+    ...DAYS.map(day => line(fixed(FRAMES.day), fixed(day))),
     FRAMES.nothing, FRAMES.done, FRAMES.free, FRAMES.look,
     FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
   ];
