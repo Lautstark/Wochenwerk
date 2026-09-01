@@ -222,6 +222,9 @@ whenStuck(trouble);
 addEventListener("keydown", event => {
   if (event.code !== "Space" || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
   event.preventDefault();
+  /* Cleared before rather than after: a sentence takes seconds to speak, and a
+     line about what went wrong last time is still on the wall for all of them. */
+  trouble();
   void announceAt(new Date()).then(said => trouble(said.trouble));
 });
 
