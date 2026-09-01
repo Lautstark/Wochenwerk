@@ -11,9 +11,11 @@ The calendar resolves everything. The board receives seven concrete dates with c
 A day then holds appointments, and only appointments. One kind of record, with two properties that decide how it is drawn:
 
 1. **it has a time** — a card in the column, its height the duration;
-2. **it lasts all day** — at the top of the day instead, as the people it concerns wearing the symbol it carries.
+2. **it lasts all day** — at the top of the day instead, as one pill carrying its symbol and, beside it, the people it concerns.
 
-Visit and birthday are the second shape, not a second kind. A day fact with nobody on it — a holiday, a closed Kita — is the same record with a symbol and no people.
+Visit and birthday are the second shape, not a second kind. A day fact with nobody on it — a holiday, a closed Kita — is the same record with a symbol and no people, and it is the same pill with the symbol standing alone in it.
+
+One pill per all-day appointment rather than one stack for the day: two of them stay countable at the top of the day the way two cards stay countable in the column. The pill is the same light surface as a card, so the head of the day is made of the same material as the day below it. It carries at most one picture — a row of symbols beside a row of avatars would be two lists in something too small to read as two — and a crown sits on whoever has a birthday that day.
 
 And time itself follows a single rule: over is grey, now is bright, ahead keeps its colour but stays quieter. The same rule for days and for appointments, so it has to be learned once.
 
