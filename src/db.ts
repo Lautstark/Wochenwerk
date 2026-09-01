@@ -9,12 +9,10 @@ interface Wochenwerk extends DBSchema {
   series: { key: string; value: Series };
   people: { key: string; value: Person };
   cards: { key: string; value: Card };
-  /* One record under one key. A store with a single row reads oddly until you try
-     the alternative: a preference kept anywhere else is a preference restored from
-     one place and overwritten from another. conventions.md §1.2. */
-  settings: { key: typeof SETTINGS; value: Settings };
+  /* Not a kind of thing: one record holding what was set up once. Keyed like the
+     rest so the store is one of the family, and there is only ever the one key. */
+  settings: { key: string; value: Settings & { id: string } };
 }
-const SETTINGS = "settings";
 
 /* Version 2 dropped the separate visit/birthday record. Both are ordinary all-day
    appointments now: the person hangs off the appointment like on any other, and a
@@ -91,46 +89,13 @@ const db = () => (opening ??= openDB<Wochenwerk>("wochenwerk", 6, {
     if (from > 0 && from < 5) {
       for (const store of ["appointments", "series", "cards", "people"] as const) transaction.objectStore(store).clear();
     }
-    /* Version 6 gives the household somewhere to keep what it has chosen: one
-       record, out-of-line under its own name, holding every preference there is.
-       Nothing is carried across, because nothing was ever kept anywhere else. */
-    if (from < 6) database.createObjectStore(SETTINGS);
+    /* Version 6 is the first store that is not a kind of record: one settings
+       record, holding every preference the household has. See Settings. */
+    if (from < 6) database.createObjectStore("settings", { keyPath: "id" });
   },
 }));
 
 export const uuid = () => crypto.randomUUID();
-
-/** What the household has chosen, all of it, or an empty record on a first run. */
-export async function settings(): Promise<Settings> {
-  return (await (await db()).get(SETTINGS, SETTINGS)) ?? {};
-}
-export async function saveSettings(value: Settings): Promise<void> {
-  await (await db()).put(SETTINGS, value, SETTINGS);
-}
-
-/*
- * The Azure Speech key, and what keeping it here means.
- *
- * It never leaves this browser. The request for a voice goes from the tab
- * straight to Microsoft and the audio comes straight back; nothing passes
- * through a server of ours, because there is not one. What is stored is what
- * somebody typed into their own browser on their own machine — the same
- * exposure as the `.env` file it replaces.
- *
- * That is safe *because* of who typed it. A key baked into a build would not
- * be: a page served to anyone else hands its key to everyone who opens it, and
- * nothing in the page can tell the two apart. stimmquelle's CONTRACT.md §8 is
- * the reasoning, and it is why there is a field to type into rather than a
- * constant in this repository.
- */
-export async function saveAzure(azure: Settings["azure"]): Promise<void> {
-  const now = await settings();
-  if (!azure) {
-    const { azure: _forgotten, ...rest } = now;
-    return saveSettings(rest);
-  }
-  await saveSettings({ ...now, azure });
-}
 
 /** One week is a range over the date index, not a filter over everything. */
 export async function week(monday: Date): Promise<Appointment[]> {
@@ -167,6 +132,44 @@ export async function clearAll(): Promise<void> {
     database.clear("cards"), database.clear("people"),
   ]);
 }
+/* One household, so one record, under a constant key. A settings store keyed by
+   anything else would be a store of settings, which is how a second answer to the
+   same preference gets written and then read by whichever half asks first. */
+const ONLY = "household";
+export async function settings(): Promise<Settings> {
+  const { id: _, ...saved } = (await (await db()).get("settings", ONLY)) ?? { id: ONLY };
+  return saved;
+}
+/** Merge, never replace: two panels write different halves of the one record. */
+export async function saveSettings(change: Partial<Settings>): Promise<Settings> {
+  const next = { ...(await settings()), ...change };
+  await (await db()).put("settings", { ...next, id: ONLY });
+  return next;
+}
+/** The voice the whole calendar speaks in — a stimmquelle voice id. */
+export const saveVoice = async (voice: string) => { await saveSettings({ voice }); };
+
+/*
+ * The Azure Speech key, and what keeping it here means.
+ *
+ * It never leaves this browser. The request for a voice goes from the tab
+ * straight to Microsoft and the audio comes straight back; nothing passes
+ * through a server of ours, because there is not one. What is stored is what
+ * somebody typed into their own browser on their own machine — the same
+ * exposure as the `.env` file it replaces.
+ *
+ * That is safe *because* of who typed it. A key baked into a build would not
+ * be: a page served to anyone else hands its key to everyone who opens it, and
+ * nothing in the page can tell the two apart. stimmquelle's CONTRACT.md §8 is
+ * the reasoning, and it is why there is a field to type into rather than a
+ * constant in this repository.
+ *
+ * Forgetting it writes `undefined` rather than deleting a property, because the
+ * record is merged and not replaced: absent and undefined read the same to
+ * everything that asks, and only a merge can say "gone".
+ */
+export const saveAzure = async (azure: Settings["azure"]) => { await saveSettings({ azure }); };
+
 export const putPerson = async (person: Person) => { await (await db()).put("people", person); };
 export const removePerson = async (id: string) => (await db()).delete("people", id);
 export const allCards = async () => (await db()).getAll("cards");
