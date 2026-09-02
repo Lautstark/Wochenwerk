@@ -415,9 +415,15 @@ const ahead = (appointment: Appointment, at: Date, now: string) =>
    and every one of those shapes is the same number: the calendar upper-cases what
    somebody types, this reader hands out lower case, and people paste them with
    colons, spaces or dashes in between. So neither side's spelling is compared —
-   only the hex digits, which is the part that is actually the tag. */
+   only the hex digits, which is the part that is actually the tag.
+
+   A card may carry several of them, separated by commas. One picture is often more
+   than one object in a household — the same choice laminated twice, or a card that
+   lost its sticker and got a new one — and those are one card with two tags rather
+   than two cards that would both have to be offered. */
 const bare = (uid: string) => uid.toLowerCase().replace(/[^0-9a-f]/g, "");
-const sameTag = (written: string | undefined, read: string) => !!written && bare(written) === bare(read);
+const tagsOf = (written: string) => written.split(",").map(bare).filter(Boolean);
+const sameTag = (written: string | undefined, read: string) => !!written && tagsOf(written).includes(bare(read));
 
 /* Which card lies on the reader. Presence is a fact about the room rather than a
    record: it lives as long as this page does, and the only thing written from it

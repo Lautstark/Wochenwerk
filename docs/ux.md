@@ -23,7 +23,7 @@ And time itself follows a single rule: over is grey, now is bright, ahead keeps 
 
 An ordinary appointment carries its symbols directly, and may carry a name of its own. That is everything it needs: it is written once, usually as a series, and a picture is all the board asks of it.
 
-A choice is where that stops being enough, and the reason is physical. What may be picked is a set of cards that exist in the household — a laminated picture with an NFC tag, laid out on the table when the choice is offered. A card has a name, a symbol, something to say when it is offered, and the tag identifier the board recognises it by. So a card is a record and an appointment's symbol is not: one is an object, the other is a picture.
+A choice is where that stops being enough, and the reason is physical. What may be picked is a set of cards that exist in the household — a laminated picture with an NFC tag, laid out on the table when the choice is offered. A card has a name, a symbol, something to say when it is offered, and the tag identifier the board recognises it by — or several of them, where the same card exists twice in the household. So a card is a record and an appointment's symbol is not: one is an object, the other is a picture.
 
 ## One kind of timed appointment
 

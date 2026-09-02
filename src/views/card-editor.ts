@@ -26,7 +26,9 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
   const draft: Card = structuredClone(card);
 
   const name = input("text", { attrs: { placeholder: "z. B. Spielplatz", autocomplete: "off" } });
-  const nfc = input("text", { attrs: { placeholder: "04A1B2C3", autocomplete: "off" } });
+  /* One card, and possibly several tags: the same choice laminated twice, or a card
+     whose sticker was replaced. Several numbers, comma separated, in one field. */
+  const nfc = input("text", { attrs: { placeholder: "04A1B2C3, 04B2C3D4", autocomplete: "off" } });
   name.value = draft.name;
   nfc.value = draft.nfc ?? "";
   /* What the board says when this card is offered or named. Empty means the name
@@ -57,7 +59,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     el("div", { class: "editor__head" }, heading, spacer(),
       button("Abbrechen", "quiet sm", () => done(null)), save),
     el("div", { class: "stack" },
-      field("Name", name), field("Ansage", speech.node), field("NFC-Nummer", nfc),
+      field("Name", name), field("Ansage", speech.node), field("NFC-Nummern", nfc),
       el("span", { class: "lbl", text: "Symbol" }), slot,
       search.node));
 
@@ -82,7 +84,9 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     /* See the appointment editor: prepared while somebody is saving, not while a
        child is waiting. */
     void prepare(speech.sentences());
-    draft.nfc = nfc.value.trim().toUpperCase() || undefined;
+    /* Stored in one spelling however they were pasted — the board compares the hex
+       digits and nothing else, but a list somebody reads back should look like one. */
+    draft.nfc = nfc.value.split(",").map(one => one.trim().toUpperCase()).filter(Boolean).join(", ") || undefined;
     await putCard(draft);
     done(draft.id);
   };

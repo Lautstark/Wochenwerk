@@ -36,7 +36,7 @@ symbol and nobody on it.
 | `name` | What it is called. |
 | `symbol` | The picture on it. |
 | `speech` | The word said out loud, where that is not the name. Usually empty. |
-| `nfc` | The tag's identifier — how the board recognises the card. |
+| `nfc` | The tag's identifier — how the board recognises the card. Several, comma separated, where one card exists as more than one object: the same choice laminated twice, or a sticker that was replaced. Spelling does not matter; only the hex digits are compared. |
 
 **A card is a record because it is an object.** It is a laminated picture with an
 NFC tag, it lives in a drawer, and it is laid out when a choice is offered. That is

@@ -17,7 +17,8 @@ export type SymbolRef = { source: Source; id: string; label: string };
 
    A choice appointment is the exception, and the reason is physical. What may be
    picked is a set of laminated cards that exist in the household, each with a
-   symbol, something to say when it is offered, and an NFC tag to be recognised by.
+   symbol, something to say when it is offered, and the NFC tag — or tags, comma
+   separated, where the household has the same card twice — to be recognised by.
    That is an object, so it is a record: a `Card`. Cards are made once and used by
    every choice appointment that offers them. */
 export type Card = { id: string; name: string; symbol?: SymbolRef; speech?: string; nfc?: string; updatedAt: number };
