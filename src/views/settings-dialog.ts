@@ -13,6 +13,14 @@ import { load, shown } from "../store.js";
 import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest, stopTelling, tellOthers, toldByOthers } from "../folder.js";
 import { adoptFolder, pullFromFolder } from "../db.js";
 import { wherePanel } from "@lautstark/sicherung/ablage-panel";
+import { backupPanel } from "@lautstark/sicherung/backup-panel";
+import { backup } from "../backup.js";
+/* Not a local six-liner any more. The one it replaced revoked the blob URL
+   synchronously after `link.click()`, which is the exact bug @lautstark/werkzeuge
+   exists to delete: the click returns before the browser has opened the URL, so a
+   revoke in that gap is a download that never begins and says nothing about it.
+   Four products already import this; wochenwerk was the one that did not. */
+import { downloadJson } from "@lautstark/werkzeuge/download";
 import type { AblageStatus } from "@lautstark/sicherung/ablage";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { cardEditor } from "./card-editor.js";
@@ -92,34 +100,45 @@ const tree = (lines: string[]) => el("pre", { class: "tree", text: lines.join("\
 
 const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
 
-/* A file the browser hands over. Nothing here is stored — the anchor exists for
-   the length of one click. */
-function save(name: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  const link = el("a", { attrs: { href: url, download: name } });
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function openSettings(say: (line: string) => void) {
-  const ablage = makePanel("Wo alles liegt");
+  const ablage = makePanel("Ablage");
+  /* Two panels, because they answer two questions and one heading cannot carry
+     both answers. „Ablage" says where the calendar *is*; „Sicherung" says where
+     the aging copy goes. They are not alternatives: the Ablage carries a mistake
+     to every machine in seconds, and only a dated copy survives one. See
+     @lautstark/design conventions.md §4.9.
+
+     Built once, not inside a render: `wherePanel` calls `below()` on every
+     refresh, and a panel constructed there would subscribe again each time —
+     the leak three of the four products shipped, which is why the shared one
+     hands back a `dispose` at all. */
+  const keeping = makePanel("Sicherung");
+  const keepingPanel = backupPanel({
+    backup,
+    say,
+    /* The module answers '' where there is no folder — deliberately, because it
+       has nothing to name. A blank heading beside seven that all state something
+       reads as unfinished rather than as "not set up", so the fallback is the
+       product's and says what is true in both of the blank cases: no folder
+       chosen, and no picker in this browser. */
+    headline: text => { keeping.state.textContent = text || "Nur von Hand"; },
+  });
   const symbols = makePanel("Symbole");
   const voice = makePanel("Stimme");
-  const speech = makePanel("Azure Speech");
+  const speech = makePanel("Sprachdienst");
   const cards = makePanel("Karten");
   const people = makePanel("Personen");
   /* Deletion is not filed under the word for keeping things. bildhaft made the
      same move on 2026-08-29 and for the same reason: the one control here that
      destroys something belongs in its own panel, last in the column, so the list
      of headings says what is in this dialog without opening any of it. */
-  const data = makePanel("Alles löschen");
+  const data = makePanel("Löschen");
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
-    body: [ablage.node, symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
+    body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
+    onClose: () => keepingPanel?.dispose(),
   });
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -234,11 +253,11 @@ export function openSettings(say: (line: string) => void) {
 
     fill(speech.body,
       probe,
-      el("p", { class: "small muted", text: "Azure ist kostenpflichtig und braucht ein Konto. Dein Schlüssel bleibt in diesem Browser; die Anfrage geht von hier direkt zu Microsoft, nie über einen Server von uns." }),
-      el("p", { class: "small muted", text: "Ein Schlüssel für den ganzen Kalender — nicht pro Termin, nicht pro Karte und nicht pro Serie." }),
+      el("p", { class: "small muted", text: "Kostenpflichtig, braucht ein Konto bei Microsoft. Der Schlüssel bleibt in diesem Browser und geht direkt zu Microsoft." }),
+      el("p", { class: "small muted", text: "Ein Schlüssel für den ganzen Kalender." }),
       el("div", { class: "row-of" }, field("Schlüssel", key), field("Region", region)),
       el("datalist", { attrs: { id: "azure-regionen" } }, ...AZURE_REGIONS.map(name => el("option", { attrs: { value: name } }))),
-      el("p", { class: "small muted", text: "Die Region steht im Azure-Portal bei deiner Speech-Ressource, z. B. westeurope." }),
+      el("p", { class: "small muted", text: "Steht im Azure-Portal bei deiner Speech-Ressource." }),
       el("div", { class: "acts" }, save,
         azure ? button("Schlüssel entfernen", "sm destructive", () => void forgetKey()) : null));
 
@@ -330,27 +349,31 @@ export function openSettings(say: (line: string) => void) {
     },
     /* Beside the store, not instead of it: a snapshot survives a mistake the
        folder carries everywhere within seconds. */
-    below: () => [
-      el("hr", { class: "hair" }),
-      el("p", { class: "sub", text: "Herausnehmen und einlesen" }),
-      el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme. Sie altert — aber sie übersteht einen Fehler, den der Ordner sofort mitmacht." }),
-      el("div", { class: "acts" },
-        button("Sicherung als Datei", "sm", () => void run(async () => {
-          const backup = await exportAll();
-          const day = new Date().toISOString().slice(0, 10);
-          save(`wochenwerk-sicherung-${day}.json`, JSON.stringify(backup, null, 2));
-        }, "Sicherung geschrieben.")),
-        button("Sicherung einlesen", "sm quiet", () => pickFile("application/json,.json", false,
-          files => void run(async () => {
-            const data: unknown = JSON.parse(await files[0].text());
-            if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
-            const added = await importAll(data);
-            await load();
-            say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
-          }, "")))),
-      el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie. Drin sind Termine, Serien, Karten und Personen — keine Bilder, keine Einstellungen." }),
-    ],
   });
+
+  /* The two ways a copy leaves, in the panel about copies. The automatic one is
+     the shared panel; the file underneath is what a browser without a folder
+     picker gets, and what somebody wants when they are about to do something
+     they might regret. */
+  fill(keeping.body,
+    keepingPanel?.node ?? null,
+    keepingPanel ? el("hr", { class: "hair" }) : null,
+    el("p", { class: "small muted", text: "Eine Momentaufnahme. Sie altert — übersteht aber einen Fehler, den der Ordner sofort mitmacht." }),
+    el("div", { class: "acts" },
+      button("Sicherung als Datei", "sm", () => void run(async () => {
+        const made = await exportAll();
+        const day = new Date().toISOString().slice(0, 10);
+        downloadJson(made, `wochenwerk-sicherung-${day}.json`);
+      }, "Sicherung geschrieben.")),
+      button("Sicherung einlesen", "sm quiet", () => pickFile("application/json,.json", false,
+        files => void run(async () => {
+          const data: unknown = JSON.parse(await files[0].text());
+          if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
+          const added = await importAll(data);
+          await load();
+          say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
+        }, "")))),
+    el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie." }));
   /* The name of the folder METACOM was found in, and what a fruitless look
      turned up — both only until the next render, because both are answers to a
      question somebody just asked. */
@@ -394,10 +417,10 @@ export function openSettings(say: (line: string) => void) {
          in once, found by every device. The alternative is a file dialog per
          device, which is the step people give up at. */
       metacom.isReady() ? null : el("p", { class: "small", text: connected
-        ? "Gezeichnet wird gerade mit ARASAAC. Für METACOM legst du deinen lizenzierten Ordner in die Ablage — dann finden ihn alle Geräte von selbst."
-        : "Ohne METACOM-Ordner kommen die Symbole von ARASAAC, das keine Einrichtung braucht. METACOM zeichnet aus deiner eigenen Lizenz, und nichts davon verlässt den Browser." }),
+        ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage."
+        : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung." }),
       metacom.isReady() || !connected ? null : tree([folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"]),
-      metacom.isReady() || !connected ? null : el("p", { class: "small muted", text: "Der Ordner heißt bei den meisten METACOM_9_Desktop und enthält einen Ordner METACOM_Symbole. Kopieren oder verschieben — beides geht. Teilst du die Ablage mit anderen, bekommen sie METACOM mit; ob das erlaubt ist, steht in deiner Lizenz." }),
+      metacom.isReady() || !connected ? null : el("p", { class: "small muted", text: "Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz." }),
       /* What the app sees, in the same words the file manager uses. "I put it
          there" and "it sees these three names" together turn a mystery into a
          comparison — and the comparison is what somebody can act on. */
@@ -433,7 +456,7 @@ export function openSettings(say: (line: string) => void) {
     voice.state.textContent = !loaded ? "Wird geladen …"
       : chosen ? named || "gewählte Stimme fehlt" : "keine gewählt";
     fill(voice.body,
-      el("p", { class: "small muted", text: "Eine Stimme für den ganzen Kalender. Ein Termin wird beim Planen aufgenommen und am Board vorgelesen — nicht je Termin, je Karte oder je Person gewählt, sondern einmal hier." }),
+      el("p", { class: "small muted", text: "Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte." }),
       refused ? el("p", { class: "notice bad", text: `Azure nimmt den Schlüssel nicht an (${refused}). Unten stehen nur die Stimmen, die keinen brauchen.` }) : null,
       chosen && !named ? el("p", { class: "notice", text: "Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert." }) : null,
       !loaded ? null
@@ -498,7 +521,7 @@ export function openSettings(say: (line: string) => void) {
     });
     return el("div", { class: "opt" },
       field("Darstellung", pick.node),
-      el("p", { class: "small muted", text: "METACOM enthält dieselben Symbole mehrfach — mit und ohne Rahmen, mit und ohne aufgedrucktes Wort. Eine Vorgabe sortiert die Suche danach; ausgeschlossen wird nichts, und was schon im Kalender steht, bleibt." }));
+      el("p", { class: "small muted", text: "METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts." }));
   }
 
   /* A card and a person are edited inside the panel that lists them, not in a sheet

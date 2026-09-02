@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { adopt, adopted, file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
 import { addDays, cameFrom, expand, iso, isDerived, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
+import { changes } from "@lautstark/werkzeuge/changed";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
    convention, and the shape a folder of one file per record maps onto when the
@@ -181,6 +182,14 @@ function waiting(opened: Promise<IDBPDatabase<Wochenwerk>>): Promise<IDBPDatabas
 
 export const uuid = () => crypto.randomUUID();
 
+/* Where a write says that it happened. conventions.md §2.2: every write that
+   changes what a Sicherung holds says so *at the write*, not at the call site
+   that happened to make it — a page-level "something probably changed" is the
+   version that misses the write somebody adds next year. The two funnels below
+   are the only mutations there are, so this is one call site each. */
+const changed = changes();
+export const onChanged = changed.onChanged;
+
 /* Every mutation goes through these two, so a household that has connected a
    folder never has a record in one place and not the other. Where no folder is
    connected they write to IndexedDB and stop, which is the same code path with
@@ -191,10 +200,12 @@ type Kept = keyof typeof KIND;
 async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
   await (await db()).put(store as never, record as never);
   await file(KIND[store], record as never);
+  changed.touched();
 }
 async function dropRecord(store: Kept, id: string): Promise<void> {
   await (await db()).delete(store as never, id as never);
   await unfile(KIND[store], id);
+  changed.touched();
 }
 
 /* One week is what was stored for those days plus what the rules put there.
