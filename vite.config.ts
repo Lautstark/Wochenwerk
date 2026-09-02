@@ -22,7 +22,11 @@ export default defineConfig({
     rollupOptions: {
       input: {
         board: resolve(import.meta.dirname, "index.html"),
-        kalender: resolve(import.meta.dirname, "kalender.html"),
+        /* A directory rather than a page, so the address is `/kalender` and not
+           `/kalender.html`. Pages serves a directory's index and redirects the
+           bare name onto it; Vite mirrors the source path into the output, so
+           moving the file is the whole change. */
+        kalender: resolve(import.meta.dirname, "kalender/index.html"),
       },
     },
   },

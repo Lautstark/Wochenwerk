@@ -286,7 +286,7 @@ async function build(at: Date): Promise<string> {
   ];
   const bar = slotbar(draw, dates, owed(drawn).join(" "),
     pending(appointments, iso(at), iso(addDays(at, 1)), draw.now));
-  if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>${import.meta.env.BASE_URL}kalender.html</code></small></p>${bar}`;
+  if (!appointments.length) return `<p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>${import.meta.env.BASE_URL}kalender</code></small></p>${bar}`;
   /* One bar per stretch, laid over the week. The rail sits inside the grid as a
      column of its own, so a stretch that crosses today crosses it too — which is
      what a stretch does. */
