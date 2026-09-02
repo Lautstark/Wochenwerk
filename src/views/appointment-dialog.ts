@@ -8,6 +8,7 @@ import { prepare } from "../speech.js";
 import { birthdayOf, birthdaySheet } from "./birthday-sheet.js";
 import { pictureFor, pictures } from "../symbols.js";
 import { cardThumb, grid, picture, pickerItem, face, speechField } from "./pieces.js";
+import { movable, moved, reorderable } from "./reorder.js";
 import { symbolSearch } from "./symbol-search.js";
 import { cardEditor } from "./card-editor.js";
 import { askScope } from "./scope-dialog.js";
@@ -125,7 +126,20 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   /* A chooser with no question above it. Both halves answer what the board does
      with this appointment, so that is what the label says. */
   const kindsRow = el("div", {}, el("span", { class: "lbl", text: "Am Board" }), kinds);
-  const chosen = el("div", { class: "chosen" });
+  /* The order is not a preference about this sheet, it is what the board reads
+     from left to right, so the tiles are dragged into it rather than picked again
+     in the right order. The grid around them is made once and only refilled: the
+     handlers sit on it, and a node replaced mid-drag is a drag that stops. */
+  const picked = reorderable(grid(), (from, to) => {
+    draft.symbols = moved(draft.symbols, from, to);
+    /* The tiles are new after the redraw, so the one that was moved is found
+       again by where it landed — otherwise a second key press has nothing under
+       it and the arrows move one symbol once. */
+    void sync().then(() => picked.querySelectorAll<HTMLElement>("[data-move]")[to]?.focus());
+  });
+  const ordering = el("p", { class: "small muted",
+    text: "Zieh die Symbole in die Reihenfolge, in der sie am Board stehen sollen — oder verschieb sie mit ← und →." });
+  const chosen = el("div", { class: "chosen" }, picked, ordering);
   const search = symbolSearch(ref => {
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
     search.clear(); sync();
@@ -323,13 +337,15 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        sentence standing where the thing itself belongs, and it said what was
        missing without offering to fix it. This is the shape of the tile that is
        missing, and pressing it puts the caret in the search. */
-    fill(chosen, grid(
-      ...draft.symbols.map((symbol, index) => pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
-        () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); })),
+    fill(picked,
+      ...draft.symbols.map((symbol, index) => movable(pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
+        () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); }))),
       el("button", { class: "picker__item picker__item--add", attrs: { type: "button" },
         on: { click: () => search.focus() } },
         el("span", { class: "picker__add", text: "＋" }),
-        el("span", { class: "small", text: "Symbol" }))));
+        el("span", { class: "small", text: "Symbol" })));
+    /* Nothing to put in an order until there are two of them. */
+    ordering.hidden = draft.symbols.length < 2;
 
     const named = draft.people
       .map(id => shown().people.find(person => person.id === id)?.name)

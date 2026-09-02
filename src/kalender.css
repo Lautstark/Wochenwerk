@@ -166,6 +166,14 @@ a.btn { text-decoration: none; }
   font: inherit; cursor: pointer; transition: background .13s, box-shadow .13s; }
 .picker__item:hover { background: var(--surface-3); }
 .picker__item--active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+/* A tile that can be dragged into another order says so by the hand over it. The
+   `touch-action` is not a nicety: without it a finger dragging sideways is a
+   scroll, the browser takes the gesture, and the drag never starts. */
+.picker__item[data-move] { cursor: grab; touch-action: none; }
+/* The one being carried: lifted off the row, and out of the way of the hit test
+   that asks which tile it is over — that answer must never be itself. */
+.picker__item[data-move="on"] { cursor: grabbing; position: relative; z-index: 2;
+  pointer-events: none; transition: none; box-shadow: 0 6px 16px rgba(0, 0, 0, .22); }
 .picker__item .thumb { width: 52px; height: 52px; }
 .picker__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker__grid--tight .picker__item .thumb { display: none; }
