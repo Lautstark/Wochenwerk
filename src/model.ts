@@ -206,7 +206,6 @@ const sameThing = (appointment: Appointment) => [
   appointment.series ?? appointment.id, appointment.title ?? "",
   appointment.symbols.map(symbol => `${symbol.source}:${symbol.id}`).join(","),
   appointment.people.join(","), appointment.options.join(","), appointment.chosen ?? "",
-  appointment.away ? "weg" : "",
 ].join("|");
 
 export function runsOf(appointments: Appointment[], dates: string[], series: Map<string, Series>): Run[] {

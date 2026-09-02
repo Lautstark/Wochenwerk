@@ -115,6 +115,10 @@ Each carries the id of the batch it came from. That is what makes a series lista
 
 Everything that is otherwise hard falls out of this. A Kita day that falls away is one record deleted. A choice resolved on Monday is written to Monday's own record and does not follow the child to Tuesday. Last month's board keeps showing what was actually planned, because nothing is derived.
 
+**A stretch of days is not a repetition, and is not asked about as one.** Both are one batch of one record per day, and the board puts a stretch back together into one bar — but a holiday does not recur, it lasts, and „Alle Termine der Serie" about four days away from home asks somebody to think of their holiday as a rule. A daily batch of all-day appointments is therefore asked about in its own words: *Mehrtägiger Termin*, *Nur diesen Tag*, *Alle Tage des Zeitraums*. Nothing distinguishes „von Montag bis Freitag" from „jeden Tag, bis Freitag" once either is written, and nothing needs to — they are the same five days.
+
+The middle answer is offered only where it is a third answer. Standing on the first day of a batch, „diesen und alle folgenden" reaches everything and „alle" reaches the same number; standing on the last, it reaches one. Either way it was the same answer under a second name, with the same count printed beside both — and the first day is where somebody almost always is, because it is where the bar starts and where the sheet is opened from.
+
 The day is the exception to all of it. Which days a batch falls on is what its rule says, so moving an appointment moves that one appointment, whatever scope the change is given — and the question that asks for the scope says so, and says where the rule is instead.
 
 What it costs: an action over a series is a bulk write, so it says how many records it will touch before it touches them — including how many carry edits of their own that it would overwrite. And "until further notice" does not exist; a batch is extended instead.

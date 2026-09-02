@@ -11,7 +11,7 @@ import { cardThumb, grid, picture, pickerItem, face, speechField } from "./piece
 import { movable, moved, reorderable } from "./reorder.js";
 import { symbolSearch } from "./symbol-search.js";
 import { cardEditor } from "./card-editor.js";
-import { askScope } from "./scope-dialog.js";
+import { askScope, type Kind } from "./scope-dialog.js";
 
 type Repeat = "none" | "daily" | "weekly" | "yearly";
 
@@ -50,6 +50,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     : [(new Date(`${draft.date}T00:00`).getDay() + 6) % 7];
   let counts = { from: 0, all: 0 };
   const anchor = appointment.date;
+  /* A daily batch of all-day appointments is a stretch of days and not a
+     repetition: nothing distinguishes „von Montag bis Freitag" from „jeden Tag,
+     bis Freitag" once it is written, and nothing needs to — they are the same
+     five days. Everything else is a rule, and is asked about as one. */
+  const shapeOfBatch = (): Kind =>
+    batch?.pattern.kind === "daily" && batch.allDay ? "stretch" : "series";
 
   /* Every control is made once. Only what a change actually affects is refilled,
      which is what keeps a caret where somebody put it. */
@@ -81,17 +87,19 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const lasts = el("span", { class: "lbl__aside" });
   const toField = el("label", { class: "field-row" },
     el("span", { class: "lbl lbl--split" }, el("span", { text: "Bis" }), lasts), to);
-  /* Under the field that spans the stretch, because that is the field it
-     answers: a day the household is somewhere else is a day that lasts all day,
-     and the column it hangs in is the one Ganztägig brings and takes away. So
-     nothing has to remember to hide it, and it cannot be ticked on an
-     appointment with a time, where it would mean nothing. */
-  const spanCol = el("div", { class: "field-col" }, field("Bis", spanTo),
-    switchUnder(notHome, "Wir sind nicht zu Hause"));
-  const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"));
+  const spanField = field("Bis", spanTo);
+  /* Under Ganztägig rather than under the field that spans the stretch, though
+     that is the field it belongs to by meaning. The span field goes once the
+     appointment is a batch — it cannot change one — and the switch has to stay
+     reachable on exactly those: a holiday is ticked as *nicht zu Hause* after it
+     exists at least as often as while it is being written. So it hangs under the
+     switch it depends on instead, in the column that never goes, and it is the
+     one control here that has to be hidden by hand. */
+  const notHomeRow = switchUnder(notHome, "Wir sind nicht zu Hause");
+  const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"), notHomeRow);
   const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab dem Aufstehen", board.from));
   const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis zum Schlafengehen", board.to));
-  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanCol);
+  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanField);
   const seriesLine = el("p", { class: "small muted" });
 
   /* The two edges are a shortcut, not a third thing to store: ticked means the
@@ -308,7 +316,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
     fromCol.hidden = whole.checked;
     toCol.hidden = whole.checked;
-    spanCol.hidden = !whole.checked;
+    notHomeRow.hidden = !whole.checked;
+    /* Only where it can still do something. It is what turns a single all-day
+       appointment into a batch, and once there is one the batch's own „Bis" —
+       under Wiederholen — is what says where the stretch stops. Two date fields
+       called „Bis" stood in the sheet at once, and the one on top was dead. */
+    spanField.hidden = !whole.checked || !!draft.series;
     /* Derived, never stored: ticked means the time already is that edge of the
        day. Written after the columns are placed so that a time changed by hand
        unticks the box on the same pass. */
@@ -436,7 +449,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const erase = async () => {
     read();
     if (draft.series) {
-      const scope = await askScope("löschen", counts);
+      const scope = await askScope("löschen", counts, { kind: shapeOfBatch() });
       if (!scope) return;
       if (scope !== "one") { await dropSeries(draft.series, scope === "from" ? anchor : undefined); handle.close(); return done(); }
     } else {
@@ -509,8 +522,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
       /* The day is the one thing a change over a batch cannot carry: which days a
          batch falls on is what its rule says, and that is a row further up. */
       const moved = draft.date !== anchor;
-      const scope = await askScope("ändern", counts,
-        moved ? "Der Tag gilt nur für diesen Termin. Wann die Serie stattfindet, steht unter „Wiederholen“." : undefined);
+      const scope = await askScope("ändern", counts, { kind: shapeOfBatch(),
+        note: moved ? "Der Tag gilt nur für diesen Termin. Wann die Serie stattfindet, steht unter „Wiederholen“." : undefined });
       if (!scope) return;
       if (scope !== "one") {
         await editSeries(draft.series, shape, scope === "from" ? anchor : undefined);

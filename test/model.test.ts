@@ -137,6 +137,17 @@ describe("a stretch of all-day appointments", () => {
     expect(runs.map(run => run.appointment.title)).toEqual(["Oma da", "Oma fährt", "Oma da"]);
   });
 
+  it("stays one bar where a day differs only in something nothing draws", () => {
+    /* A run breaks where a day would be captioned wrongly, and `away` captions
+       nothing: it is read by the announcement and never by the board. Two bars
+       carrying the same picture and the same name, side by side, would be a
+       break the room can see for a difference it cannot. */
+    const runs = runsOf([visit(dates[0]), visit(dates[1], { away: true }), visit(dates[2])],
+      dates, only(rule(dates[0], dates[2])));
+    expect(runs).toHaveLength(1);
+    expect(runs[0].days).toEqual(dates.slice(0, 3));
+  });
+
   it("says when a stretch reaches past the days being looked at, and only then", () => {
     const inside = runsOf(dates.slice(1, 3).map(date => visit(date)), dates, only(rule(dates[1], dates[2])));
     expect([inside[0].before, inside[0].after]).toEqual([false, false]);
