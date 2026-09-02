@@ -16,10 +16,13 @@ export const KINDS = ["termine", "karten", "personen", "serien"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Filed = Appointment | Card | Person | Series;
 
-/* The marker is a kind the folder knows about but no record ever lives in, so it
-   is listed here and nowhere that iterates over records. */
-const MARKER = "ablage";
-export const ablage = new Ablage({ app: "wochenwerk", kinds: [...KINDS, MARKER] });
+/* Before the package could answer "is this folder a store?", Wochenwerk answered
+   it itself with a record in a kind of its own. The package answers it now, and
+   this name stays only long enough to recognise the folders marked the old way
+   and hand them over. See `settleMark`. */
+const LEGACY = "ablage";
+const LEGACY_ID = "00000000-0000-4000-8000-000000000000";
+export const ablage = new Ablage({ app: "wochenwerk", kinds: [...KINDS, LEGACY] });
 export const supported = Ablage.supported;
 
 /** Whether the folder is the store rather than a copy of one. */
@@ -48,23 +51,23 @@ export async function pushKind(kind: Kind, records: Filed[]): Promise<void> {
   if (!isStore() || isStale()) return;
   const there = new Map((await ablage.list(kind)).map(item => [item.id, item.updatedAt]));
   const here = new Set(records.map(record => record.id));
-  for (const record of records) {
-    if (there.get(record.id) === record.updatedAt) continue;
-    await ablage.write(kind, { ...record, updatedAt: record.updatedAt ?? Date.now() });
-  }
+  /* Through `writeAll`, so a folder that goes out of reach partway stops the batch
+     instead of running silently to the end writing nothing. */
+  await ablage.writeAll(kind, records
+    .filter(record => there.get(record.id) !== record.updatedAt)
+    .map(record => ({ ...record, updatedAt: record.updatedAt ?? Date.now() })));
   for (const id of there.keys()) if (!here.has(id)) await ablage.remove(kind, id);
 }
 
 /* The folder is not the truth the moment it is chosen — it is the truth once it
-   holds a complete copy. Between those two is a half-written folder, and reading
-   one of those back over a full calendar is how a week gets deleted. So adoption
-   ends by writing a marker, and nothing reads the folder back until it is there.
-   The marker is the answer to "is this folder a Wochenwerk store, or a folder
-   somebody is in the middle of making into one?" */
+   holds a complete copy, and the package's mark is what tells those two apart.
+   Everything here is its answer, not ours. */
 export const adopted = async (): Promise<boolean> =>
-  isStore() && !isStale() && (await ablage.list(MARKER)).length > 0;
-export const markAdopted = () =>
-  ablage.write(MARKER, { id: "00000000-0000-4000-8000-000000000000", updatedAt: Date.now() });
+  isStore() && !isStale() && ablage.adopted();
+export const adopt = (everything: Record<Kind, Filed[]>) => ablage.adopt(everything);
+export const markedTheOldWay = async (): Promise<boolean> =>
+  isStore() && !isStale() && (await ablage.list(LEGACY)).length > 0;
+export const dropTheOldMark = () => ablage.remove(LEGACY, LEGACY_ID);
 
 export const readKind = <T extends Filed>(kind: Kind) => ablage.all(kind) as Promise<T[]>;
 export const changes = () => ablage.poll();

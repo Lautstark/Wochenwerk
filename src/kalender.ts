@@ -2,7 +2,7 @@ import "./kalender.css";
 import { announcer } from "@lautstark/design/toast";
 import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "./model.js";
 import { el, fill, button } from "./ui.js";
-import { pullFromFolder, settings } from "./db.js";
+import { pullFromFolder, settings, settleMark } from "./db.js";
 import { load, shown, subscribe, type Week } from "./store.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { metacom, owed, preferRendering, restore } from "./symbols.js";
@@ -87,6 +87,8 @@ await restore().catch(() => false);
    afterwards: another household member editing on another machine is the reason
    a folder was chosen at all. */
 await ablage.restore().catch(() => null);
+/* One-time: a folder Wochenwerk marked before the package could is handed over. */
+await settleMark().catch(() => undefined);
 await pullFromFolder().catch(() => undefined);
 /* The package holds the rendering preference for the tab and persists nothing, so
    the household's answer is handed to it once the folder is back. */
