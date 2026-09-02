@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <title>Wochenwerk – Kalender</title>
+    <!-- Before the bundle, or the page paints the device's answer and then the
+         household's a frame later. Kept in step with bootSnippet() from
+         @lautstark/design/theme, which is where the same line is generated for
+         the three sibling products. The board next door has no such line and
+         must not grow one: it is a display on a wall, committed to dark. -->
+    <script>
+      try{var t=localStorage.getItem("wochenwerk.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}
+    </script>
   </head>
   <body>
     <main id="app"></main>

@@ -1,4 +1,5 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
+import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from "@lautstark/design/theme";
 import { listVoices } from "@lautstark/stimmquelle";
 import { standing } from "../announce.js";
 import { prepare } from "../speech.js";
@@ -39,6 +40,12 @@ const AZURE_REGIONS = [
   "brazilsouth", "australiaeast", "southeastasia", "eastasia", "japaneast",
   "japanwest", "koreacentral", "centralindia", "southafricanorth", "uaenorth",
 ];
+
+/* localStorage, like the three siblings: the scheme has to be readable before
+   the first paint, and a database read is a frame too late. kalender/index.html
+   reads this same key inline. */
+const THEME_KEY = "wochenwerk.theme";
+const THEME_WORDS: Record<Theme, string> = { system: "Wie das Gerät", light: "Hell", dark: "Dunkel" };
 
 type Azure = { key: string; region: string };
 type Answer = { ok: true; count: number } | { ok: false; code: "unreachable" | "refused" | "failed"; words: string };
@@ -137,11 +144,12 @@ export function openSettings(say: (line: string) => void) {
      same move on 2026-08-29 and for the same reason: the one control here that
      destroys something belongs in its own panel, last in the column, so the list
      of headings says what is in this dialog without opening any of it. */
+  const look = makePanel("Aussehen");
   const data = makePanel("Löschen");
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
-    body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, data.node],
+    body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, look.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
     onClose: () => keepingPanel?.dispose(),
   });
@@ -512,6 +520,32 @@ export function openSettings(say: (line: string) => void) {
       el("div", { class: "acts" }, button("Alle Daten löschen", "sm destructive", () => void wipe(true))));
   }
 
+  /* Hell oder dunkel, für den Kalender.
+     The three siblings have offered this since the theme module existed; this was
+     the one product following the operating system with no way to say otherwise,
+     although `products/wochenwerk.json` declares `"schemes": "both"` and the
+     tokens for both have been generated all along.
+
+     The *board* is not included and must not be. It is a display on a wall, read
+     across a room by a child who cannot read, and style.css commits it to dark
+     with its own system of weekday colours. A household that prefers a light
+     calendar is not asking for a light board. */
+  function drawLook(): void {
+    const current = readTheme(THEME_KEY);
+    look.state.textContent = THEME_WORDS[current];
+    fill(look.body,
+      /* role=group rather than radiogroup: `.segmented` marks its choice with
+         aria-pressed, and a radiogroup whose children are not radios reads worse
+         than a labelled group of buttons. Same call as bildhaft's. */
+      el("div", { class: "segmented", attrs: { role: "group", "aria-label": "Aussehen" } },
+        ...THEMES.map(theme => el("button", {
+          text: THEME_WORDS[theme],
+          attrs: { type: "button", "aria-pressed": String(theme === current) },
+          on: { click: () => { saveTheme(THEME_KEY, theme); applyTheme(theme); drawLook(); } },
+        }))),
+      el("p", { class: "small muted", text: "Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel." }));
+  }
+
   /* Which fassung of a doubled symbol the search should offer first.
      Only when the folder holds more than one — a copy pointed straight at a single
      rendering has nothing to choose between, and a list with one answer is a
@@ -614,6 +648,7 @@ export function openSettings(say: (line: string) => void) {
       await run(() => everything ? clearAll() : clearAppointments().then(() => undefined), "Gelöscht.");
     }
   };
+  drawLook();
   sync();
   /* The key is in the database, so this one heading cannot be answered on the frame
      the dialog opens. It says it is fetching rather than saying nothing: a state is
