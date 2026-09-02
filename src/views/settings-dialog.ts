@@ -10,7 +10,7 @@ import { connect, forget, metacom, needsAttention, preferredRendering, preferRen
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
-import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest } from "../folder.js";
+import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest, stopTelling, tellOthers, toldByOthers } from "../folder.js";
 import { adoptFolder, pullFromFolder } from "../db.js";
 import { actionsFor as ablageActions, lineFor as ablageLine, needsAttention as ablageNeedsAttention } from "@lautstark/sicherung/ablage-ui";
 import type { AblageStatus } from "@lautstark/sicherung/ablage";
@@ -102,13 +102,17 @@ const actionSays = (id: string, connected: boolean) =>
 const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
 
 export function openSettings(say: (line: string) => void) {
-  const ablage = makePanel("Ablage");
+  const ablage = makePanel("Wo alles liegt");
   const symbols = makePanel("Symbole");
   const voice = makePanel("Stimme");
   const speech = makePanel("Azure Speech");
   const cards = makePanel("Karten");
   const people = makePanel("Personen");
-  const data = makePanel("Daten");
+  /* Deletion is not filed under the word for keeping things. bildhaft made the
+     same move on 2026-08-29 and for the same reason: the one control here that
+     destroys something belongs in its own panel, last in the column, so the list
+     of headings says what is in this dialog without opening any of it. */
+  const data = makePanel("Alles löschen");
 
   const handle = openDialog({
     title: "Einstellungen", closeLabel: "Schließen", wide: true,
@@ -168,6 +172,16 @@ export function openSettings(say: (line: string) => void) {
        prepared in. Choosing a voice is the one a household waits through on
        purpose, and every one of them changes with it. */
     void prepare(standing());
+    void readTelling();
+  }
+
+  /* The switch reflects what was chosen, and every start says it again: a cookie
+     can expire or be cleared, and the household's answer lives in the settings
+     rather than in the cookie it produces. */
+  async function readTelling() {
+    tell.checked = !!(await settings()).tellOthers;
+    if (tell.checked && isStore()) tellOthers(folderName(ablageStatus()));
+    sync();
   }
 
   async function readVoices() {
@@ -296,6 +310,12 @@ export function openSettings(say: (line: string) => void) {
      turned up — both only until the next render, because both are answers to a
      question somebody just asked. */
   let fromFolder: string | null = null;
+  const tell = input("checkbox", { on: { change: () => void run(async () => {
+    const on = tell.checked;
+    await saveSettings({ tellOthers: on });
+    if (on) tellOthers(folderName(ablageStatus()));
+    else stopTelling();
+  }, "") } });
   let looked: string[] | null = null;
 
   /* What happens after a folder is settled on, whichever way. */
@@ -327,7 +347,14 @@ export function openSettings(say: (line: string) => void) {
          across products to be said. Each product is its own origin, so a folder
          handle cannot travel between them and the picking cannot be skipped;
          what can be skipped is the wondering which folder to pick. */
-      connected || asking ? null : el("p", { class: "small muted", text: "Benutzt du schon ein anderes Lautstark-Programm, zeig hier auf denselben Ordner." }),
+      /* Named where another programme said so, general where it did not. Both
+         say the same thing; one of them can point. */
+      connected || asking ? null : (() => {
+        const said = toldByOthers();
+        return el("p", { class: "small muted", text: said
+          ? `Auf diesem Gerät benutzt ${said.app} den Ordner „${said.folder}“. Wähle ihn hier auch.`
+          : "Benutzt du schon ein anderes Lautstark-Programm, zeig hier auf denselben Ordner." });
+      })(),
 
       /* Asked once, and only where the answer is genuinely open: a folder that
          already gathers Lautstark work is obviously the right one and nothing is
@@ -346,6 +373,12 @@ export function openSettings(say: (line: string) => void) {
         }, ""))) : null,
 
       connected && !asking ? el("p", { class: "small", text: `Der Kalender liegt in „${folderName(where)}“. Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche.` }) : null,
+      /* Consent, where a reader knows what it means: beside the folder they just
+         chose, off until they say so, and off again in the same place. What it
+         stores is said outright, because nobody can agree to what they were not
+         told. */
+      connected && !asking ? field("Den anderen Lautstark-Programmen zeigen, welcher Ordner das ist", tell) : null,
+      connected && !asking ? el("p", { class: "small muted", text: `Legt den Namen „${folderName(where)}“ in einem Cookie ab, den alle lautstark.tech-Programme lesen können — und der bei jedem Aufruf mitgeschickt wird. Sonst wird nichts geteilt.` }) : null,
       ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
       where.kind === "conflicted"
         ? el("p", { class: "notice bad", text: `${where.ids.length} Datei(en) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
@@ -447,7 +480,7 @@ export function openSettings(say: (line: string) => void) {
       shown().people.length ? null : el("p", { class: "empty", text: "noch niemand" }),
       button("＋ Neue Person", "sm", () => openPerson({ id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 })));
 
-    data.state.textContent = `${shown().appointments.length} in dieser Woche`;
+    data.state.textContent = "";
     fill(data.body,
       el("div", { class: "acts" },
         button("Alle Termine löschen", "sm destructive", () => void wipe(false)),

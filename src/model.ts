@@ -392,6 +392,9 @@ export type Settings = {
       Azure voices appear in a picker at all. */
   azure?: { key: string; region: string };
   voice?: string;
+  /** Whether the other Lautstark programmes on this device may be told which
+      folder is in use. Off unless somebody switched it on; see `folder.ts`. */
+  tellOthers?: boolean;
   /** Which of METACOM's parallel renderings the search should offer first — a
       folder segment, absent for no preference. Ordering only: nothing is filtered
       out, so a symbol that exists in one fassung stays reachable and what is

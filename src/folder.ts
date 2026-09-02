@@ -1,4 +1,4 @@
-import { Ablage } from "@lautstark/sicherung/ablage";
+import { Ablage, announceFolder, announcedFolder, stopAnnouncing } from "@lautstark/sicherung/ablage";
 import type { Appointment, Card, Person, Series } from "./model.js";
 
 /* The calendar in a folder, rather than only in this browser.
@@ -86,3 +86,14 @@ export const HOME = "Lautstark";
    what every stored symbol id is written relative to. */
 export const METACOM_INSIDE = "METACOM_Symbole";
 export const metacomInFolder = () => ablage.folderHolding(METACOM_INSIDE);
+
+/* Telling the other Lautstark programmes on this device which folder is in use,
+   so they can name it instead of asking for one. Only ever because somebody
+   switched it on — see the package for why that is what makes it lawful. */
+export const APP = "Wochenwerk";
+export const tellOthers = (folder: string) => announceFolder(APP, folder);
+export const stopTelling = () => stopAnnouncing();
+export const toldByOthers = () => {
+  const said = announcedFolder();
+  return said && said.app !== APP ? said : null;
+};
