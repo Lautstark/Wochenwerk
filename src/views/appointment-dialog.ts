@@ -1,7 +1,7 @@
 import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { addDays, allDay, board, bornOn, cardSays, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
-  strays, titleOf, weekdays, type Appointment, type Pattern, type Person } from "../model.js";
+  strays, titleOf, weekdays, type Appointment, type Pattern, type Person, type SymbolRef } from "../model.js";
 import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
 import { cardById, load, shown } from "../store.js";
 import { prepare } from "../speech.js";
@@ -130,9 +130,14 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   });
 
   /* What the two sides differ in is whether the appointment is already answered,
-     so that is what they are named after. „Symbole" named the half rather than the
-     answer — both sides carry symbols now — and „Das Kind wählt" said it in a
-     whole sentence beside a one-word sibling.
+     so that is what they are named after. „Symbole" named the half rather than
+     the answer — both sides carry symbols now.
+
+     And neither half names who does the answering. „Kind wählt" did, and this
+     calendar is not only a child's: the same appointment offering the same
+     cards is how a household leaves a decision open for anybody in it. Whether
+     it is settled is a fact about the appointment; who settles it is not on the
+     record and does not belong on the control.
 
      Bare buttons, and the selection rides `aria-pressed`: that is what
      components.css paints a `.segmented` from, and the warning above that rule
@@ -142,11 +147,24 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      nothing at all about which half was chosen. */
   const kindButton = (label: string, pick: () => void) =>
     el("button", { text: label, attrs: { type: "button" }, on: { click: () => { pick(); void sync(); } } });
+  /* What the other half was holding, so that flipping can be flipped back.
+     Going over used to drop the symbols on the spot — on the argument that what
+     stands in the sheet should be what will be stored — and coming back found
+     them gone: a picture chosen, one press on the wrong half, and the work is
+     over with nothing saved and nothing to undo it with. The sheet still shows
+     what will be stored, because the other side's content is out of the draft
+     while it is not the answer; it is held here rather than thrown away, the
+     way the two day edges hold the times they replace. */
+  let priorSymbols: SymbolRef[] = [...draft.symbols], priorOptions: string[] = [...draft.options];
+  const flip = (to: "symbols" | "choice") => () => {
+    if (mode === to) return;
+    mode = to;
+    if (to === "choice") { priorSymbols = draft.symbols; draft.symbols = []; draft.options = priorOptions; speech.fold.open = true; }
+    else { priorOptions = draft.options; draft.options = []; draft.symbols = priorSymbols; }
+  };
   const kinds = el("div", { class: "segmented" },
-    kindButton("steht fest", () => { mode = "symbols"; }),
-    /* Dropped on the way over rather than at the save that would have dropped
-       them anyway, so what stands in the sheet is what will be stored. */
-    kindButton("Kind wählt", () => { mode = "choice"; draft.symbols = []; speech.fold.open = true; }));
+    kindButton("steht fest", flip("symbols")),
+    kindButton("wählbar", flip("choice")));
   /* A chooser with no question above it. Both halves answer what the board does
      with this appointment, so that is what the label says. */
   const kindsRow = el("div", {}, el("span", { class: "lbl", text: "Am Board" }), kinds);
