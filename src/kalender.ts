@@ -26,7 +26,7 @@ const label = el("b");
    while using `.empty` correctly in six other places. */
 const empty = el("p", { class: "empty" },
   el("b", { text: "Noch nichts geplant" }),
-  el("small", { text: "Klick in eine Spalte, um einen Termin anzulegen." }));
+  el("small", { text: "Leg den ersten Termin an — oder klick in eine Spalte." }));
 /* ARASAAC's licence is a condition on showing its pictures, so the notice is asked
    of the symbols this week draws — not of the collection the household happens to
    be searching in. A week drawn from the household's own METACOM folder owes
@@ -63,6 +63,19 @@ async function step(by: number) {
   apply();
 }
 narrow.addEventListener("change", apply);
+
+/* Anlegen was a thing you had to already know: a click into a column, taught by
+   the empty state and only by it — so the lesson disappeared with the first
+   appointment, which is when somebody starts needing it. On a tablet there is no
+   `cursor: crosshair` to hint at it either. The click stays as the quicker way in;
+   this is the way in that is visible. Which day it opens is the day being looked
+   at: the shown one on a phone, otherwise today when today is in the week, and
+   the week's Monday when it is not — never a day off screen. */
+function dayInView(): string {
+  if (narrow.matches) return shown().dates[day]!;
+  const today = iso(new Date());
+  return shown().dates.includes(today) ? today : shown().dates[0]!;
+}
 fill(app, el("div", { class: "shell" },
   el("header", { class: "topbar" },
     el("div", { class: "topbar__nav" },
@@ -72,8 +85,9 @@ fill(app, el("div", { class: "shell" },
       label),
     el("div", { class: "topbar__nav" },
       el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: import.meta.env.BASE_URL, target: "_blank", rel: "noopener" } }),
-      button("Einstellungen", "sm", () => openSettings(say)))),
-  empty, grid.node, el("footer", { class: "foot" }, line, credit)));
+      button("Einstellungen", "quiet sm", () => openSettings(say)),
+      button("＋ Termin", "primary sm", () => editAppointment(blankAppointment(dayInView()), false, () => void load())))),
+  empty, grid.node, el("footer", { class: "pagefoot" }, line, credit)));
 
 subscribe(current => {
   empty.hidden = current.appointments.length > 0;

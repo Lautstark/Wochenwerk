@@ -83,8 +83,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     el("span", { class: "lbl lbl--split" }, el("span", { text: "Bis" }), lasts), to);
   const spanField = field("Bis", spanTo);
   const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"));
-  const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab Tagesbeginn", board.from));
-  const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis Tagesende", board.to));
+  const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab dem Aufstehen", board.from));
+  const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis zum Schlafengehen", board.to));
   const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanField);
   const seriesLine = el("p", { class: "small muted" });
 
@@ -119,10 +119,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const kindButton = (label: string, pick: () => void) =>
     el("button", { text: label, attrs: { type: "button" }, on: { click: () => { pick(); void sync(); } } });
   const kinds = el("div", { class: "segmented" },
-    kindButton("festgelegt", () => { mode = "symbols"; }),
+    kindButton("steht fest", () => { mode = "symbols"; }),
     /* Dropped on the way over rather than at the save that would have dropped
        them anyway, so what stands in the sheet is what will be stored. */
-    kindButton("wählbar", () => { mode = "choice"; draft.symbols = []; speech.fold.open = true; }));
+    kindButton("Kind wählt", () => { mode = "choice"; draft.symbols = []; speech.fold.open = true; }));
   /* A chooser with no question above it. Both halves answer what the board does
      with this appointment, so that is what the label says. */
   const kindsRow = el("div", {}, el("span", { class: "lbl", text: "Am Board" }), kinds);
@@ -138,8 +138,13 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     void sync().then(() => picked.querySelectorAll<HTMLElement>("[data-move]")[to]?.focus());
   });
   const ordering = el("p", { class: "small muted",
-    text: "Zieh die Symbole in die Reihenfolge, in der sie am Board stehen sollen — oder verschieb sie mit ← und →." });
+    text: "Zieh sie in die Reihenfolge, in der sie am Board stehen — oder ← und →." });
   const chosen = el("div", { class: "chosen" }, picked, ordering);
+  /* The search stood open beside the ＋ tile that focuses it — two ways to the
+     same thing, forty pixels apart, and one of them a full-width field on a sheet
+     that is already long. It is what the ＋ opens, so it waits until the ＋ is
+     pressed. It stays open after that: adding a second symbol is the common case. */
+  let searching = false;
   const search = symbolSearch(ref => {
     if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref];
     search.clear(); sync();
@@ -174,7 +179,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const repeatRow = el("div", { class: "stack" }, el("div", { class: "row-of" }, field("Wiederholen", repeatPick), untilRow), days);
 
   const removeButton = button("Löschen", "destructive", () => void erase());
-  const saveButton = button("Sichern", "primary", () => void save());
+  const saveButton = button("Fertig", "primary", () => void save());
   const wantMore = el("p", { class: "notice bad" });
 
   const who = el("div", { class: "picker__grid" });
@@ -321,7 +326,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        whatever was picked here. The picker was a control with nothing behind it,
        and the search under it invited using one. What a choice is made of is
        cards, and that is the one list it shows. */
-    search.node.hidden = mode === "choice";
+    search.node.hidden = mode === "choice" || !searching;
     chosen.hidden = mode === "choice";
     offer.hidden = mode !== "choice";
     /* Nothing to type while the cards do the talking, so the field and its label
@@ -341,7 +346,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
       ...draft.symbols.map((symbol, index) => movable(pickerItem(symbol.label, picture(symbol, symbol.label, known), true,
         () => { draft.symbols = draft.symbols.filter((_, at) => at !== index); void sync(); }))),
       el("button", { class: "picker__item picker__item--add", attrs: { type: "button" },
-        on: { click: () => search.focus() } },
+        on: { click: () => { searching = true; void sync().then(() => search.focus()); } } },
         el("span", { class: "picker__add", text: "＋" }),
         el("span", { class: "small", text: "Symbol" })));
     /* Nothing to put in an order until there are two of them. */
@@ -361,7 +366,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         ? [grid(...draft.options.map(id => pickerItem(cardById(id)?.name ?? "?", cardThumb(cardById(id)), true,
             () => { draft.options = draft.options.filter(other => other !== id); void sync(); })))]
         : []),
-      el("p", { class: "small muted", text: "Was zur Wahl steht, sind Karten mit NFC-Tag, die du hinlegst." }),
+      el("p", { class: "small muted", text: "Karten mit NFC-Tag, die du hinlegst." }),
       grid(...[...shown().cards.values()].filter(card => !draft.options.includes(card.id))
         .map(card => pickerItem(card.name, cardThumb(card), false, () => { draft.options = [...draft.options, card.id]; void sync(); }))),
       button("＋ Neue Karte", "sm", () => makeCard()));
@@ -398,10 +403,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     saveButton.disabled = short || bare;
     wantMore.hidden = !short && !bare;
     wantMore.textContent = bare
-      ? "Such ein Symbol aus — ohne eins bleibt die Karte am Board leer."
+      ? "Such ein Symbol aus, sonst bleibt die Karte am Board leer."
       : draft.options.length === 0
-        ? "Wähl mindestens zwei Karten aus, zwischen denen das Kind entscheiden kann."
-        : "Noch eine Karte: zwischen einer allein gibt es nichts zu wählen.";
+        ? "Wähl mindestens zwei Karten aus."
+        : "Noch eine Karte — zwischen einer allein gibt es nichts zu wählen.";
   }
 
   /* Making a card without leaving the appointment being planned. It ends by

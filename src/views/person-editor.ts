@@ -31,7 +31,7 @@ export function personEditor(person: Person, done: (saved: boolean) => void): HT
   const node = el("div", { class: "editor" },
     el("div", { class: "editor__head" }, heading, spacer(),
       button("Abbrechen", "quiet sm", () => done(false)),
-      button("Sichern", "primary sm", () => void save())),
+      button("Fertig", "primary sm", () => void save())),
     el("div", { class: "stack" }, portrait, field("Name", name), field("Geburtstag", birthday)));
 
   const sync = () => {

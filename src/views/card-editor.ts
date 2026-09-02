@@ -53,7 +53,7 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
     void sync();
   });
 
-  const save = button("Sichern", "primary sm", () => void store());
+  const save = button("Fertig", "primary sm", () => void store());
   const heading = el("b", { class: "editor__name" });
   /* The actions ride in the heading rather than under the form. What is under the
      form is the symbol search, which fills with results and is as tall as the panel

@@ -48,7 +48,7 @@ export function weekGrid(onOpen: (appointment: Appointment) => void, onCreate: (
     const lanes = runs.length ? Math.max(...runs.map(run => run.lane)) + 1 : 1;
     whole.style.setProperty("--lanes", String(lanes));
     fill(whole,
-      el("div", { class: "cal__corner", text: "ganztägig" }),
+      el("div", { class: "cal__corner", text: "ganztags" }),
       ...days.map((date, index) => el("div", { class: "cal__whole-rule",
         attrs: { style: `grid-column: ${index + 2}` },
         on: { click: event => { if (event.target === event.currentTarget) onCreate(date); } } })),
