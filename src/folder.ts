@@ -71,3 +71,12 @@ export const conflicts = () => ablage.conflicts();
    week is not racing anyone. */
 export const watchFolder = (onChange: () => void) =>
   ablage.watch(30_000, changes => { if (changes.length) onChange(); });
+
+/* What lies at the top of the chosen folder, and how to gather everything into
+   one place inside it. A picker only offers folders that exist, so somebody who
+   has not made one yet would have to leave the browser and come back — unless
+   they can pick *where* it should go instead. */
+export const folders = () => ablage.folders();
+export const nest = (name: string) => ablage.nest(name);
+/** The name every product files under. Its own folder is `HOME/wochenwerk/`. */
+export const HOME = "Lautstark";

@@ -10,7 +10,7 @@ import { connect, forget, metacom, needsAttention, preferredRendering, preferRen
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
-import { ablage as ablageStore, isStore } from "../folder.js";
+import { ablage as ablageStore, adopted, folders, HOME, isStore, nest } from "../folder.js";
 import { adoptFolder, pullFromFolder } from "../db.js";
 import { actionsFor as ablageActions, lineFor as ablageLine, needsAttention as ablageNeedsAttention } from "@lautstark/sicherung/ablage-ui";
 import type { AblageStatus } from "@lautstark/sicherung/ablage";
@@ -85,6 +85,17 @@ function whereSays(status: AblageStatus): string {
     case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
   }
 }
+/* Every Lautstark product files under the folder somebody picks, so one folder
+   can hold them all — and picking a Dropbox root instead scatters them through
+   it. This is how the panel tells a folder that already gathers them from one
+   that is about to be scattered into. */
+const OURS = ["wochenwerk", "bildhaft", "mitreden", "vorlaut"];
+const gathersUs = (names: string[]) => names.some(name => OURS.includes(name.toLowerCase()));
+/* A picture of the folder, the way a file manager draws it. Somebody who cannot
+   follow a sentence about nesting recognises a shape they have seen a thousand
+   times. */
+const tree = (lines: string[]) => el("pre", { class: "tree", text: lines.join("\n") });
+
 const actionSays = (id: string, connected: boolean) =>
   id === "choose" ? (connected ? "Anderer Ordner" : "Ordner wählen")
     : id === "confirm" ? "Erneut erlauben" : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
@@ -276,6 +287,21 @@ export function openSettings(say: (line: string) => void) {
     await readVoices();
   }
 
+  /* The name of a folder somebody just picked that holds nothing of ours yet, or
+     null. It lives across one render because the question is asked in the panel
+     rather than in a dialog over it — a modal on top of a modal is the thing this
+     dialog was rebuilt to stop doing. */
+  let asking: string | null = null;
+
+  /* What happens after a folder is settled on, whichever way. */
+  async function settle(made: string) {
+    const went = await adoptFolder();
+    say(went === "pushed" ? `${made} Was hier lag, liegt jetzt dort.`
+      : went === "pulled" ? `${made} Der Ordner hatte schon einen Kalender — der gilt jetzt hier.`
+      : "Der Ordner konnte nicht vollständig beschrieben werden. Der Kalender bleibt in diesem Browser.");
+    sync();
+  }
+
   function sync() {
     const status = metacom.status();
     /* Where the household keeps its week. Not a backup: connecting a folder makes
@@ -286,21 +312,51 @@ export function openSettings(say: (line: string) => void) {
     const connected = isStore();
     ablage.state.textContent = whereSays(where);
     fill(ablage.body,
-      connected ? null : el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser. Mit einem Ordner liegt er dort, und jedes Gerät, das ihn erreicht, sieht dieselbe Woche." }),
-      connected ? el("p", { class: "small", text: `Der Kalender liegt in „${folderName(where)}“. Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche.` }) : null,
+      /* The picture comes before the decision, not after it: five lines answer
+         what three paragraphs do not — one folder, a compartment per product,
+         METACOM beside them. */
+      connected || asking ? null : el("p", { class: "small", text: "Ein Ordner für alle Lautstark-Programme. Jedes legt darin sein eigenes Fach an, und jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche." }),
+      connected || asking ? null : tree(["Lautstark", "├── METACOM_9_Desktop", "├── wochenwerk/", "└── bildhaft/"]),
+      connected || asking ? null : el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser — das reicht für einen Haushalt mit einem Gerät. Noch keiner da? Wähle, wo er liegen soll, dann legen wir ihn dort an." }),
+
+      /* Asked once, and only where the answer is genuinely open: a folder that
+         already gathers Lautstark work is obviously the right one and nothing is
+         asked. */
+      asking ? el("p", { class: "small", text: `In „${asking}“ liegt noch nichts von Lautstark.` }) : null,
+      asking ? tree([asking, `└── ${HOME}   ← neu`, "    └── wochenwerk/"]) : null,
+      asking ? el("div", { class: "acts" },
+        button(`Ordner „${HOME}“ anlegen`, "sm primary", () => void run(async () => {
+          const made = asking!; asking = null;
+          await nest(HOME);
+          await settle(`Ordner „${HOME}“ in „${made}“ angelegt.`);
+        }, "")),
+        button(`„${asking}“ direkt benutzen`, "sm quiet", () => void run(async () => {
+          asking = null;
+          await settle("Ordner verbunden.");
+        }, ""))) : null,
+
+      connected && !asking ? el("p", { class: "small", text: `Der Kalender liegt in „${folderName(where)}“. Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche.` }) : null,
       ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
       where.kind === "conflicted"
         ? el("p", { class: "notice bad", text: `${where.ids.length} Datei(en) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
         : null,
-      el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
-        button(actionSays(action.id, connected), action.id === "forget" ? "sm destructive" : connected ? "sm quiet" : "sm",
+      asking ? null : el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
+        button(actionSays(action.id, connected),
+          /* The accent marks the one action we would pick. Choosing a folder is
+             not one of those — it is an offer, and a filled button would argue
+             with the sentence above it saying the browser is enough. */
+          action.id === "forget" ? "sm destructive"
+            : action.id === "retry" || action.id === "confirm" ? "sm primary"
+            : connected ? "sm quiet" : "sm",
           () => void run(async () => {
             await action.run();
-            if (action.id !== "choose") return;
-            const went = await adoptFolder();
-            say(went === "pushed" ? "Der Ordner war leer — was hier lag, liegt jetzt dort."
-              : went === "pulled" ? "Der Ordner hatte schon einen Kalender — der gilt jetzt hier."
-              : "Der Ordner konnte nicht vollständig beschrieben werden. Der Kalender bleibt in diesem Browser.");
+            if (action.id !== "choose" || !isStore()) return;
+            if (!(await adopted()) && !gathersUs(await folders())) {
+              asking = folderName(ablageStatus());
+              sync();
+              return;
+            }
+            await settle("Ordner verbunden.");
           }, "")))));
 
     symbols.state.textContent = says(status);

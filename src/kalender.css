@@ -277,3 +277,10 @@ a.btn { text-decoration: none; }
 /* When it is said, in the words the rules are written in rather than in minutes:
    for whoever is planning, "in der letzten Viertelstunde" carries more than 15. */
 .sentence__when { flex: 0 0 auto; font-size: .75rem; color: var(--text-faint); }
+
+/* A folder drawn the way a file manager draws it. Recognition beats instruction:
+   somebody who cannot follow a sentence about nesting can copy a shape they have
+   seen a thousand times. */
+.tree { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12px;
+  line-height: 1.8; overflow-x: auto; }
