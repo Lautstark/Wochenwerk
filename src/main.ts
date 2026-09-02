@@ -1,4 +1,6 @@
 import "./style.css";
+/* Vollbild and staying lit: the screen the week is on, which is not the week. */
+import "./screen.js";
 import { addDays, allDay, birthdayName, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
 import { allCards, allPeople, allSeries, pullFromFolder, put, settings, week, whenStuck } from "./db.js";

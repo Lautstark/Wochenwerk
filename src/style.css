@@ -38,8 +38,13 @@
 body { margin: 0; min-width: 980px; background: var(--ground); }
 /* The week has the whole screen. What the slot needs lies over it and takes nothing
    from it: a question appearing must not move the week, and something drawn on top
-   moves nothing. */
-#app { position: relative; width: 100vw; height: 100vh; }
+   moves nothing.
+
+   The dynamic height, not the large one: where an address bar is still on screen the
+   week has to fit under it, and the bottom row of the board is where today's last
+   appointment sits — and where the tray stands. Under kiosk the two are the same
+   number. */
+#app { position: relative; width: 100vw; height: 100dvh; }
 .week { position: relative; height: 100%; display: grid; }
 
 /* Multi-day stretches, hanging under the heads and floating straight over the

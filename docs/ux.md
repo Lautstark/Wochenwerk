@@ -128,3 +128,11 @@ The seven weekday colours are one family rather than seven decisions: they sit a
 Where these sit against the METACOM day cards is an open question and worth watching in use: green and blue here are a jade and a sky rather than the leaf green and the periwinkle the cards teach, which is a difference the child may or may not carry between the two.
 
 Everything mixes towards a single cool light. Before, a field went eighteen per cent into a warm near-black and everything spent went into a warm grey: two warm neutrals, two directions, and every hue turned muddy somewhere along the way. Damping a palette made that worse rather than better, because what looked dirty was never the hue. METACOM remains the source of the child-facing symbols, used without frames and without their printed captions.
+
+## Der ganze Bildschirm
+
+The board fills the display it is on, and on the wall it is given the whole of one: the Wyse starts Chromium in kiosk, so there is no chrome to be rid of and nothing to ask for. Everywhere the board is only tried out, a window's address bar sits over the week, and the height it takes is the height today's last appointment loses — and the tray under it. So the board is measured against the dynamic viewport height rather than the large one; under kiosk the two are the same number anyway.
+
+`Ctrl+Shift+F` hands it the screen there, and gives it back. That is for whoever is trying the board out and for nobody else, which is why it carries modifiers. The board's own key is Space and it ignores anything modified, on the grounds that a modifier means somebody is at a real keyboard doing something else — this is that somebody, and a bare letter would be standing in the way of whatever unmodified key the board binds next.
+
+While the board has the whole screen it also keeps it lit. Only then: in a window among other windows the board is being worked on rather than hung up, and it has no business keeping that machine awake.
