@@ -64,7 +64,7 @@ and cannot come out differently on two presses a minute apart.
 **Day → now → next.** With one exception, which outranks all of it:
 
 > **When a choice is open and running, the announcement is only the choice.**
-> *Jetzt darfst du aussuchen. Leg eine Karte in den Schlitz.*
+> *Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?*
 
 In that moment there is something for the child to do, and a sentence about
 Tuesday in front of it is a sentence in the way. Everywhere else the choice is
@@ -112,7 +112,8 @@ list, so it is only done where there is exactly one.
 | further off, and nothing is running | *Dann kommt Kita.* |
 | nothing near, and something is running | *Danach ist nichts geplant.* |
 | nothing near, and nothing is running | nothing — the *now* sentence has said it |
-| next is an open choice | *Danach darfst du aussuchen.* |
+| next is an open choice | *Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
+| next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
 | nothing left today | *Heute ist nichts mehr geplant.* |
 
@@ -141,6 +142,14 @@ offers and, once something picked, from the card that was picked — so there is
 nothing on the appointment to write, and a disabled field explaining that is
 still a field to read past. The words are written where they belong: on the card.
 
+**A choice that is ahead names its cards too.** What is worth waiting for is what
+the choice is between; told only that a decision is coming, the child has been
+told about a slot. It is the same list as below, in *gleich* / *danach* / *dann*,
+and it ends in the same question. Where the cards cannot all be named the sentence
+says only that there is something to choose: it does not point at the table,
+because the child is not standing in front of it yet, and it does not ask, because
+between nothing said there is nothing to answer.
+
 **An open choice says only that there is something to choose, and names the
 cards.** Not itself: the title on a choice is what the parents filed the slot
 under — a *Nachmittagszeit* holding a Laufrad and a Spielplatz — and the child
@@ -151,10 +160,17 @@ title is not consulted at all.
 
 | when | said |
 | --- | --- |
-| open, up to three options | *Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Leg eine Karte in den Schlitz.* |
-| open, more than three | *Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.* |
+| open, up to three options | *Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
+| open, more than three | *Jetzt darfst du aussuchen. Schau, welche Karten daliegen. Was möchtest du tun?* |
 | decided, and running | *Jetzt ist Schwimmbad. Das hast du ausgesucht.* |
 | decided, and ahead | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
+
+**The sentence ends by asking, not by instructing.** It used to end *Leg eine
+Karte in den Schlitz*, and that described a mechanism the board does not have:
+there is one place, and a card is stood in it. A sentence about the furniture has
+to be rewritten whenever the furniture is; *Was möchtest du tun?* survives it, it
+is one clip for the choice open and the choice ahead, and it is what is actually
+being asked.
 
 Beyond three, naming the options is a list nobody can hold, so the sentence points
 at the table instead of reciting it. It does the same when **any one** option has

@@ -60,12 +60,26 @@ const FRAMES = {
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
   thenChoose: "Dann darfst du aussuchen.",
+  /* The same three, opened so the cards can follow. A choice ahead is worth
+     waiting for because of what is in it, and *Danach darfst du aussuchen* on its
+     own is an announcement about a slot: the child is told there will be a
+     decision and not what it is between. Named here as it is named when the
+     choice is open, and asked in the same words. */
+  soonChooseFrom: "Gleich darfst du aussuchen:",
+  afterChooseFrom: "Danach darfst du aussuchen:",
+  thenChooseFrom: "Dann darfst du aussuchen:",
   done: "Heute ist nichts mehr geplant.",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
   or: "oder",
-  slot: ". Leg eine Karte in den Schlitz.",
-  look: "Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.",
+  /* The question the naming leads to, and the same one whether the choice is open
+     or still ahead — one clip, learned once. It used to be *Leg eine Karte in den
+     Schlitz*, which described a mechanism the board does not have: there is one
+     place, and a card is stood in it. A sentence about the furniture would have
+     to be rewritten with the furniture; a question about what the child wants
+     survives it, and it is what is actually being asked. */
+  ask: ". Was möchtest du tun?",
+  look: "Jetzt darfst du aussuchen. Schau, welche Karten daliegen. Was möchtest du tun?",
 } as const;
 
 const WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
@@ -129,6 +143,14 @@ const listing = (words: string[], last: Part): Part[] =>
   words.length < 2 ? words.map(own) : joined(words.slice(0, -1).map(own), last).concat(own(words.at(-1)!));
 const peopleOn = (appointment: Appointment, household: Household) =>
   appointment.people.map(id => household.people.get(id)).filter((person): person is Person => !!person);
+
+/* The words of the cards on offer, or nothing where they cannot all be named.
+   Naming three of four would describe a table wrongly, and beyond three it is a
+   list nobody can hold — the same rule whether the choice is open now or ahead. */
+function namedOptions(appointment: Appointment, household: Household): string[] | undefined {
+  const said = appointment.options.map(id => cardSays(household.cards.get(id))).filter((word): word is string => !!word);
+  return said.length && said.length === appointment.options.length && said.length <= 3 ? said : undefined;
+}
 
 /**
  * What the board says when the button is pressed: two or three short sentences,
@@ -273,7 +295,17 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
        is time to play, and saying it twice in two wordings is worse than once. */
     return running ? [utter(fixed(FRAMES.free))] : [];
   }
-  if (undecided(next)) return [about(next, utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose)))];
+  if (undecided(next)) {
+    const offered = namedOptions(next, household);
+    /* Named, so there is something to be asked about: the question follows the
+       cards here as it does when the choice is open. Where they cannot all be
+       named the sentence stops after saying a choice is coming — asking what the
+       child wants, between nothing said, is a question with no answer in it. */
+    return [about(next, offered
+      ? utter(fixed(soon ? FRAMES.soonChooseFrom : running ? FRAMES.afterChooseFrom : FRAMES.thenChooseFrom),
+          ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask))
+      : utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose)))];
+  }
   const said = spokenName(next, household.cards);
   if (!said) return [];
   const when = soon ? FRAMES.soon : running ? FRAMES.after : FRAMES.then;
@@ -289,13 +321,12 @@ function restOfIt(): Utterance {
   return utter(fixed(FRAMES.done));
 }
 
-/* An open choice, and it is the whole announcement. The options are named only
-   where every one of them has a word of its own: naming three of four would
-   describe a table the child is looking at, wrongly. */
+/* An open choice, and it is the whole announcement. Where the cards cannot all be
+   named the sentence points at the table the child is standing in front of. */
 function choosing(running: Appointment, household: Household): Utterance {
-  const said = running.options.map(id => cardSays(household.cards.get(id))).filter((word): word is string => !!word);
-  return about(running, said.length === running.options.length && said.length <= 3
-    ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.slot))
+  const said = namedOptions(running, household);
+  return about(running, said
+    ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.ask))
     : utter(fixed(FRAMES.look)));
 }
 
@@ -376,12 +407,15 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
        word: none yet, or one missing, and the sentence points at the table
        instead of reading out a list with a hole in it. */
     const named = offered.length > 0 && offered.length === shape.offering.length && offered.length <= 3;
+    /* Ahead of it the cards are named too, in the same three frames. */
+    const ahead = (opening: string, bare: string) =>
+      named ? line(fixed(opening), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask)) : bare;
     return [
-      { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.slot)) : FRAMES.look,
+      { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask)) : FRAMES.look,
         when: "wenn die Wahl offen ist" },
-      { text: FRAMES.afterChoose, when: "davor, wenn etwas läuft" },
-      { text: FRAMES.soonChoose, when: "bis 20 Minuten davor" },
-      { text: FRAMES.thenChoose, when: "in einer Lücke davor" },
+      { text: ahead(FRAMES.afterChooseFrom, FRAMES.afterChoose), when: "davor, wenn etwas läuft" },
+      { text: ahead(FRAMES.soonChooseFrom, FRAMES.soonChoose), when: "bis 20 Minuten davor" },
+      { text: ahead(FRAMES.thenChooseFrom, FRAMES.thenChoose), when: "in einer Lücke davor" },
     ];
   }
 

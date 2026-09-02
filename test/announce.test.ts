@@ -171,9 +171,31 @@ describe("what comes next", () => {
     expect(said(week, at("10:00"), house())).toEqual(["Es ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
   });
 
-  it("still names a choice that is genuinely next", () => {
+  it("still names a choice that is genuinely next, and says what is in it", () => {
+    /* What a choice is worth waiting for is what it is between. Told only that
+       there will be a decision, the child has been told about a slot. */
     const week = [appointment("12:00", "13:00", { title: "Mittagessen" }), appointment("13:15", "14:00", { options: ["s"], symbols: [], title: undefined })];
-    expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen.");
+    expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen: Schwimmbad. Was möchtest du tun?");
+  });
+
+  it("names the cards in all three frames a choice can be ahead in", () => {
+    const cards = house([card("s", "Schwimmbad"), card("p", "Spielplatz")]);
+    const choice = appointment("13:15", "14:00", { options: ["s", "p"], symbols: [], title: undefined });
+    const behind = [appointment("12:00", "13:00", { title: "Mittagessen" }), choice];
+    expect(said(behind, at("13:00"), cards)[2]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    expect(said(behind, at("12:30"), cards)[2]).toBe("Danach darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    expect(said([choice], at("13:00"), cards)[2]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    expect(said([choice], at("12:50"), cards)[2]).toBe("Dann darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+  });
+
+  it("says only that there is something to choose where the cards cannot all be named", () => {
+    /* Four of them, or one without a word: the same rule as when the choice is
+       open, and here there is no table in front of the child to point at. */
+    const four = house([card("a", "A"), card("b", "B"), card("c", "C"), card("d", "D")]);
+    const ahead = (options: string[]) =>
+      [appointment("12:00", "13:00", { title: "Mittagessen" }), appointment("13:15", "14:00", { options, symbols: [], title: undefined })];
+    expect(said(ahead(["a", "b", "c", "d"]), at("12:30"), four)[2]).toBe("Danach darfst du aussuchen.");
+    expect(said(ahead(["a", "b", "gone"]), at("12:30"), four)[2]).toBe("Danach darfst du aussuchen.");
   });
 
   it("ends at the end of the day and does not reach into the next one", () => {
@@ -193,20 +215,20 @@ describe("a choice", () => {
   it("is the whole announcement while it is open", () => {
     const cards = [card("s", "Schwimmbad"), card("p", "Spielplatz")];
     expect(said(offered(["s", "p"]), at("14:30"), house(cards)))
-      .toEqual(["Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Leg eine Karte in den Schlitz."]);
+      .toEqual(["Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?"]);
   });
 
   it("prefers what a card says of itself over what it is called", () => {
     const cards = [card("s", "Schwimmbad Aquarena", "Schwimmbad"), card("p", "Spielplatz")];
     expect(said(offered(["s", "p"]), at("14:30"), house(cards))[0])
-      .toBe("Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Leg eine Karte in den Schlitz.");
+      .toBe("Jetzt darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
   });
 
   it("points at the table rather than naming a part of it", () => {
     /* Four options, and separately three of which one has no name: listing what
        is left would describe a table the child is looking at, wrongly. */
     const four = [card("a", "A"), card("b", "B"), card("c", "C"), card("d", "D")];
-    const pointing = "Jetzt darfst du aussuchen. Schau, welche Karten daliegen, und leg eine in den Schlitz.";
+    const pointing = "Jetzt darfst du aussuchen. Schau, welche Karten daliegen. Was möchtest du tun?";
     expect(said(offered(["a", "b", "c", "d"]), at("14:30"), house(four))[0]).toBe(pointing);
     expect(said(offered(["a", "b", "gone"]), at("14:30"), house(four))[0]).toBe(pointing);
   });
@@ -217,7 +239,7 @@ describe("a choice", () => {
        gehen* in the second of them, which is why a record says a word. */
     const cards = [card("s", "Schwimmbad Aquarena", "Schwimmbad")];
     expect(said(offered(["s"]), at("14:30"), house(cards))[0])
-      .toBe("Jetzt darfst du aussuchen: Schwimmbad. Leg eine Karte in den Schlitz.");
+      .toBe("Jetzt darfst du aussuchen: Schwimmbad. Was möchtest du tun?");
     expect(said(offered(["s"], { chosen: "s" }), at("14:30"), house(cards))[1])
       .toBe("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
   });
@@ -339,7 +361,9 @@ describe("what a word can turn up in", () => {
        it under; the child is being offered a Laufrad and a Spielplatz. And until
        something picks one, there is no appointment to announce. */
     const said = couldSay("Nachmittagszeit", { offering: ["Laufrad fahren", "Spielplatz"] }).map(line => line.text);
-    expect(said[0]).toBe("Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Leg eine Karte in den Schlitz.");
+    expect(said[0]).toBe("Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?");
+    /* And ahead of it the cards are named too, and asked about in the same words. */
+    expect(said).toContain("Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?");
     expect(said.some(line => line.includes("Nachmittagszeit"))).toBe(false);
     expect(said).toHaveLength(4);
   });
