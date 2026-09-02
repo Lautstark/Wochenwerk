@@ -92,18 +92,24 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const toField = el("label", { class: "field-row" },
     el("span", { class: "lbl lbl--split" }, el("span", { text: "Bis" }), lasts), to);
   const spanField = field("Bis", spanTo);
-  /* Under Ganztägig rather than under the field that spans the stretch, though
-     that is the field it belongs to by meaning. The span field goes once the
-     appointment is a batch — it cannot change one — and the switch has to stay
-     reachable on exactly those: a stretch is ticked as *nicht zu Hause* after it
-     exists at least as often as while it is being written. So it hangs under the
-     switch it depends on instead, in the column that never goes, and it is the
-     one control here that has to be hidden by hand. */
-  const notHomeRow = switchUnder(notHome, "Wir sind nicht zu Hause");
-  const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"), notHomeRow);
+  /* One switch under each of the two fields, which is also what keeps the row
+     level: two of them stacked under „Tag" left the column beside it a hand
+     shorter than its neighbour.
+
+     And it is the right field by meaning as well — a day the household is
+     somewhere else is a day that lasts, and how many of them there are is what
+     stands above it. The column carries the switch whenever the appointment is
+     all-day; the field inside it only where it can still do something, which is
+     everywhere except an all-day appointment inside a batch that is not a
+     stretch. There the switch stands alone rather than going: a weekly all-day
+     Friday somewhere else is unusual and not impossible, and a control that
+     disappears for it would be a capability nobody could find. */
+  const spanCol = el("div", { class: "field-col" }, spanField,
+    switchUnder(notHome, "Wir sind nicht zu Hause"));
+  const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"));
   const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab dem Aufstehen", board.from));
   const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis zum Schlafengehen", board.to));
-  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanField);
+  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanCol);
   const seriesLine = el("p", { class: "small muted" });
 
   /* The two edges are a shortcut, not a third thing to store: ticked means the
@@ -320,7 +326,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
     fromCol.hidden = whole.checked;
     toCol.hidden = whole.checked;
-    notHomeRow.hidden = !whole.checked;
+    spanCol.hidden = !whole.checked;
     /* One field for one fact, and the fact is where the stretch stops.
        Beside the day it is what a person came to change: „vom 4. bis zum 6."
        is how somebody says four days away, and it is how they change them.
@@ -329,7 +335,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        grandmother's into a repetition on the one screen where somebody is
        looking at what it is. So a stretch carries the field here and no
        Wiederholen row at all, and a repetition carries the row and no field. */
-    spanField.hidden = !whole.checked || (!!draft.series && !stretch);
+    spanField.hidden = !!draft.series && !stretch;
     repeatRow.hidden = !!stretch;
     /* Derived, never stored: ticked means the time already is that edge of the
        day. Written after the columns are placed so that a time changed by hand
