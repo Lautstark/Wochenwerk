@@ -6,11 +6,11 @@ import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
-  renderings, says, sourceInUse, supportsPicker, useFolderFiles, useZip } from "../symbols.js";
+  renderings, says, sourceInUse, supportsPicker, useFolder, useFolderFiles, useZip } from "../symbols.js";
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
-import { ablage as ablageStore, adopted, folders, HOME, isStore, nest } from "../folder.js";
+import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest } from "../folder.js";
 import { adoptFolder, pullFromFolder } from "../db.js";
 import { actionsFor as ablageActions, lineFor as ablageLine, needsAttention as ablageNeedsAttention } from "@lautstark/sicherung/ablage-ui";
 import type { AblageStatus } from "@lautstark/sicherung/ablage";
@@ -292,6 +292,11 @@ export function openSettings(say: (line: string) => void) {
      rather than in a dialog over it — a modal on top of a modal is the thing this
      dialog was rebuilt to stop doing. */
   let asking: string | null = null;
+  /* The name of the folder METACOM was found in, and what a fruitless look
+     turned up — both only until the next render, because both are answers to a
+     question somebody just asked. */
+  let fromFolder: string | null = null;
+  let looked: string[] | null = null;
 
   /* What happens after a folder is settled on, whichever way. */
   async function settle(made: string) {
@@ -359,21 +364,43 @@ export function openSettings(say: (line: string) => void) {
             await settle("Ordner verbunden.");
           }, "")))));
 
-    symbols.state.textContent = says(status);
+    symbols.state.textContent = fromFolder ? `METACOM aus „${fromFolder}“` : says(status);
     fill(symbols.body,
-      el("p", { class: "small muted", text: "Woher die Symbole kommen, wird nicht ausgewählt: Es folgt aus dem Ordner. Mit verbundenem Ordner zeichnet Wochenwerk mit METACOM aus deiner eigenen Lizenz, und nichts davon verlässt den Browser. Ohne Ordner kommen die Symbole von ARASAAC, das keine Einrichtung braucht." }),
-      el("p", { class: "small", text: sourceInUse() === "metacom"
-        ? "Gesucht und gezeichnet wird gerade mit METACOM." : "Gesucht und gezeichnet wird gerade mit ARASAAC." }),
+      /* Where the calendar lives in a folder, METACOM belongs beside it: dropped
+         in once, found by every device. The alternative is a file dialog per
+         device, which is the step people give up at. */
+      metacom.isReady() ? null : el("p", { class: "small", text: connected
+        ? "Gezeichnet wird gerade mit ARASAAC. Für METACOM legst du deinen lizenzierten Ordner in die Ablage — dann finden ihn alle Geräte von selbst."
+        : "Ohne METACOM-Ordner kommen die Symbole von ARASAAC, das keine Einrichtung braucht. METACOM zeichnet aus deiner eigenen Lizenz, und nichts davon verlässt den Browser." }),
+      metacom.isReady() || !connected ? null : tree([folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"]),
+      metacom.isReady() || !connected ? null : el("p", { class: "small muted", text: "Der Ordner heißt bei den meisten METACOM_9_Desktop und enthält einen Ordner METACOM_Symbole. Kopieren oder verschieben — beides geht. Teilst du die Ablage mit anderen, bekommen sie METACOM mit; ob das erlaubt ist, steht in deiner Lizenz." }),
+      /* What the app sees, in the same words the file manager uses. "I put it
+         there" and "it sees these three names" together turn a mystery into a
+         comparison — and the comparison is what somebody can act on. */
+      looked ? el("p", { class: "notice bad", text: looked.length
+        ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.`
+        : "Der Ordner ist noch leer." }) : null,
+      metacom.isReady() ? el("p", { class: "small", text: fromFolder
+        ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.`
+        : "Gezeichnet wird mit METACOM aus einem eigenen Ordner." }) : null,
       needsAttention(status) ? el("p", { class: "notice bad", text: says(status) }) : null,
       el("div", { class: "acts" },
-        button(supportsPicker ? "Ordner wählen" : "Ordner hochladen", "sm",
+        connected && !metacom.isReady()
+          ? button("Nochmal nachsehen", "sm primary", () => void run(async () => {
+              const found = await metacomInFolder();
+              looked = found ? null : await folders();
+              if (found) { await useFolder(found.handle); fromFolder = found.name; looked = null; }
+              sync();
+            }, "")) : null,
+        button(supportsPicker ? (connected ? "Anderen Ordner wählen" : "Ordner wählen") : "Ordner hochladen",
+          connected || metacom.isReady() ? "sm quiet" : "sm",
           () => supportsPicker ? void run(() => connect(), "Ordner gelesen.")
             : pickFile("", true, files => void run(() => useFolderFiles(files), "Ordner gelesen."))),
         button("ZIP lesen", "sm quiet", () => pickFile(".zip,application/zip", false, files => void run(() => useZip(files[0]), "ZIP gelesen."))),
         status.kind === "needs-setup" && status.code === "permission-needed"
-          ? button("Erneut erlauben", "sm", () => void run(() => reconnect(), "Erlaubnis wieder da.")) : null,
+          ? button("Erneut erlauben", "sm primary", () => void run(() => reconnect(), "Erlaubnis wieder da.")) : null,
         metacom.isReady() ? button("Neu einlesen", "sm quiet", () => void run(() => rebuild(), "Neu eingelesen.")) : null,
-        metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(() => forget(), "Ordner vergessen.")) : null),
+        metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(async () => { fromFolder = null; await forget(); }, "Ordner vergessen.")) : null),
       renderingChooser());
 
     /* One voice for the whole calendar, so the heading names it the way the other

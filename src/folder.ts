@@ -80,3 +80,9 @@ export const folders = () => ablage.folders();
 export const nest = (name: string) => ablage.nest(name);
 /** The name every product files under. Its own folder is `HOME/wochenwerk/`. */
 export const HOME = "Lautstark";
+
+/* METACOM dropped beside the calendar rather than picked again on every device.
+   The folder wanted is the one *containing* `METACOM_Symbole`, because that is
+   what every stored symbol id is written relative to. */
+export const METACOM_INSIDE = "METACOM_Symbole";
+export const metacomInFolder = () => ablage.folderHolding(METACOM_INSIDE);

@@ -14,6 +14,10 @@ export type { Candidate, ProviderId, ProviderStatus };
 export const supportsPicker = MetacomProvider.supportsPersistentPicker;
 export const restore = () => metacom.restore();
 export const connect = () => metacom.pickDirectory();
+/* A folder the household already dropped beside its calendar, adopted without a
+   second file dialog. The capability is the same one the picker grants; what is
+   saved is the picking, which is where setting up gets abandoned. */
+export const useFolder = (handle: FileSystemDirectoryHandle) => metacom.useDirectoryHandle(handle);
 export const useFolderFiles = (files: FileList | File[]) => metacom.useFileList(files);
 export const useZip = (file: File) => metacom.useZip(file);
 export const reconnect = () => metacom.requestPermission();
