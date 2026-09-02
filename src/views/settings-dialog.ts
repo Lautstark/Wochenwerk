@@ -12,7 +12,7 @@ import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
 import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest, stopTelling, tellOthers, toldByOthers } from "../folder.js";
 import { adoptFolder, pullFromFolder } from "../db.js";
-import { actionsFor as ablageActions, lineFor as ablageLine, needsAttention as ablageNeedsAttention } from "@lautstark/sicherung/ablage-ui";
+import { wherePanel } from "@lautstark/sicherung/ablage-panel";
 import type { AblageStatus } from "@lautstark/sicherung/ablage";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { cardEditor } from "./card-editor.js";
@@ -85,20 +85,11 @@ function whereSays(status: AblageStatus): string {
     case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
   }
 }
-/* Every Lautstark product files under the folder somebody picks, so one folder
-   can hold them all — and picking a Dropbox root instead scatters them through
-   it. This is how the panel tells a folder that already gathers them from one
-   that is about to be scattered into. */
-const OURS = ["wochenwerk", "bildhaft", "mitreden", "vorlaut"];
-const gathersUs = (names: string[]) => names.some(name => OURS.includes(name.toLowerCase()));
 /* A picture of the folder, the way a file manager draws it. Somebody who cannot
    follow a sentence about nesting recognises a shape they have seen a thousand
    times. */
 const tree = (lines: string[]) => el("pre", { class: "tree", text: lines.join("\n") });
 
-const actionSays = (id: string, connected: boolean) =>
-  id === "choose" ? (connected ? "Anderer Ordner" : "Ordner wählen")
-    : id === "confirm" ? "Erneut erlauben" : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
 const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
 
 /* A file the browser hands over. Nothing here is stored — the anchor exists for
@@ -190,9 +181,9 @@ export function openSettings(say: (line: string) => void) {
      can expire or be cleared, and the household's answer lives in the settings
      rather than in the cookie it produces. */
   async function readTelling() {
-    tell.checked = !!(await settings()).tellOthers;
-    if (tell.checked && isStore()) tellOthers(folderName(ablageStatus()));
-    sync();
+    told = !!(await settings()).tellOthers;
+    if (told && isStore()) tellOthers(folderName(ablageStatus()));
+    store.refresh();
   }
 
   async function readVoices() {
@@ -316,7 +307,44 @@ export function openSettings(say: (line: string) => void) {
      null. It lives across one render because the question is asked in the panel
      rather than in a dialog over it — a modal on top of a modal is the thing this
      dialog was rebuilt to stop doing. */
-  let asking: string | null = null;
+  const store = wherePanel({
+    store: ablageStore,
+    adopt: adoptFolder,
+    changed: () => void load(),
+    say,
+    share: {
+      reads: () => told,
+      write: async (on: boolean) => {
+        told = on;
+        await saveSettings({ tellOthers: on });
+        if (on) tellOthers(folderName(ablageStatus()));
+        else stopTelling();
+      },
+    },
+    /* Beside the store, not instead of it: a snapshot survives a mistake the
+       folder carries everywhere within seconds. */
+    below: () => [
+      el("hr", { class: "hair" }),
+      el("p", { class: "sub", text: "Herausnehmen und einlesen" }),
+      el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme. Sie altert — aber sie übersteht einen Fehler, den der Ordner sofort mitmacht." }),
+      el("div", { class: "acts" },
+        button("Sicherung als Datei", "sm", () => void run(async () => {
+          const backup = await exportAll();
+          const day = new Date().toISOString().slice(0, 10);
+          save(`wochenwerk-sicherung-${day}.json`, JSON.stringify(backup, null, 2));
+        }, "Sicherung geschrieben.")),
+        button("Sicherung einlesen", "sm quiet", () => pickFile("application/json,.json", false,
+          files => void run(async () => {
+            const data: unknown = JSON.parse(await files[0].text());
+            if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
+            const added = await importAll(data);
+            await load();
+            say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
+          }, "")))),
+      el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie. Drin sind Termine, Serien, Karten und Personen — keine Bilder, keine Einstellungen." }),
+    ],
+  });
+  let told = false;
   /* The name of the folder METACOM was found in, and what a fruitless look
      turned up — both only until the next render, because both are answers to a
      question somebody just asked. */
@@ -344,98 +372,16 @@ export function openSettings(say: (line: string) => void) {
        it the store, and this browser holds a copy of it from that moment. Once one
        is connected there is nothing left to explain — the heading names it, and
        what belongs here is what is in it. */
-    const where = ablageStatus();
+    ablage.state.textContent = whereSays(ablageStatus());
+    /* The panel itself comes from the package, so every Lautstark programme shows
+       the same one. What stays here is the two things only Wochenwerk knows: what
+       adopting a folder does to its store, and what it offers besides — its own
+       snapshot in a file. */
+    fill(ablage.body, store.node);
+    store.refresh();
+
     const connected = isStore();
-    ablage.state.textContent = whereSays(where);
-    fill(ablage.body,
-      /* The picture comes before the decision, not after it: five lines answer
-         what three paragraphs do not — one folder, a compartment per product,
-         METACOM beside them. */
-      connected || asking ? null : el("p", { class: "small", text: "Ein Ordner für alle Lautstark-Programme. Jedes legt darin sein eigenes Fach an, und jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche." }),
-      connected || asking ? null : tree(["Lautstark", "├── METACOM_9_Desktop", "├── wochenwerk/", "└── bildhaft/"]),
-      connected || asking ? null : el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser — das reicht für einen Haushalt mit einem Gerät. Noch keiner da? Wähle, wo er liegen soll, dann legen wir ihn dort an." }),
-      /* True for everybody, always — which is why it needs nothing remembered
-         across products to be said. Each product is its own origin, so a folder
-         handle cannot travel between them and the picking cannot be skipped;
-         what can be skipped is the wondering which folder to pick. */
-      /* Named where another programme said so, general where it did not. Both
-         say the same thing; one of them can point. */
-      connected || asking ? null : (() => {
-        const said = toldByOthers();
-        return el("p", { class: "small muted", text: said
-          ? `Auf diesem Gerät benutzt ${said.app} den Ordner „${said.folder}“. Wähle ihn hier auch.`
-          : "Benutzt du schon ein anderes Lautstark-Programm, zeig hier auf denselben Ordner." });
-      })(),
-
-      /* Asked once, and only where the answer is genuinely open: a folder that
-         already gathers Lautstark work is obviously the right one and nothing is
-         asked. */
-      asking ? el("p", { class: "small", text: `In „${asking}“ liegt noch nichts von Lautstark.` }) : null,
-      asking ? tree([asking, `└── ${HOME}   ← neu`, "    └── wochenwerk/"]) : null,
-      asking ? el("div", { class: "acts" },
-        button(`Ordner „${HOME}“ anlegen`, "sm primary", () => void run(async () => {
-          const made = asking!; asking = null;
-          await nest(HOME);
-          await settle(`Ordner „${HOME}“ in „${made}“ angelegt.`);
-        }, "")),
-        button(`„${asking}“ direkt benutzen`, "sm quiet", () => void run(async () => {
-          asking = null;
-          await settle("Ordner verbunden.");
-        }, ""))) : null,
-
-      connected && !asking ? el("p", { class: "small", text: "Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche." }) : null,
-      /* Consent, where a reader knows what it means: beside the folder they just
-         chose, off until they say so, and off again in the same place. What it
-         stores is said outright, because nobody can agree to what they were not
-         told. */
-      connected && !asking ? check("Anderen Lautstark-Programmen zeigen, wo der Ordner liegt", tell) : null,
-      connected && !asking ? el("p", { class: "small muted", text: "Der Name steht dann in einem Cookie, das alle lautstark.tech-Seiten lesen und das bei jedem Aufruf mitgeht. Mehr wird nicht geteilt." }) : null,
-      ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
-      where.kind === "conflicted"
-        ? el("p", { class: "notice bad", text: `${where.ids.length} Datei(en) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
-        : null,
-      asking ? null : el("div", { class: "acts" }, ...ablageActions(ablageStore, where).map(action =>
-        button(actionSays(action.id, connected),
-          /* The accent marks the one action we would pick. Choosing a folder is
-             not one of those — it is an offer, and a filled button would argue
-             with the sentence above it saying the browser is enough. */
-          action.id === "forget" ? "sm destructive"
-            : action.id === "retry" || action.id === "confirm" ? "sm primary"
-            : connected ? "sm quiet" : "sm",
-          () => void run(async () => {
-            await action.run();
-            if (action.id !== "choose" || !isStore()) return;
-            if (!(await adopted()) && !gathersUs(await folders())) {
-              asking = folderName(ablageStatus());
-              sync();
-              return;
-            }
-            await settle("Ordner verbunden.");
-          }, "")))),
-      asking ? null : el("hr", { class: "hair" }),
-      asking ? null : el("p", { class: "sub", text: "Herausnehmen und einlesen" }),
-      /* Kept beside the store rather than in a rubric of its own, because it is
-         the same subject from the other side — and it stays offered with a folder
-         connected, because it is not the same promise. A folder carries a mistake
-         everywhere within seconds; a file from Tuesday does not. */
-      asking ? null : el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme. Sie altert — aber sie übersteht einen Fehler, den der Ordner sofort mitmacht." }),
-      asking ? null : el("div", { class: "acts" },
-        button("Sicherung als Datei", "sm", () => void run(async () => {
-          const backup = await exportAll();
-          const day = new Date().toISOString().slice(0, 10);
-          save(`wochenwerk-sicherung-${day}.json`, JSON.stringify(backup, null, 2));
-        }, "Sicherung geschrieben.")),
-        button("Sicherung einlesen", "sm quiet", () => pickFile("application/json,.json", false,
-          files => void run(async () => {
-            const data: unknown = JSON.parse(await files[0].text());
-            if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
-            const added = await importAll(data);
-            await load();
-            say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
-          }, "")))),
-      asking ? null : el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie. Symbole stehen als Verweise darin, keine Bilddateien — die Datei enthält also kein METACOM." }));
-
-
+    const where = ablageStatus();
     symbols.state.textContent = fromFolder ? `METACOM aus „${fromFolder}“` : says(status);
     fill(symbols.body,
       /* Where the calendar lives in a folder, METACOM belongs beside it: dropped
