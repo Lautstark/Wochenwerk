@@ -526,9 +526,33 @@ whenStuck(trouble);
    Space, because a keypad or a single wired switch is what a button in a frame
    is, and space is what one of those sends before it is configured to send
    anything else. A modifier means somebody is at a real keyboard doing something
-   else, so it is left alone. */
+   else, so it is left alone.
+
+   And the knob, because the button that ended up in front of the board is a USB
+   volume dial: pressing it sends the system's mute key, turning it sends volume
+   up and down. It cannot be told to send anything else — there is no software to
+   tell it with — so the board learns its keys instead. Two of them ask for the
+   announcement and two are swallowed, which is the whole vocabulary the hardware
+   has.
+
+   *Turning does nothing on purpose.* The dial sits at a child's height under a
+   board whose entire job is to talk, and volume is not a setting a two-year-old
+   should be able to change by leaning on it — least of all down to nothing, which
+   looks exactly like a board that has broken. Swallowed rather than left alone,
+   because a key nobody handles is a key the browser hands on.
+
+   What that promise cannot cover: `preventDefault` binds the browser and nothing
+   above it. Where the machine acts on these keys before the page is asked — macOS
+   does, at the driver — the volume moves whatever this file says, and the fix has
+   to be made there. Under Chromium in kiosk, which is what the wall runs, there
+   is no desktop above the browser to take them first. */
+const PRESS = new Set(["Space", "AudioVolumeMute", "VolumeMute"]);
+const TURN = new Set(["AudioVolumeUp", "AudioVolumeDown", "VolumeUp", "VolumeDown"]);
 addEventListener("keydown", event => {
-  if (event.code !== "Space" || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  /* Before the guards below rather than after: turning the dial fast repeats, and
+     a repeat that reaches the browser is a repeat that moves the volume. */
+  if (TURN.has(event.code)) { event.preventDefault(); return; }
+  if (!PRESS.has(event.code) || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
   event.preventDefault();
   /* Cleared before rather than after: a sentence takes seconds to speak, and a
      line about what went wrong last time is still on the wall for all of them. */
