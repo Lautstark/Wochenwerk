@@ -604,6 +604,12 @@ export function openSettings(say: (line: string) => void) {
         : `${list} werden gelöscht. Karten und Personen bleiben.${far}`,
       confirmLabel: everything ? "Alles löschen" : "Termine löschen",
       cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+      /* Only the total asks for a word, and it is the only act in this product
+         that does. Emptying the calendar keeps the cards and the people and is a
+         thing a household does at the end of a term — asking for typing there
+         would spend the friction until it is a habit, and design.md §4.3 says
+         that is what breaks it. */
+      ...(everything ? { requireTyping: "löschen", typingLabel: "Tipp „löschen“, um zu bestätigen" } : {}),
     })) {
       await run(() => everything ? clearAll() : clearAppointments().then(() => undefined), "Gelöscht.");
     }
