@@ -1,58 +1,23 @@
-/* Elements, not strings.
+/* This app's own controls, on top of @lautstark/werkzeuge/dom.
  *
- * The calendar used to build its dialogs by writing HTML and replacing it on
- * every keystroke, which is why fields lost focus, why handlers had to be wired
- * again after each render, and why the same thing ended up stated twice. The
- * three products build nodes and update them in place; this is the same helper
- * they use, written here because it is four functions rather than a package. */
+ * `el` and `fill` used to be written out here — 94 lines, and bildhaft had the
+ * same 116 arrived at separately, while `el` meant *fetch an element* in
+ * mitreden and vorlaut-editor had no builder at all. The header here said it was
+ * "four functions rather than a package". It was four functions in four
+ * products, and one of the four names meant the opposite thing.
+ *
+ * They are re-exported rather than imported at each call site so that nothing
+ * below or beside this file had to move: `el` is `el`, and where it comes from
+ * is this file's business. What stays *here* is what only wochenwerk means — a
+ * labelled control, a switch that sits beside its words, a field that is not a
+ * checkbox, and the file picker.
+ */
 
-type Child = Node | string | number | null | undefined | false;
-export interface Props {
-  class?: string;
-  text?: string;
-  attrs?: Record<string, string | number | boolean | null | undefined>;
-  style?: Record<string, string>;
-  on?: Partial<{ [K in keyof HTMLElementEventMap]: (event: HTMLElementEventMap[K]) => void }>;
-}
+export { el, fill } from "@lautstark/werkzeuge/dom";
+export type { Props } from "@lautstark/werkzeuge/dom";
 
-function apply(node: HTMLElement, props: Props): void {
-  if (props.class) node.setAttribute("class", props.class);
-  if (props.text !== undefined) node.textContent = props.text;
-  for (const [name, value] of Object.entries(props.attrs ?? {})) {
-    if (value === null || value === undefined) node.removeAttribute(name);
-    /* An ARIA state is a word, not a bare attribute. `hidden` and `disabled` mean
-       something by being present at all, so `true` writes "" and `false` takes them
-       off — but `aria-checked=""` is not checked, it is unreadable, and a radio that
-       is not the answer has to say `aria-checked="false"` rather than say nothing.
-       Two call sites wrote `"aria-checked": live` and `"aria-pressed": active` and
-       both silently produced neither state; the picker only looked right because a
-       class beside it was carrying the paint. Answered here, because the next call
-       site would get it wrong the same way. */
-    else if (name.startsWith("aria-") && typeof value === "boolean") node.setAttribute(name, String(value));
-    else if (value === false) node.removeAttribute(name);
-    else node.setAttribute(name, value === true ? "" : String(value));
-  }
-  for (const [name, value] of Object.entries(props.style ?? {})) node.style.setProperty(name, value);
-  for (const [name, handler] of Object.entries(props.on ?? {})) node.addEventListener(name, handler as EventListener);
-}
-function append(node: Node, children: Child[]): void {
-  for (const child of children) {
-    if (child === null || child === undefined || child === false) continue;
-    node.appendChild(typeof child === "object" ? child : document.createTextNode(String(child)));
-  }
-}
-
-export function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = {}, ...children: Child[]): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  apply(node, props);
-  append(node, children);
-  return node;
-}
-/** Replace a container's children in one go, without touching anything outside it. */
-export function fill(container: Element, ...children: Child[]): void {
-  container.replaceChildren();
-  append(container, children);
-}
+import { el } from "@lautstark/werkzeuge/dom";
+import type { Props } from "@lautstark/werkzeuge/dom";
 
 /** A labelled control. The label says what it is; it does not explain when it applies. */
 export function field(label: string, input: HTMLElement): HTMLLabelElement {
