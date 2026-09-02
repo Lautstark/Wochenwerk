@@ -108,7 +108,14 @@ describe("what is running", () => {
        it, which was the board telling a child what to do with their own time. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
     expect(said(week, at("10:00"), house())[1]).toBe("Gerade ist nichts geplant.");
-    expect(said(week, at("19:00"), house())[1]).toBe("Gerade ist nichts geplant.");
+    expect(said(week, at("13:00"), house())[1]).toBe("Gerade ist nichts geplant.");
+  });
+
+  it("says nothing about the empty minute once the day itself is over", () => {
+    /* "Gerade ist nichts geplant. Heute ist nichts mehr geplant." is one fact in
+       two wordings. The second says the first and more. */
+    const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
+    expect(said(week, at("19:15"), house())).toEqual(["Es ist Dienstagabend.", "Heute ist nichts mehr geplant."]);
   });
 });
 
@@ -203,8 +210,8 @@ describe("what comes next", () => {
        on the next one — which is bedtime, when a board on a wall is behind
        somebody's back. The day in front of the child is what this is for. */
     const tomorrow = appointment("08:45", "14:00", { title: "Kita", date: "2026-09-02" });
-    expect(said([...week(), tomorrow], at("13:00"), house())[2]).toBe("Heute ist nichts mehr geplant.");
-    expect(said(week(), at("13:00"), house())[2]).toBe("Heute ist nichts mehr geplant.");
+    expect(said([...week(), tomorrow], at("13:00"), house())[1]).toBe("Heute ist nichts mehr geplant.");
+    expect(said(week(), at("13:00"), house())[1]).toBe("Heute ist nichts mehr geplant.");
   });
 });
 

@@ -132,7 +132,14 @@ list, so it is only done where there is exactly one.
 | next is an open choice | *Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
 | next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
-| nothing left today | *Heute ist nichts mehr geplant.* |
+| nothing left today | *Heute ist nichts mehr geplant.* — alone, and the *now* sentence goes |
+
+**And when the day itself is over, that is the only sentence.** *Gerade ist nichts
+geplant. Heute ist nichts mehr geplant.* is one fact in two wordings; the second
+says the first and more, so it stays alone. It is the mirror of the empty stretch
+four rows up: where something is still coming but hours off, the *now* sentence stays and
+*danach ist nichts geplant* goes. Both times what survives is the sentence with
+something in it.
 
 **Away** — the fourth sentence, and the only one about a day that is not today.
 It is last, because the order *day → now → next* is what is learned here and a

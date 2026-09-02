@@ -208,7 +208,18 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      a sentence in the way. */
   if (running && undecided(running)) return [choosing(running, household)];
 
-  return [dayLine(week, at, now, household), ...nowLine(running, now, week, today, household),
+  /* Nothing running and nothing left: *Heute ist nichts mehr geplant* already says
+     both of those, and *Gerade ist nichts geplant* in front of it is the same fact
+     in a second wording. The one that stays is the one that carries more — it is
+     about the whole of the rest of the day rather than about this minute, and a
+     minute that is empty inside a day that is over is not news.
+
+     The sibling case drops the other one: where something is still coming but
+     hours off, the *now* sentence stays and *danach ist nichts geplant* goes. Both
+     times the sentence that survives is the one with something in it. */
+  const empty = !running && !timedOn(week, today).some(item => item.start! > now);
+  return [dayLine(week, at, now, household),
+    ...(empty ? [] : nowLine(running, now, week, today, household)),
     ...nextLine(week, at, now, running, household), ...awayLine(awayFrom, today)];
 }
 
