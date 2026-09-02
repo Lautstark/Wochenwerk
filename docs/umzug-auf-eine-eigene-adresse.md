@@ -1,5 +1,9 @@
 # Umzug auf wochenwerk.lautstark.tech
 
+> Erledigt am 2. September 2026. Das hier bleibt als Beschreibung dessen, was
+> geschah — und weil derselbe Weg für das nächste Produkt gilt, das eine eigene
+> Adresse bekommt.
+
 Wochenwerk wird unter `lautstark.tech/Wochenwerk/` ausgeliefert. Das ist derselbe
 **Origin** wie die Übersichtsseite: ein Speicherkontingent zwischen einem Kalender
 und einer Marketingseite, und ein „Websitedaten löschen" auf einer der beiden
@@ -16,9 +20,16 @@ denn der DNS-Eintrag muss zuerst existieren, und nichts hier kann wissen, wann.
 
 * `PAGES_DOMAIN` **nicht gesetzt**: gebaut wird für `/Wochenwerk/`, wie bisher.
 * `PAGES_DOMAIN` **gesetzt**: gebaut wird für `/`, und eine `CNAME` reist mit dem
-  Artefakt — das ist es, was Pages die Domain sagt.
+  Artefakt.
 
-Rückwärts geht es genauso: Variable löschen, neu bauen, alte Adresse ist zurück.
+**Die `CNAME` allein reicht nicht.** Bei Auslieferung über Actions liest Pages sie
+nicht — das tut nur die alte, zweigbasierte Auslieferung. Die Domain ist eine
+Einstellung des Repositorys und muss gesetzt werden (Schritt 4 unten). Die Datei
+im Artefakt schadet nichts und ist da, falls die Auslieferung je zurück auf einen
+Zweig wechselt.
+
+Rückwärts geht es genauso: Domain in den Pages-Einstellungen löschen, Variable
+löschen, neu bauen.
 
 ## Reihenfolge
 
@@ -34,8 +45,19 @@ Rückwärts geht es genauso: Variable löschen, neu bauen, alte Adresse ist zur�
    gh workflow run pages.yml --repo Lautstark/Wochenwerk
    ```
 
-4. **HTTPS erzwingen**, sobald das Zertifikat da ist — in den Pages-Einstellungen
-   des Repos, „Enforce HTTPS". Das dauert nach dem ersten Deploy einige Minuten.
+4. **Die Domain in den Pages-Einstellungen setzen.** Das ist der Schritt, der
+   wirkt:
+
+   ```
+   gh api -X PUT repos/Lautstark/Wochenwerk/pages -f cname=wochenwerk.lautstark.tech
+   ```
+
+5. **HTTPS erzwingen**, sobald das Zertifikat da ist — einige Minuten nach dem
+   ersten Aufruf über die neue Adresse:
+
+   ```
+   gh api -X PUT repos/Lautstark/Wochenwerk/pages -F https_enforced=true
+   ```
 
 ## Danach, einmal pro Gerät
 
