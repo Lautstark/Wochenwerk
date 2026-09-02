@@ -441,9 +441,13 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
 
 /* The announcement's own setup state. Bottom left, so it never lands on the
    ARASAAC notice, and invisible while it is empty. */
-.setup { position: fixed; left: 50%; transform: translateX(-50%); bottom: .25rem; margin: 0;
-  max-width: 38vw; font-size: 11px; line-height: 1.3; text-align: center; color: #6b645e;
+/* Over the week like the other two lines, so it carries the same dark ground: what
+   is behind it is whichever day colour it happens to land on. */
+.setup { position: fixed; left: 50%; transform: translateX(-50%); bottom: .3rem; margin: 0;
+  max-width: 38vw; padding: 2px 8px; border-radius: 999px; background: rgba(14, 18, 24, .7);
+  font-size: 11.5px; line-height: 1.35; text-align: center; color: #a49c94;
   pointer-events: none; }
+.setup:empty { display: none; }
 
 /* The card the voice is on. A ring rather than a fill, so it reads the same on an
    ordinary card, on the lifted current one and on a greyed past one, and none of

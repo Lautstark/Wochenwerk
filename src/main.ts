@@ -358,6 +358,12 @@ const listed = (names: string[]) => names.length < 2 ? names.join("")
   : `${names.slice(0, -1).join(", ")} oder ${names[names.length - 1]}`;
 
 function refuse(open: Appointment | undefined, cards: Map<string, Card>, uid: string, card?: Card) {
+  /* A tag nobody has written down anywhere is a setup state rather than a mistake
+     by the child, and the number is the one thing whoever is setting it up needs.
+     It goes in the quiet line — before anything else here, because registering a
+     card is exactly the moment when no question is open and the rest of this
+     function has nothing to do. */
+  if (!card) trouble(`Unbekannte Karte: ${uid}`);
   refusedAt = Date.now();
   app.querySelector(".slotbar")?.classList.add("wrong");
   setTimeout(() => {
@@ -405,6 +411,14 @@ async function tick() {
 const ahead = (appointment: Appointment, at: Date, now: string) =>
   appointment.date > iso(at) || (appointment.date === iso(at) && !allDay(appointment) && appointment.start! > now);
 
+/* A tag's number is written down in whatever shape the thing that read it produced,
+   and every one of those shapes is the same number: the calendar upper-cases what
+   somebody types, this reader hands out lower case, and people paste them with
+   colons, spaces or dashes in between. So neither side's spelling is compared —
+   only the hex digits, which is the part that is actually the tag. */
+const bare = (uid: string) => uid.toLowerCase().replace(/[^0-9a-f]/g, "");
+const sameTag = (written: string | undefined, read: string) => !!written && bare(written) === bare(read);
+
 /* Which card lies on the reader. Presence is a fact about the room rather than a
    record: it lives as long as this page does, and the only thing written from it
    is the option a choice was answered with. */
@@ -414,7 +428,7 @@ async function reads(uid: string | null): Promise<void> {
   const appointments = await week(mondayOf(at));
   if (uid) {
     const cardList = await allCards();
-    const card = cardList.find(item => item.nfc === uid);
+    const card = cardList.find(item => sameTag(item.nfc, uid));
     const open = pending(appointments, iso(at), iso(addDays(at, 1)), now);
     /* Only a card the question offers answers it. Anything else is refused, and
        one that is already the answer is not written a second time. */
