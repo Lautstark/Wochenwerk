@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { adopt, adopted, file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
+import { adopt, adopted, file, isStale, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
 import { addDays, cameFrom, expand, iso, isDerived, notAtHome, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 import { changes } from "@lautstark/werkzeuge/changed";
 
@@ -403,6 +403,28 @@ export async function clearAppointments(): Promise<number> {
     .map(person => database.put("people", { ...person, birthdaySeries: undefined })));
   await mirror("termine", "serien");
   return many;
+}
+
+/**
+ * How far a deletion would reach.
+ *
+ * Three answers rather than a boolean, because the sentence differs in each.
+ * With a folder as the store this removes the files, so it removes them on every
+ * device the household has — and with the folder out of reach it would empty
+ * this browser while the folder kept everything and handed it back on the next
+ * start, which is a delete that undoes itself. That one is refused.
+ */
+export function wipeReaches(): "browser" | "folder" | "unreachable" {
+  if (!isStore()) return "browser";
+  return isStale() ? "unreachable" : "folder";
+}
+
+/** What is about to go, so the asking can count it. */
+export async function countAll(): Promise<{ termine: number; karten: number; personen: number }> {
+  const [termine, karten, personen] = await Promise.all([
+    allAppointments(), allCards(), allPeople(),
+  ]);
+  return { termine: termine.length, karten: karten.length, personen: personen.length };
 }
 
 /** Everything: the calendar, the cards and the people. Nothing is left behind. */

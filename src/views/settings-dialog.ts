@@ -4,7 +4,7 @@ import { standing } from "../announce.js";
 import { prepare } from "../speech.js";
 import { button, check, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
-import { clearAll, clearAppointments, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
+import { clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
   renderings, says, sourceInUse, supportsPicker, useFolder, useFolderFiles, useZip } from "../symbols.js";
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
@@ -96,6 +96,11 @@ function whereSays(status: AblageStatus): string {
 /* A picture of the folder, the way a file manager draws it. Somebody who cannot
    follow a sentence about nesting recognises a shape they have seen a thousand
    times. */
+/* „1 Termin" / „14 Termine" / „keine Termine". Zero gets a word rather than a
+   digit, because „0 Karten werden gelöscht" is a sentence about nothing. */
+const count = (many: number, one: string, more: string) =>
+  many === 0 ? `keine ${more}` : many === 1 ? `1 ${one}` : `${many} ${more}`;
+
 const tree = (lines: string[]) => el("pre", { class: "tree", text: lines.join("\n") });
 
 const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
@@ -489,11 +494,22 @@ export function openSettings(say: (line: string) => void) {
       shown().people.length ? null : el("p", { class: "empty", text: "noch niemand" }),
       button("＋ Neue Person", "sm", () => openPerson({ id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 })));
 
+    /* Two red buttons side by side, differing by one word, is the arrangement
+       where somebody hits the wrong one. They are not the same size of act and
+       they no longer look it: emptying the calendar keeps the cards and the
+       people and is a thing a household does at the end of a term; the total is
+       the last control in the dialog and reads as one.
+
+       The review that found this said the narrow one should move to a calendar
+       panel. There is no calendar panel, and inventing one to hold a single
+       button would be worse — so they stay together and are ranked instead. */
     data.state.textContent = "";
     fill(data.body,
-      el("div", { class: "acts" },
-        button("Alle Termine löschen", "sm destructive", () => void wipe(false)),
-        button("Alle Daten löschen", "sm destructive", () => void wipe(true))));
+      el("p", { class: "small muted", text: "Den Kalender leeren und von vorn planen. Karten und Personen bleiben." }),
+      el("div", { class: "acts" }, button("Alle Termine löschen", "sm", () => void wipe(false))),
+      el("hr", { class: "hair" }),
+      el("p", { class: "small muted", text: "Alles, was Wochenwerk kennt. Danach ist es wie frisch installiert." }),
+      el("div", { class: "acts" }, button("Alle Daten löschen", "sm destructive", () => void wipe(true))));
   }
 
   /* Which fassung of a doubled symbol the search should offer first.
@@ -552,12 +568,42 @@ export function openSettings(say: (line: string) => void) {
       await run(() => removePerson(person.id), "Person entfernt.");
     }
   };
+  /* What goes, counted, and how far it goes.
+     §4.3 asks a destructive confirmation to name the count and what does not come
+     back; this said neither. And where a folder is the store it deletes the files,
+     so it deletes on every device in the household — „Danach ist Wochenwerk leer"
+     was true of this browser and silent about the tablet in the hallway. */
   const wipe = async (everything: boolean) => {
+    const reach = wipeReaches();
+    const named = folderName(ablageStatus());
+
+    if (reach === "unreachable") {
+      const sheet = openDialog({
+        title: "Geht gerade nicht", closeLabel: "Schließen",
+        body: [`Der Ordner „${named}“ antwortet nicht. Löschen würde nur diesen Browser leeren — `
+          + `der Ordner behielte alles und gäbe es beim nächsten Start zurück. `
+          + `Verbinde den Ordner wieder und versuch es dann.`],
+        footer: [button("Verstanden", "primary", () => sheet.close())],
+      });
+      return;
+    }
+
+    const counted = await countAll();
+    const list = everything
+      ? [count(counted.termine, "Termin", "Termine"), count(counted.karten, "Karte", "Karten"),
+         count(counted.personen, "Person", "Personen")].join(", ")
+      : count(counted.termine, "Termin", "Termine");
+    const far = reach === "folder"
+      ? ` Auch im Ordner „${named}“, und damit auf jedem Gerät, das ihn benutzt.`
+      : "";
+
     if (await confirmDialog({
       title: everything ? "Alle Daten löschen" : "Alle Termine löschen",
-      body: everything ? "Termine, Karten und Personen werden gelöscht. Danach ist Wochenwerk leer."
-        : "Der ganze Kalender wird geleert. Karten und Personen bleiben.",
-      confirmLabel: everything ? "Alles löschen" : "Termine löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+      body: everything
+        ? `${list} werden gelöscht.${far} Das lässt sich nicht rückgängig machen.`
+        : `${list} werden gelöscht. Karten und Personen bleiben.${far}`,
+      confirmLabel: everything ? "Alles löschen" : "Termine löschen",
+      cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
     })) {
       await run(() => everything ? clearAll() : clearAppointments().then(() => undefined), "Gelöscht.");
     }
