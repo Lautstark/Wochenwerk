@@ -62,4 +62,6 @@ Both read and write the same IndexedDB store, so a change in the calendar reache
 
 Nothing is seeded. A new database is empty and the board says so until a week has been planned in the calendar — a household's own routine is what the board is for, and a mock one could not be told apart from it.
 
-Still missing: the shared folder that [ADR 002](docs/decisions/002-browser-only-and-a-shared-folder.md) proposes as the store, any NFC input, and speech. There is no server, no account and no authentication, and there is not meant to be.
+An open choice is answered with a physical card. The board reads the slot through a small bridge on the same machine — `tools/leser.py`, standard library only — which polls PC/SC and streams what lies in the slot to the page; see [hardware](docs/hardware.md) for why that is a device driver and not a server. Without a reader nothing is missing: the board runs, the question simply waits.
+
+Still missing: the shared folder that [ADR 002](docs/decisions/002-browser-only-and-a-shared-folder.md) proposes as the store. There is no server, no account and no authentication, and there is not meant to be.

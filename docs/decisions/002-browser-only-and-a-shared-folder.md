@@ -140,11 +140,32 @@ How the folder works, and what it replaces:
   board is usable with no reader attached at all, which is how it can open on a
   laptop.
 
-- **The reader is an ordinary USB input.** A reader in HID keyboard mode types a
-  tag's UID and Enter, which is a `keydown` handler and nothing else: no PC/SC
-  process, no bridge, no HTTP report, no driver. The 20 cm of cable from the slot
-  to the Wyse stays inside the frame; making that link wireless would buy nothing
-  and add a battery, a pairing and a failure state.
+- **The reader is a local device, and the board hears it through a bridge.**
+  *Revised.* This bullet first said that a reader in HID keyboard mode would do —
+  a `keydown` handler, no PC/SC process, no bridge, no driver. That holds only for
+  a design in which a card is *tapped*. The board's design turned out to rest on
+  presence instead: a card lying in the slot is the answer, and taking it out
+  withdraws it while the appointment is still ahead (see [UX](../ux.md)). A
+  keyboard-mode reader can say that a tag was held to it and can never say that it
+  was taken away.
+
+  PC/SC says both, natively and without any invention of ours — on the ACR122U
+  `SCardGetStatusChange` reports arrival and departure continuously. No browser
+  speaks PC/SC, so a small process on the same machine does: `tools/leser.py`,
+  standard library only, which polls the reader and streams `{"uid": …}` and
+  `{"uid": null}` to the page over localhost. Web Serial and WebUSB were the
+  browser-native alternatives and were dropped: both are gated on a user gesture
+  and a per-origin permission, which is the wrong dependency for an appliance that
+  must come up on its own after a power cut.
+
+  This stays inside the rule the ADR is about, and the line is worth stating so
+  nobody has to re-derive it: the bridge knows no appointments, stores nothing,
+  answers no questions and keeps no state that outlives it. It is a device driver
+  that happens to speak HTTP, not a backend — the board still holds the data, still
+  runs with no reader attached, and a bridge that dies costs presence rather than
+  the week. What it may never become is a place where anything is decided or kept.
+  The 20 cm of cable from the slot to the Wyse stays inside the frame; making that
+  link wireless would buy nothing and add a battery, a pairing and a failure state.
 
 ## What this costs
 

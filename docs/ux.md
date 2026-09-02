@@ -66,13 +66,32 @@ Each day is a solid field of its weekday colour and each appointment is a light 
 
 The board answers those three questions with colour alone, and it answers them the same way at both scales — across the week and inside the current day:
 
-- **over** — strongly greyed: the day colour is nearly gone, symbols stay recognisable but flat;
+- **over** — the pale end of the day's own colour, sixteen per cent of it, so a day that is behind us is a washed-out version of itself rather than a different colour. What lies on it fades with it: the cards give up their white and lie as a barely tinted plate on a barely tinted field, held apart from it by a rim. A day that is over is *one surface*; a day that is ahead is a field with cards on it. That difference reads across a room, where a difference in brightness alone did not — the cards are the largest bright surface a day has, and while they stayed white a Monday stayed loud however pale its ground;
 - **now** — full strength: the current day is at its brightest, and inside it the running appointment lifts off the board as a white card, shadowed onto the field and framed in the day's own colour at full strength. The frame is drawn inside the card and scales with its height, so a quarter of an hour is framed thinly rather than filled in, and the gap that keeps two appointments countable stays day colour;
-- **ahead** — the weekday colour stays, but quieter than today.
+- **ahead** — seven eighths of the weekday colour: quieter than today, and still a field with white cards on it.
+
+All three are one scale of one colour rather than three recipes, and all three mix towards the same cool light. That is what keeps the answer to *was war* the same at both scales: a day that is over looks like the hours of today that are over, because it is made the same way.
 
 There is no now line, no marker travelling down the column and no exact clock scale. The current appointment *is* the now indicator, which is the form a two-year-old can read.
 
 When nothing is running — in the gap between two appointments, or before the day window opens — no card is highlighted. The rule still holds: the border between grey and bright simply falls between two cards, and the daypart rail keeps showing where we are.
+
+## The choice at the slot
+
+A choice is answered with a physical card, and the card goes into a slot built into the frame below the display. That slot never moves, so the place on screen that speaks for it may not move either: the cards a question offers stand on a tray at the bottom edge of the picture, centred over the slot, whatever day the question belongs to. An earlier draft put them under their own day's column and read better on screen — and would have taught an address that does not exist in the room.
+
+Which day is being decided is then carried by colour and by nothing else: the tray is a plate of that day's own colour, and no two columns share one. A drawn line was tried and dropped. It would have had to cross half the board, and where the day is the one the slot already stands under it would have had nothing to cross at all — a pointer that degenerates exactly where it is needed is worse than no pointer.
+
+The tray shows the next undecided choice whose appointment is today or tomorrow, one at a time. The calendar day is the boundary rather than twenty-four hours: a day turns at midnight and unobserved, where a rolling window would make a question appear in the middle of an afternoon for a reason nobody in the room can see. There is no bar and no reserved row — the tray lies over the week, so a question appearing moves nothing.
+
+**The card in the slot is the answer**, for as long as it lies there. Taking it out takes the answer back, up until the appointment begins; from then on it is not a plan any more but what is happening, and the board keeps it. Otherwise an afternoon that was ridden through would turn back into a question the moment the card was tidied away, and next week's board would show a question mark over a day that no longer had one.
+
+Four things the slot says, and it says them at the slot:
+
+- a card that answers the question: it is written once, the tray goes, and the bottom edge flares in the day's colour above the slot;
+- the same card taken back before the appointment began: the same flare running the other way, and the question standing there again;
+- a card that answers nothing: nothing is written, the tray turns red and shakes once, and the board says out loud what is not on offer and what would be instead — built from what each card was given to say;
+- no reader at all: everything stays exactly as it is, and a quiet grey line at the bottom left says the reader does not answer. No card is inferred to have been removed, because a reader that is gone and a card that is gone look identical from the browser and mean opposite things.
 
 ## Daypart rail
 
@@ -102,4 +121,10 @@ What it costs: an action over a series is a bulk write, so it says how many reco
 
 ## Visual constraints
 
-The board fills the available display. Columns touch without gaps and have no rounded outer card corners. A day header has no band of its own — day, date and, on the current day, the time sit straight on the day colour, in dark ink where the field is light and in light ink on a day that is over. Weekday colours are the METACOM day colours — yellow, green, blue, red, orange, white, pink — held at one shared lightness and saturation, so only the hue changes from day to day. Thursday and Sunday are parted the way METACOM parts them, a full red against a pale rose, because the hues alone sit too close. Saturday's white cannot be a field on a board whose appointments are white cards, so it becomes the lightest of the seven, a warm limestone. METACOM remains the source of the child-facing symbols, used without frames and without their printed captions.
+The board fills the available display. Columns touch without gaps and have no rounded outer card corners. A day header has no band of its own — day, date and, on the current day, the time sit straight on the day colour, in dark ink, because every field is now a light one.
+
+The seven weekday colours are one family rather than seven decisions: they sit at roughly the same lightness and carry roughly the same amount of colour, which is what lets seven of them stand side by side without competing for the same attention. Two leave the family together and on purpose — Saturday is nearly white and Sunday a light rose — so the weekend reads as one pair against five working days rather than as two more appointments. Thursday and Sunday are parted the way METACOM parts them, a full red against a pale rose, because their hues alone sit too close to tell apart.
+
+Where these sit against the METACOM day cards is an open question and worth watching in use: green and blue here are a jade and a sky rather than the leaf green and the periwinkle the cards teach, which is a difference the child may or may not carry between the two.
+
+Everything mixes towards a single cool light. Before, a field went eighteen per cent into a warm near-black and everything spent went into a warm grey: two warm neutrals, two directions, and every hue turned muddy somewhere along the way. Damping a palette made that worse rather than better, because what looked dirty was never the hue. METACOM remains the source of the child-facing symbols, used without frames and without their printed captions.

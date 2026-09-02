@@ -3,8 +3,12 @@
 :root {
   color-scheme: dark;
   font-family: ui-rounded, "SF Pro Rounded", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --ground: #14100e;
-  --ink: #17120e;
+  --ground: #0e1218;
+  --ink: #131820;
+  /* The one neutral everything is mixed towards. There were two before — a warm
+     near-black and a warm grey, pulled in two directions — and every hue turned
+     muddy somewhere along the way. Cool and light, so a blue stays a blue. */
+  --ash: #eef2f7;
   /* The head is the day's own; a week carrying multi-day stretches grows it by the
      band, and the rail grows with it, so the tracks underneath stay level and the
      hour a mark sits at is still the hour a card sits at. */
@@ -13,12 +17,29 @@
   --col: 1fr;
   --today: 2.05fr;
   --rail: 3rem;
+  /* Wie hoch das Tablett über dem Schlitz steht. Es liegt über der Woche, also ist
+     jede Zeile davon eine Zeile, die der Zeitskala fehlt — so wenig wie möglich,
+     und gerade so viel, dass zwei Karten darauf noch etwas zeigen. */
+  --tray: 6.2vh;
+  /* Where the card slot sits in the frame, across the width of the display. This is
+     a measurement of the built thing, and the one number on this page that is wrong
+     if the hardware moves: the box above it points at the slot by standing over it,
+     so everything the bar promises rests on these two figures being true. */
+  --slot: 82%;
+  /* And how wide the box over it is: 8 cm on the 21.5-inch panel, whose picture is
+     476 mm across — so a sixth of the width, and about the width of one of the
+     laminated cards it is asking for. Written as a share rather than in centimetres
+     because the browser measures the panel in pixels and knows nothing of its size. */
+  --boxw: 16.8%;
   background: var(--ground);
   color: var(--ink);
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 980px; background: var(--ground); }
-#app { width: 100vw; height: 100vh; }
+/* The week has the whole screen. What the slot needs lies over it and takes nothing
+   from it: a question appearing must not move the week, and something drawn on top
+   moves nothing. */
+#app { position: relative; width: 100vw; height: 100vh; }
 .week { position: relative; height: 100%; display: grid; }
 
 /* Multi-day stretches, hanging under the heads and floating straight over the
@@ -43,9 +64,10 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
 /* Cut flat where it leaves the week. The shape is the whole statement. */
 .span--from { border-top-left-radius: .2rem; border-bottom-left-radius: .2rem; margin-left: 0; }
 .span--into { border-top-right-radius: .2rem; border-bottom-right-radius: .2rem; margin-right: 0; }
-/* A stretch that is over greys like a day that is over. Only when the whole of it
-   is behind us: one that still covers today is not over, whatever it started. */
-.span.gone { filter: grayscale(.9); opacity: .72; }
+/* A stretch that is over fades like a day that is over — pale now rather than grey,
+   since that is what the days beneath it do. Only when the whole of it is behind
+   us: one that still covers today is not over, whatever it started. */
+.span.gone { opacity: .5; }
 /* The part of a stretch that is behind us, greyed where a day would be greyed.
    Inside the bar rather than over the week: a mask laid across the past columns
    dims everything behind it, and over a day carrying no stretch that is a grey
@@ -55,7 +77,7 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    — a wash across a symbol makes it harder to read, and a symbol on the board is
    the whole message. */
 .span__gone { grid-row: 1; align-self: stretch;
-  background: color-mix(in oklab, var(--ink) 26%, var(--paper)); }
+  background: color-mix(in oklab, var(--ash) 78%, #9aa3ad); }
 .span .badge { width: 1.4rem; height: 1.4rem; }
 .span .face { width: 1.4rem; height: 1.4rem; box-shadow: 0 0 0 .12rem var(--paper); }
 .span .face + .face { margin-left: -.4rem; }
@@ -63,59 +85,50 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
   color: #b9b2ab; font-size: clamp(1rem, 1.8vw, 1.6rem); text-align: center; }
 .nothing small { font-size: .68em; color: #7d766f; }
 .nothing code { font-family: ui-monospace, monospace; }
-/* ARASAAC's licence asks for its notice wherever its symbols are shown, and the
-   board is where they are shown largest. Fixed to the corner rather than added to
-   the grid: the week owns the whole viewport, and a row taken from it would be a
-   row taken from the child.
 
-   It carries its own dark ground, because what is behind it is whichever day
-   colour happens to end the week — a notice that is legible over Saturday's grey
-   and vanishes into Sunday's red is not a notice, and the licence does not care
-   which day it lands on. */
-.credit { position: fixed; right: .4rem; bottom: .35rem; margin: 0; max-width: 62vw;
-  padding: 3px 8px; border-radius: 999px; background: rgba(20, 16, 14, .62);
-  font-size: 11.5px; line-height: 1.35; text-align: right; color: #d5cec7; pointer-events: none; }
+/* Weekday colours: one family, held together by having roughly the same lightness
+   and the same amount of colour in them — that is what makes seven of them sit
+   together instead of competing. Two of them are allowed to leave the family on
+   purpose: Saturday is nearly white, because the weekend should feel like room
+   rather than like another appointment, and Sunday carries less colour than the
+   rest so it reads as the quiet end of the week.
 
-/* Weekday colours: the METACOM hues exactly as the day cards teach them — yellow,
-   green, blue, red, orange, white, pink — brought onto one shared lightness and
-   one shared saturation. Only the hue moves from day to day, which is what makes
-   seven colours a set rather than seven decisions.
+   Thursday is a red that leans towards orange rather than towards pink, and Friday
+   was moved a little further towards yellow so the two do not become neighbours. */
+.day-1 { --day: #ffc94a; }   /* Mango */
+.day-2 { --day: #3fd3a5; }   /* Jade */
+.day-3 { --day: #45b6f2; }   /* Himmel */
+.day-4 { --day: #f4584f; }   /* Rot */
+.day-5 { --day: #ffa53c; }   /* Aprikose */
+.day-6 { --day: #dfe9f4; }   /* Fast weiß, mit einem Rest Himmel darin */
+.day-7 { --day: #f4bad6; }   /* Rosé, hell — Samstag und Sonntag sind zusammen das Wochenende */
 
-   Two of the seven cannot be taken over literally. Red and pink sit close enough
-   on the wheel that hue alone would not tell Thursday from Sunday, so they are
-   parted the way METACOM parts them: a full red against a pale rose. And white
-   cannot be a field on a board whose appointments are white cards — Saturday
-   would have no cards left, only their shadows. It becomes the lightest of the
-   seven instead, a warm limestone, still the bright day of the week. */
-.day-1 { --day: #f7d856; }
-.day-2 { --day: #7dcd6b; }
-.day-3 { --day: #71abfa; }
-.day-4 { --day: #f36356; }
-.day-5 { --day: #fea33e; }
-.day-6 { --day: #d5d0c7; }
-.day-7 { --day: #feb9d0; }
+/* A day is in one of three states, and the state is one scale of one colour rather
+   than three recipes: sixteen per cent of it is over, eighty-eight is still to come,
+   and today is all of it. Everything mixes towards the same cool light, so a day
+   that is behind us is the pale end of its own colour and not a different one.
 
-/* A day is in one of three states, and the state is carried by colour alone:
-   what is over has lost its colour, today is at full strength, what is ahead keeps
-   its colour but stays quieter than today. */
+   What makes the difference legible is not the field, though, but what lies on it:
+   the cards are the largest bright surface a day has, and while they stay white a
+   Monday stays loud however pale its ground. So on a day that is over they give
+   their white up too — a barely tinted plate on a barely tinted field, held apart
+   by a rim. A day that is over is one surface; a day that is ahead is a field with
+   cards on it. */
 .day { min-width: 0; overflow: hidden; display: grid; grid-template-rows: var(--head) 1fr;
-  --field: color-mix(in oklab, var(--day) 82%, var(--ground));
-  --paper: color-mix(in oklab, var(--day) 14%, #fff);
+  --field: color-mix(in oklab, var(--day) 88%, var(--ash));
+  --spent: color-mix(in oklab, var(--day) 16%, var(--ash));
+  --seam: color-mix(in oklab, var(--day) 40%, #9aa3ad);
+  --paper: #fff;
   --tile: 7rem;
   background: var(--field); }
-/* What is over does not turn grey — it goes dark. Grey was the same answer for
-   all seven days: at a fifth of the day colour on a mid grey, Monday and Saturday
-   came out within a hair of each other, and a week the child reads by colour lost
-   its first half every afternoon. So the day keeps a third of its colour and the
-   light is taken away instead, which is also what the evening does to a room. */
-.day.gone { --field: color-mix(in oklab, var(--day) 34%, #201b18);
-  --paper: color-mix(in oklab, var(--day) 13%, #c7c1bb); }
-.day.gone .icon img, .day.gone .badge img, .day.gone .face { filter: grayscale(.9); opacity: .78; }
-.day.today { position: relative; z-index: 2; --field: color-mix(in oklab, var(--day) 90%, #fff); --paper: #fff; --tile: 11rem;
-  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--day) 40%, #fff), 0 0 3.5rem rgba(0, 0, 0, .5); }
-/* The muted end of a day, shared by the rail and by today's own field, so the two
-   fade to the same colour at the same minute. */
-.rail, .day.today { --spent: color-mix(in oklab, var(--day) 24%, #d6d1cb); }
+.day.gone { --field: var(--spent); --paper: color-mix(in oklab, var(--day) 8%, var(--ash)); }
+.day.gone header { opacity: .62; }
+.day.gone .card { box-shadow: inset 0 0 0 .11rem var(--seam); }
+.day.gone .icon img, .day.gone .badge img, .day.gone .face { opacity: .45; }
+.day.today { position: relative; z-index: 2; --field: var(--day); --paper: #fff; --tile: 11rem;
+  box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--day) 55%, #fff), 0 0 3.5rem rgba(0, 0, 0, .4); }
+/* The rail fades to the same pale end at the same minute as today's own field. */
+.rail { --spent: color-mix(in oklab, var(--day) 16%, var(--ash)); }
 
 /* Today also carries how far it has come, in those two colours and at that same
    minute. The edge is measured from below the header, so it lands exactly where the
@@ -127,8 +140,7 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    that dissolved halfway through the morning would be a question the child cannot
    answer. The cards keep their two states; only the field behind them flows. */
 .day.today { --edge: calc(var(--head) + (100% - var(--head)) * var(--now, 0) / 100);
-  --soft: calc((100% - var(--head)) * .04);
-  --seam: color-mix(in oklab, var(--day) 26%, #8e877f); }
+  --soft: calc((100% - var(--head)) * .04); }
 .day.today::before { content: ""; position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(to bottom, var(--spent) 0, var(--spent) calc(var(--edge) - var(--soft)),
     var(--field) calc(var(--edge) + var(--soft)), var(--field) 100%); }
@@ -138,7 +150,6 @@ body { margin: 0; min-width: 980px; background: var(--ground); }
    grew is the room under it, and the day's name belongs at the top of its day. */
 header { height: var(--head-day); display: flex; align-items: center; justify-content: space-between; gap: .4rem;
   min-width: 0; padding: 0 .55rem; color: var(--ink); }
-.day.gone header { color: #ddd8d3; }
 /* Three things want the header and it is one day wide, so they are ranked. The
    weekday is the board's spine and keeps its ground — the floor under it is the
    width of its own two letters. The pills come next, because what lasts all day
@@ -257,13 +268,13 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    line came out at. Squared off inside a rounded card it read as a photograph taped
    over the corners. */
 .card.current .icons { padding: .2rem; border: min(.3rem, 16cqh) solid var(--day); border-radius: inherit; }
-.card.past { background: color-mix(in oklab, var(--day) 7%, #d3cec9); box-shadow: none; }
+.card.past { background: color-mix(in oklab, var(--day) 8%, var(--ash)); box-shadow: none; }
 /* On today the field behind a past card is the muted end of the gradient, and the
    card's own paper is a near neighbour of it — close enough that the card would
    dissolve into the day. It gets its edge back as a rim rather than as more colour:
    still done, still quiet, but still a thing on the board. */
 .day.today .card.past { box-shadow: inset 0 0 0 .11rem var(--seam); }
-.card.past img, .card.past .face { filter: grayscale(.9); opacity: .78; }
+.card.past img, .card.past .face { opacity: .45; }
 
 /* Parallel appointments overlap, so the one on top needs an edge: a rim in the day
    colour cuts it out of the card underneath, and its shadow puts it in front. */
@@ -282,16 +293,16 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    board's own rule — colour is the field, paper is a card — for the one card that
    is a prompt and not an event. The dashed edge stays; it says unfinished, where
    the ground says this one is a question. */
-.card.open { border: .22rem dashed color-mix(in oklab, var(--day) 60%, #241c14);
-  background: color-mix(in oklab, var(--day) 60%, #fff); }
+.card.open { border: .22rem dashed color-mix(in oklab, var(--day) 65%, #1d232b);
+  background: color-mix(in oklab, var(--day) 45%, #fff); }
 
 /* The daypart rail is a narrow strip in the colour of the current day, and it also
    carries how far the day has come: the part already behind us is muted, the part
    still ahead keeps the rail colour. The two meet at the current minute with a soft
    edge instead of a line. */
 .rail { display: grid; grid-template-rows: var(--head) 1fr;
-  --ahead: color-mix(in oklab, var(--day) 90%, #fff);
-  --mark: color-mix(in oklab, var(--day) 28%, var(--ink));
+  --ahead: var(--day);
+  --mark: color-mix(in oklab, var(--day) 45%, #12161c);
   background: var(--ahead); }
 .rail-head { background: var(--spent); }
 .rail-track { position: relative; min-height: 0; padding: .35rem 0 .45rem; }
@@ -304,8 +315,117 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
 .mark svg { width: 100%; height: 100%; display: block; }
 .mark.is-now { width: 2rem; height: 2rem; opacity: 1; }
 
+/* The slot bar: the row that answers *where does the card go*, in the black of the
+   frame it continues. It is empty most of the time and keeps its height anyway —
+   a strip that came and went would move the week twice a day.
+
+   The box stands over the card slot, which is what points at it; the arrow inside
+   the bar says which day is being decided, in that day's colour rather than in
+   today's. Both stay in the bar: a line drawn over the week would cross whatever
+   happens to be under it, and the week is what the board is for. */
+/* Not a row any more: a line along the bottom of the screen that the tray and the
+   device's own two lines hang from. The black strip it used to be was the frame
+   continued into the picture — but the frame really does continue there, half a
+   centimetre lower, and a painted copy of it only cost the week its height. */
+.slotbar { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 0; }
+/* The tray stands on the bottom edge and grows upward out of the frame, the way the
+   card it is asking for will stand in the slot underneath. It stands over the slot
+   and only there: the slot is built into one place, so the place on screen that
+   answers it may not move either.
+
+   And it is a plate of the day's own colour — that alone says which day is being
+   decided, because no two columns share a colour. Nothing is drawn at the day's end
+   of it: the column is already that colour. */
+.offerbox { position: absolute; bottom: 0; left: var(--slot); transform: translateX(-50%);
+  display: flex; align-items: center; justify-content: center; gap: .8rem;
+  width: var(--boxw); height: var(--tray); overflow: hidden; padding: 0 .8rem .2rem;
+  border-radius: .6rem .6rem 0 0; background: var(--day);
+  box-shadow: 0 -.35rem 1.2rem rgba(0, 0, 0, .55); }
+/* The same sign as the one in the column, at the size this row allows: what is asked
+   on the board and what is asked at the slot have to be one question. */
+.query { flex: 0 0 auto; font-size: calc(var(--tray) * .3); font-weight: 700; line-height: .9;
+  color: color-mix(in oklab, var(--day) 40%, #1d232b); }
+/* A card in the box has the proportions of the laminated card on the table — the
+   height of this row decides its size, so the two share a shape and not a scale. */
+/* Two cards is what eight centimetres hold at full size; more of them share the
+   width rather than being cut off, because what is on offer has to be countable.
+
+   The proportions are the laminated card's, so the two share a shape if not a scale. */
+.pick { flex: 0 0 auto; height: min(82%, calc(164% / var(--count, 2))); aspect-ratio: 85 / 120;
+  display: grid; place-items: center;
+  border-radius: .35rem; background: #f4f0e9; box-shadow: 0 .15rem .5rem rgba(0, 0, 0, .55); }
+.pick img { width: 82%; height: 82%; object-fit: contain; }
+.pick .missing { font-size: .6rem; }
+/* What the device says about itself: a fault in the frame, and the notice ARASAAC's
+   licence asks for. Both belong to whoever set the board up rather than to the
+   child, so both sit at the empty left end of this row, quiet, in the grey the rest
+   of the setup state uses. */
+/* Over the week now, so each line carries its own dark ground: what is behind them
+   is whichever day colour the week happens to start with, and a notice that is
+   legible over Monday's yellow and vanishes into Saturday's grey is not a notice. */
+.notes { position: absolute; bottom: .3rem; left: .45rem;
+  display: flex; flex-direction: column; align-items: flex-start; gap: .15rem; max-width: 40%; }
+.notes > * { padding: 2px 7px; border-radius: 999px; background: rgba(14, 18, 24, .7); }
+.fault { font-size: .8rem; font-weight: 600; color: #b3aaa2; }
+.credit { font-size: .7rem; line-height: 1.3; color: #a49c94; }
+
+/* The card arrived: a short flare along the bottom edge, exactly as wide as the tray
+   that was standing there a moment ago and in the colour of the day it answered. It
+   is the only thing the screen can say about a place that is not on the screen —
+   the slot is half a centimetre lower, and this sits directly above it.
+
+   It is over in under two seconds, because it says *that* rather than *what*: what
+   was chosen is already standing in the day's own column, at full size. */
+.taken { position: absolute; z-index: 5; bottom: 0; left: var(--slot); transform: translateX(-50%);
+  width: var(--boxw); height: .45rem; border-radius: .35rem .35rem 0 0; background: var(--day);
+  box-shadow: 0 0 2.2rem .5rem color-mix(in oklab, var(--day) 75%, transparent);
+  animation: taken 1.5s ease-out forwards; pointer-events: none; }
+@keyframes taken {
+  0% { opacity: 0; height: 1.6rem; }
+  14% { opacity: 1; height: 1.1rem; }
+  100% { opacity: 0; height: .3rem; }
+}
+/* And the other direction: a card taken back before its appointment began. The same
+   light in the same place, but collapsing towards the edge instead of rising off it,
+   and quieter — something was undone, not done. */
+.taken.back { animation: given-back 1.1s ease-out forwards; opacity: .8; }
+@keyframes given-back {
+  0% { opacity: 0; height: .3rem; }
+  16% { opacity: .8; height: .9rem; }
+  100% { opacity: 0; height: .2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .taken, .taken.back { animation: none; opacity: .9; }
+}
+
+/* A card that answers nothing. The refusal is the one thing on this board that is
+   allowed a colour of its own: every other colour here belongs to a weekday, and a
+   no that borrowed Thursday's red would be saying something about Thursday. It is
+   only ever seen against the black of this row, so it never meets the week.
+
+   It shakes, because a two-year-old reads a head shake before a colour — and it
+   holds still for anyone who asked the system for less motion. Where the bar is
+   empty there is nothing to shake, so the row itself carries the no. */
+.slotbar.wrong { --no: #e8503c; }
+.slotbar.wrong .offerbox { background: var(--no); animation: refused .42s ease-in-out; }
+.slotbar.wrong .query { color: #fff; }
+/* And it says what would have worked: the cards that are on offer answer back. */
+.slotbar.wrong .pick { animation: offered .5s ease-in-out; }
+@keyframes refused {
+  0%, 100% { transform: translateX(-50%); }
+  22% { transform: translateX(calc(-50% - .55rem)); }
+  55% { transform: translateX(calc(-50% + .45rem)); }
+  80% { transform: translateX(calc(-50% - .25rem)); }
+}
+@keyframes offered { 50% { transform: scale(1.07); } }
+@media (prefers-reduced-motion: reduce) {
+  .slotbar.wrong .offerbox, .slotbar.wrong .pick { animation: none; }
+}
+
+
 @media (max-width: 1250px) {
-  :root { --head-day: 2.7rem; --rail: 2.4rem; }
+  :root { --head-day: 2.7rem; --rail: 2.4rem; --tray: 5.6vh; }
+  .offerbox { gap: .55rem; padding: 0 .6rem; }
   .day { --tile: 4.5rem; }
   .day.today { --tile: 7rem; }
   .card { border-radius: .5rem; }
@@ -316,8 +436,9 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
 
 /* The announcement's own setup state. Bottom left, so it never lands on the
    ARASAAC notice, and invisible while it is empty. */
-.setup { position: fixed; left: .5rem; bottom: .25rem; margin: 0; max-width: 60vw;
-  font-size: 11px; line-height: 1.3; color: #6b645e; pointer-events: none; }
+.setup { position: fixed; left: 50%; transform: translateX(-50%); bottom: .25rem; margin: 0;
+  max-width: 38vw; font-size: 11px; line-height: 1.3; text-align: center; color: #6b645e;
+  pointer-events: none; }
 
 /* The card the voice is on. A ring rather than a fill, so it reads the same on an
    ordinary card, on the lifted current one and on a greyed past one, and none of
@@ -333,7 +454,7 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    pulls a two-year-old's eye — and it holds still for anyone who has asked the
    system for less motion. */
 .card.saying { z-index: 10; outline: .3rem solid var(--ring); outline-offset: .2rem;
-  --ring: color-mix(in oklab, var(--day) 58%, #241c14);
+  --ring: color-mix(in oklab, var(--day) 58%, #1d232b);
   animation: saying 1.15s ease-in-out infinite; }
 @keyframes saying {
   50% { outline-color: color-mix(in oklab, var(--ring) 32%, transparent); outline-offset: .5rem; }
@@ -365,7 +486,7 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    because it may, and the mark does not because it is the sign being learnt. */
 .ask { font-size: min(calc(var(--tile) * .5), 62cqw, max(50cqh, min(90cqh, 1rem)));
   flex: none; line-height: .95; font-weight: 700;
-  color: color-mix(in oklab, var(--day) 45%, #241c14); }
+  color: color-mix(in oklab, var(--day) 40%, #1d232b); }
 .offers { display: flex; align-items: center; justify-content: center; gap: .25rem;
   flex: 0 1 auto; min-height: 0; max-width: 100%; overflow: hidden; }
 .offers .icon { height: min(calc(var(--tile) * .26), 24cqh, calc(88cqw / var(--count, 2))); max-height: 100%; }
