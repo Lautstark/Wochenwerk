@@ -7,7 +7,7 @@ import { allCards, allPeople, allSeries, pullFromFolder, put, settings, week, wh
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { listen } from "./reader.js";
-import { answered } from "./announce.js";
+import { answered, asking, refused } from "./announce.js";
 import { announceAt, preview } from "./speech.js";
 import { el } from "./ui.js";
 
@@ -349,14 +349,14 @@ function flare(day: string, back: boolean) {
 
 const refusalLasts = 1400;
 let refusedAt = 0, refusedSaid = 0, refusedCard = "";
+/* How long a question stays asked, so that one taken back a moment after the last
+   one is not asked twice. The same window the refusal answers one question in. */
+const askAgainAfter = 6000;
+let askedAgain = 0;
 
 /* What a card is called out loud: what it was given to say when it is offered, and
    its name where it was given nothing. */
 const spokenAs = (card: Card) => card.speech?.trim() || card.name;
-/* Two are joined with oder, more with commas and one oder at the end — the way one
-   would say them, not the way a list is printed. */
-const listed = (names: string[]) => names.length < 2 ? names.join("")
-  : `${names.slice(0, -1).join(", ")} oder ${names[names.length - 1]}`;
 
 function refuse(open: Appointment | undefined, cards: Map<string, Card>, uid: string, card?: Card) {
   /* A tag nobody has written down anywhere is a setup state rather than a mistake
@@ -382,13 +382,11 @@ function refuse(open: Appointment | undefined, cards: Map<string, Card>, uid: st
   if (!offered?.length) return;
   /* A card held there for a moment reads several times. It is one question, so it
      gets one answer. */
-  const again = uid === refusedCard && Date.now() - refusedSaid < 6000;
+  const again = uid === refusedCard && Date.now() - refusedSaid < askAgainAfter;
   refusedCard = uid;
   if (again) return;
   refusedSaid = Date.now();
-  const what = card ? spokenAs(card) : "Diese Karte";
-  const sentence = `${what} steht gerade nicht zur Auswahl. Du kannst ${listed(offered.map(spokenAs))} wählen.`;
-  void preview(sentence).then(why => { if (why) trouble(why); });
+  void preview(refused(card && spokenAs(card), offered.map(spokenAs)).text).then(why => { if (why) trouble(why); });
 }
 
 async function draw(at: Date) {
@@ -473,6 +471,14 @@ async function reads(uid: string | null): Promise<void> {
     /* Taking it back gets the same light in the same place, running the other way:
        the question is standing there again, and it happened at the slot. */
     flare(decided.date, true);
+    /* And it is asked again, in the clip the open choice already ends on — the
+       answer had a voice, so taking it back has one too. Not on every jiggle: a
+       card going in and out is one child playing, and a board that asks again
+       each time is talking to itself. */
+    if (Date.now() - askedAgain > askAgainAfter) {
+      askedAgain = Date.now();
+      void preview(asking().text).then(why => { if (why) trouble(why); });
+    }
   }
   await draw(at);
 }

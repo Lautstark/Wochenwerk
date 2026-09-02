@@ -165,6 +165,9 @@ title is not consulted at all.
 | decided, and running | *Jetzt ist Schwimmbad. Das hast du ausgesucht.* |
 | decided, and ahead | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
 | answered, at the slot | *Du hast Schwimmbad ausgesucht.* |
+| a card that answers nothing | *Zähneputzen steht gerade nicht zur Auswahl. Du kannst Laufrad fahren oder Spielplatz wählen.* |
+| a tag the board has never seen | *Diese Karte steht gerade nicht zur Auswahl. …* |
+| the card taken back out | *Was möchtest du tun?* |
 
 **The answer is said back.** A card laid at the slot is answered out loud, the way
 a card that fits nothing has been all along — the light over the slot says that
@@ -172,6 +175,23 @@ something arrived, and only the sentence says which card was understood, which i
 what a child cannot check from across the room when two cards look alike. It is
 said once per answer, and it says nothing about when: most answers are given to a
 question whose time has not come, tomorrow's included.
+
+**Taking the card out takes the answer back, and the question is asked again** —
+the same clip the open choice ends on. The answer had a voice, so withdrawing it
+has one too. Not on every jiggle: a card going in and out is one child playing,
+and a board that asks again each time is talking to itself, so a question asked in
+the last few seconds is not asked twice.
+
+**A card held at the reader is a question asked out loud**, and it is answered in
+kind: what this one is not, and what would do instead. Only where something is
+actually being asked — with nothing to choose there is nothing to offer, and a
+sentence listing nothing is worse than silence. A tag the board has never seen is
+*Diese Karte*, because to the child holding it that is what it is.
+
+These three are said at the slot rather than on a press, and they interrupt what
+was being said, which is right: the child is standing at the slot. Like every
+other sentence here they are built from the frames, so a recorder is handed them
+with the rest.
 
 **The sentence ends by asking, not by instructing.** It used to end *Leg eine
 Karte in den Schlitz*, and that described a mechanism the board does not have:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announce, answered, couldSay, vocabulary, type Household, type Part } from "../src/announce.js";
+import { announce, answered, asking, couldSay, refused, vocabulary, type Household, type Part } from "../src/announce.js";
 import type { Appointment, Card, Person, SymbolRef } from "../src/model.js";
 
 /* 2026-09-01 is a Tuesday, and 09-02 the Wednesday after it. */
@@ -354,6 +354,35 @@ describe("a card that answers the question", () => {
     const line = "Du hast Turnen ausgesucht.";
     expect(couldSay("Turnen", { card: true }).map(said => said.text)).toContain(line);
     expect(couldSay("Turnen").map(said => said.text)).not.toContain(line);
+  });
+});
+
+describe("a card that answers nothing", () => {
+  const known = () => new Set(vocabulary());
+
+  it("says what it is not, and what would do instead", () => {
+    expect(refused("Zähneputzen", ["Schwimmbad", "Spielplatz"]).text)
+      .toBe("Zähneputzen steht gerade nicht zur Auswahl. Du kannst Schwimmbad oder Spielplatz wählen.");
+  });
+
+  it("calls a tag it has never seen a card all the same", () => {
+    /* To the child holding it, it is a card. */
+    expect(refused(undefined, ["Schwimmbad"]).text)
+      .toBe("Diese Karte steht gerade nicht zur Auswahl. Du kannst Schwimmbad wählen.");
+  });
+
+  it("is played from clips a recorder was asked for", () => {
+    /* It used to be written out where the board draws, which put the one spoken
+       sentence nobody could record outside the vocabulary. */
+    const parts = refused("Zähneputzen", ["Schwimmbad", "Spielplatz", "Turnen"]).parts;
+    expect(parts.filter(part => !part.own).every(part => known().has(part.say))).toBe(true);
+    expect(parts.filter(part => part.own).map(part => part.say))
+      .toEqual(["Zähneputzen", "Schwimmbad", "Spielplatz", "Turnen"]);
+  });
+
+  it("asks the question again when the answer is taken back", () => {
+    expect(asking().text).toBe("Was möchtest du tun?");
+    expect(asking().parts.every(part => !part.own && known().has(part.say))).toBe(true);
   });
 });
 

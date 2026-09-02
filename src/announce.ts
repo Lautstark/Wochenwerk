@@ -77,17 +77,29 @@ const FRAMES = {
      promise about a moment that is not this one. */
   youChose: "Du hast",
   choseIt: "ausgesucht.",
+  /* And the card that answers nothing. A card held at the reader is a question
+     asked out loud, so it is answered in kind: what this one is not, and what
+     would do instead. It was written out in the board's own file for as long as it
+     existed, which put the one spoken sentence nobody could record outside the
+     vocabulary a recorder is handed — silence, once clips replace the synthesiser,
+     and nothing to notice it by. */
+  thisCard: "Diese Karte",
+  notOffered: "steht gerade nicht zur Auswahl.",
+  youCan: "Du kannst",
+  pick: "wählen.",
   done: "Heute ist nichts mehr geplant.",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
   or: "oder",
-  /* The question the naming leads to, and the same one whether the choice is open
-     or still ahead — one clip, learned once. It used to be *Leg eine Karte in den
-     Schlitz*, which described a mechanism the board does not have: there is one
-     place, and a card is stood in it. A sentence about the furniture would have
-     to be rewritten with the furniture; a question about what the child wants
-     survives it, and it is what is actually being asked. */
-  ask: ". Was möchtest du tun?",
+  /* The question the naming leads to, and the same one whether the choice is open,
+     still ahead, or standing open again because the card was taken back out — one
+     clip, learned once, and it carries no full stop of its own so that it can also
+     be said alone. It used to be *Leg eine Karte in den Schlitz*, which described a
+     mechanism the board does not have: there is one place, and a card is stood in
+     it. A sentence about the furniture would have to be rewritten with the
+     furniture; a question about what the child wants survives it, and it is what
+     is actually being asked. */
+  asking: "Was möchtest du tun?",
   look: "Jetzt darfst du aussuchen. Schau, welche Karten daliegen. Was möchtest du tun?",
 } as const;
 
@@ -312,7 +324,7 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
        child wants, between nothing said, is a question with no answer in it. */
     return [about(next, offered
       ? utter(fixed(soon ? FRAMES.soonChooseFrom : running ? FRAMES.afterChooseFrom : FRAMES.thenChooseFrom),
-          ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask))
+          ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking))
       : utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose)))];
   }
   const said = spokenName(next, household.cards);
@@ -335,12 +347,23 @@ function restOfIt(): Utterance {
 function choosing(running: Appointment, household: Household): Utterance {
   const said = namedOptions(running, household);
   return about(running, said
-    ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.ask))
+    ? utter(fixed(FRAMES.choose), ...listing(said, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking))
     : utter(fixed(FRAMES.look)));
 }
 
 /** What is said at the slot when a card answers the question it was asked. */
 export const answered = (word: string): Utterance => utter(fixed(FRAMES.youChose), own(word), fixed(FRAMES.choseIt));
+
+/** And when the card is taken back out: the question is standing there again. */
+export const asking = (): Utterance => utter(fixed(FRAMES.asking));
+
+/* What is said to a card that answers nothing: what it is not, and what would do
+   instead. The word is the card's where the tag belongs to one, and *Diese Karte*
+   where the board has never seen the tag before — which is a card all the same, to
+   the child holding it. */
+export const refused = (word: string | undefined, offered: string[]): Utterance =>
+  utter(word ? own(word) : fixed(FRAMES.thisCard), fixed(FRAMES.notOffered),
+    fixed(FRAMES.youCan), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.pick));
 
 /* Every sentence a record can turn up in, for whoever is writing its word.
 
@@ -423,9 +446,9 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     const named = offered.length > 0 && offered.length === shape.offering.length && offered.length <= 3;
     /* Ahead of it the cards are named too, in the same three frames. */
     const ahead = (opening: string, bare: string) =>
-      named ? line(fixed(opening), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask)) : bare;
+      named ? line(fixed(opening), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking)) : bare;
     return [
-      { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.ask)) : FRAMES.look,
+      { text: named ? line(fixed(FRAMES.choose), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking)) : FRAMES.look,
         when: "wenn die Wahl offen ist" },
       { text: ahead(FRAMES.afterChooseFrom, FRAMES.afterChoose), when: "davor, wenn etwas läuft" },
       { text: ahead(FRAMES.soonChooseFrom, FRAMES.soonChoose), when: "bis 20 Minuten davor" },
