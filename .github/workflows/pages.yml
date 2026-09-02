@@ -54,11 +54,27 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # A domain of its own, or a path under the organisation's.
+      #
+      # Wochenwerk was served from lautstark.tech/Wochenwerk/, which is the same
+      # *origin* as the overview site: one storage quota between a calendar and a
+      # marketing page, and "clear site data" on either taking both. Its own
+      # subdomain fixes that and matches the other three products.
+      #
+      # The switch is a repository variable rather than an edit, because the DNS
+      # record has to exist first and nothing here can know when it does. Set
+      # `PAGES_DOMAIN` to wochenwerk.lautstark.tech and re-run: the build goes to
+      # the root instead of a subpath and a CNAME travels with it, which is what
+      # tells Pages the domain. Unset it and the old address comes back.
       - name: Build
-        # Derived from the repository name, so it follows a rename for free.
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Derived from the repository name where there is no domain, so it
+          # follows a rename for free.
+          BASE_PATH: ${{ vars.PAGES_DOMAIN != '' && '/' || format('/{0}/', github.event.repository.name) }}
         run: npm run build
+      - name: The domain, where there is one
+        if: vars.PAGES_DOMAIN != ''
+        run: echo "${{ vars.PAGES_DOMAIN }}" > dist/CNAME
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
