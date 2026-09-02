@@ -528,6 +528,14 @@ describe("a stretch away from home", () => {
     expect(away(pressed([], at("09:00"), days(-2)))).toEqual([]);
   });
 
+  it("says nothing while we are already somewhere else", () => {
+    /* The day we are standing in is a day the day sentence speaks for, and the
+       next day of the same stretch is not news. This came up on the first day of
+       four away: *Heute fahren wir zu Oma. … Morgen fahren wir weg.* */
+    const here = [appointment(undefined, undefined, { symbols: [], title: "Bei Oma", away: true })];
+    expect(away(pressed(here, at("09:00"), days(1)))).toEqual([]);
+  });
+
   it("gives way to an open choice like everything else", () => {
     /* While there is something for the child to do, the announcement is only
        that — a sentence about next week in front of it is a sentence in the way. */

@@ -1,4 +1,4 @@
-import { addDays, allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, reading, snapped, spokenName, undecided,
+import { addDays, allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, notAtHome, reading, snapped, spokenName, undecided,
   type Appointment, type Card, type Person } from "./model.js";
 
 /* The week, one moment, and what is said out loud about it. See docs/speech.md
@@ -218,9 +218,16 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      hours off, the *now* sentence stays and *danach ist nichts geplant* goes. Both
      times the sentence that survives is the one with something in it. */
   const empty = !running && !timedOn(week, today).some(item => item.start! > now);
+  /* Nothing is announced while we are already somewhere else. The day sentence is
+     what says where we are, and *morgen fahren wir weg* on the first day of four
+     at a grandmother's is about the second day of the stretch we are standing
+     in — a sentence about nothing, and hardest to notice on that day of all days,
+     because everything else in the announcement is right. */
+  const elsewhere = week.some(item => item.date === today && notAtHome(item));
   return [dayLine(week, at, now, household),
     ...(empty ? [] : nowLine(running, now, week, today, household)),
-    ...nextLine(week, at, now, running, household), ...awayLine(awayFrom, today)];
+    ...nextLine(week, at, now, running, household),
+    ...awayLine(elsewhere ? undefined : awayFrom, today)];
 }
 
 /* The one sentence that reaches past today, and it is last on purpose.

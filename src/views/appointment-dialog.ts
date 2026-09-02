@@ -54,8 +54,8 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
      repetition: nothing distinguishes „von Montag bis Freitag" from „jeden Tag,
      bis Freitag" once it is written, and nothing needs to — they are the same
      five days. Everything else is a rule, and is asked about as one. */
-  const shapeOfBatch = (): Kind =>
-    batch?.pattern.kind === "daily" && batch.allDay ? "stretch" : "series";
+  const stretch = batch?.pattern.kind === "daily" && batch.allDay;
+  const shapeOfBatch = (): Kind => stretch ? "stretch" : "series";
 
   /* Every control is made once. Only what a change actually affects is refilled,
      which is what keeps a caret where somebody put it. */
@@ -66,7 +66,11 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const atOpen = input("checkbox"), atClose = input("checkbox");
   title.value = draft.title ?? "";
   date.value = draft.date; from.value = draft.start ?? "09:00"; to.value = draft.end ?? "09:30";
-  spanTo.value = draft.date; whole.checked = allDay(draft); notHome.checked = !!draft.away;
+  /* Wo die Strecke aufhört, nicht wo dieser eine Tag ist: bei einem Batch ist
+     das die Ausdehnung, die es schon gibt, und bei einem einzelnen Tag ist der
+     Tag selbst der Vorschlag. */
+  spanTo.value = stretch ? batch!.until : draft.date;
+  whole.checked = allDay(draft); notHome.checked = !!draft.away;
 
   /* One row, and the fields in it appear or not. A second row holding a second
      copy of the day was how the first one lost its input to the other.
@@ -317,11 +321,16 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     fromCol.hidden = whole.checked;
     toCol.hidden = whole.checked;
     notHomeRow.hidden = !whole.checked;
-    /* Only where it can still do something. It is what turns a single all-day
-       appointment into a batch, and once there is one the batch's own „Bis" —
-       under Wiederholen — is what says where the stretch stops. Two date fields
-       called „Bis" stood in the sheet at once, and the one on top was dead. */
-    spanField.hidden = !whole.checked || !!draft.series;
+    /* One field for one fact, and the fact is where the stretch stops.
+       Beside the day it is what a person came to change: „vom 4. bis zum 6."
+       is how somebody says four days away, and it is how they change them.
+       Under Wiederholen the same date is the end of a rule, and it stands next
+       to a select reading „jeden Tag" — which turns four days at a
+       grandmother's into a repetition on the one screen where somebody is
+       looking at what it is. So a stretch carries the field here and no
+       Wiederholen row at all, and a repetition carries the row and no field. */
+    spanField.hidden = !whole.checked || (!!draft.series && !stretch);
+    repeatRow.hidden = !!stretch;
     /* Derived, never stored: ticked means the time already is that edge of the
        day. Written after the columns are placed so that a time changed by hand
        unticks the box on the same pass. */
@@ -332,7 +341,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     if (whole.checked && spanTo.value < draft.date) spanTo.value = draft.date;
     spanTo.min = draft.date;
 
-    seriesLine.hidden = !draft.series;
+    /* „↻ jeden Tag · bis 6.9." is the same claim in words. A stretch says where
+       it stops in its own field and needs no second line about a rule. */
+    seriesLine.hidden = !draft.series || !!stretch;
     /* An appointment lying before where the rule starts belongs to the batch but was
        not written by that rule, so the line says from when the rule holds rather
        than claiming it over a day it never covered. */
@@ -475,15 +486,24 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
        Clearing it on every save threw away an answer that was still good. */
     if (mode === "symbols") { draft.options = []; draft.chosen = undefined; }
     else { draft.symbols = []; if (draft.chosen && !draft.options.includes(draft.chosen)) draft.chosen = undefined; }
-    /* Without `chosen`: this is what is written across days other than this one,
-       and an answer given on Monday is not an answer for Tuesday. */
-    const shape = { title: draft.title, start: draft.start, end: draft.end, symbols: draft.symbols,
-      options: draft.options, people: draft.people, showPeople: draft.showPeople };
+    /* What a batch writes across its days is everything the appointment says
+       except the four things that belong to a day rather than to the batch —
+       which is `Shape`, and is taken by leaving those out rather than by naming
+       what stays. Named, it silently dropped whatever was added to the record
+       afterwards: `speech` had been missing from this list since it existed, so
+       an Ansage typed on a series was thrown away on save, and `away` joined it
+       the day it was written. A list of fields cannot fail to compile when it
+       falls behind; leaving fields out cannot fall behind at all.
+
+       `chosen` is one of the four on purpose: this is written across days other
+       than this one, and an answer given on Monday is not an answer for
+       Tuesday. */
+    const { id: _id, date: _date, series: _batch, chosen: _chosen, updatedAt: _at, ...shape } = draft;
 
     if (batch) {
       const pattern: Pattern = repeat === "weekly" ? { kind: "weekly", weekdays: [...weekly].sort((one, other) => one - other) }
         : repeat === "yearly" ? { kind: "yearly" } : { kind: "daily" };
-      const stop = until.value || batch.until;
+      const stop = (stretch ? spanTo.value : until.value) || batch.until;
       const moved = !samePattern(pattern, batch.pattern);
       /* Where a new rule starts: the appointment somebody opened, and never earlier
          than today. What is already behind us is what was planned, and a rule
