@@ -63,11 +63,21 @@ export type Appointment = {
   chosen?: string;
   people: string[];
   showPeople: boolean;
+  /** Whether the household is not at home on this day. */
+  /* All-day only, and it changes nothing about what is drawn: an absence is the
+     same bar it always was, carrying whatever picture the household gave it. It
+     is read by the announcement alone, which has to choose a wording and so has
+     to know what kind of day it is — a picture never does. Absent everywhere it
+     was not asked, which is what keeps a Ferientag from being told we are away.
+     See docs/speech.md. */
+  away?: boolean;
   /** Which batch this was created in, if any. A label, never a rule. */
   series?: string;
   updatedAt: number;
 };
 export const allDay = (appointment: Appointment) => !appointment.start;
+/** A day the household spends somewhere else. */
+export const notAtHome = (appointment: Appointment) => allDay(appointment) && !!appointment.away;
 
 /* A series records how a batch of appointments was made — the pattern and how far
    it ran — so they can be listed, extended and cleared away together. It is not
@@ -138,6 +148,7 @@ export function strays(appointment: Appointment, like: Appointment): boolean {
   return (appointment.title ?? "") !== (like.title ?? "")
     || appointment.start !== like.start || appointment.end !== like.end
     || appointment.chosen !== like.chosen || appointment.showPeople !== like.showPeople
+    || !!appointment.away !== !!like.away
     || !alike(marks(appointment), marks(like)) || !alike(appointment.options, like.options)
     || !alike(appointment.people, like.people);
 }
@@ -195,6 +206,7 @@ const sameThing = (appointment: Appointment) => [
   appointment.series ?? appointment.id, appointment.title ?? "",
   appointment.symbols.map(symbol => `${symbol.source}:${symbol.id}`).join(","),
   appointment.people.join(","), appointment.options.join(","), appointment.chosen ?? "",
+  appointment.away ? "weg" : "",
 ].join("|");
 
 export function runsOf(appointments: Appointment[], dates: string[], series: Map<string, Series>): Run[] {

@@ -25,11 +25,27 @@ they hold no clock time. A word rather than a figure, so the ban on digits stand
 as written and it is a clip like any other; past twelve the sentence leaves the
 age out rather than reach for a word nobody recorded.
 
-**And the day is as far as it goes.** *Einmal schlafen, dann ist Kita* used to
-reach into tomorrow, and it reached for a moment nobody presses in: it needed the
-day emptied out and something on the next one, which is bedtime, when a board on
-a wall is behind somebody's back. What the board is for is the day in front of
-the child. It says the day is over and stops.
+**And the day is as far as it goes, with one exception.** *Einmal schlafen, dann
+ist Kita* used to reach into tomorrow, and it reached for a moment nobody presses
+in: it needed the day emptied out and something on the next one, which is
+bedtime, when a board on a wall is behind somebody's back. What the board is for
+is the day in front of the child. It says the day is over and stops.
+
+The exception is the one thing the day in front of the child cannot show: that we
+will not be here. A week of columns says what happens on it and nothing about the
+week after, so a holiday exists for the child on the morning it starts and not a
+day earlier — and *bald fahren wir weg* is what a household says out loud for a
+fortnight before that morning. It is not the old sentence in a new place: that
+one turned up on its own at the end of an empty day, and this one stands on every
+press of the whole day, which is when somebody is actually in front of the board.
+
+**What it may not do is say how far.** *In drei Wochen* has no unit a two-year-old
+holds, and counting the sleeps is a count. So the distance is carried by the
+sentence's own existence: it starts seven days before and not earlier, it changes
+its wording the day before, and it is gone on the day itself. That the sentence
+was not there yesterday and is there today is the whole of what is said about
+when — and it is as close to *noch fünf Mal schlafen* as a board gets that may not
+count.
 
 **The day sentence says which moment it is, not which day.** *Es ist
 Dienstagabend*, not *Heute ist Dienstagabend*: *heute* names the whole of Tuesday
@@ -61,7 +77,8 @@ Predictability is the whole design — the child learns the button by hearing th
 same shape every time — so the choice of what to say is made without any state
 and cannot come out differently on two presses a minute apart.
 
-**Day → now → next.** With one exception, which outranks all of it:
+**Day → now → next**, and a fourth after them where the household is going
+away. With one exception, which outranks all of it:
 
 > **When a choice is open and running, the announcement is only the choice.**
 > *Jetzt darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?*
@@ -116,6 +133,39 @@ list, so it is only done where there is exactly one.
 | next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
 | nothing left today | *Heute ist nichts mehr geplant.* |
+
+**Away** — the fourth sentence, and the only one about a day that is not today.
+It is last, because the order *day → now → next* is what is learned here and a
+sentence about next week may not push in front of what is happening. Two fixed
+clips and no word of the household's in either.
+
+| when | said |
+| --- | --- |
+| a day marked *nicht zu Hause* starts within seven days | *Bald fahren wir weg.* |
+| it starts tomorrow | *Morgen fahren wir weg.* |
+| it started today or earlier | nothing — the day sentence carries it |
+| further off than seven days | nothing |
+
+**Which days those are is on the record and is never worked out.** An appointment
+carries `away`, and the switch that sets it hangs under the field that spans the
+stretch, so it exists only where it can mean something. Deriving it instead —
+anything all-day, anything longer than two days — would have the board say *bald
+fahren wir weg* about a Ferientag or a week of holiday care, with full
+conviction. A picture never has to know what it means; a sentence chooses a
+wording and so does.
+
+**Two fixed clips rather than a wording per trip.** A day fact says a sentence of
+the household's own — *Heute fahren wir ins Saarland* — and the sentence before it
+cannot be built from that one. Without the flag every holiday would need a second
+recording, made once for the first trip and never again for the fourth, and the
+board would go quiet exactly where it had something to say. With it there is one
+clip for every absence a household will ever plan, and it is recorded before the
+first one.
+
+**Both sentences are listed on the appointment they belong to**, in the same fold
+that lists every other sentence a record can turn up in, so what the board will
+say on the days before is read where it is planned rather than found out from the
+wall.
 
 **An empty stretch is empty because nobody planned anything there**, and the
 board says that in one word — *geplant* — in every sentence about nothing

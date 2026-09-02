@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { announce, answered, asking, couldSay, refused, vocabulary, type Household, type Part } from "../src/announce.js";
-import type { Appointment, Card, Person, SymbolRef } from "../src/model.js";
+import { iso, type Appointment, type Card, type Person, type SymbolRef } from "../src/model.js";
 
 /* 2026-09-01 is a Tuesday, and 09-02 the Wednesday after it. */
 const TUESDAY = "2026-09-01";
@@ -473,5 +473,95 @@ describe("what a word can turn up in", () => {
 
   it("says nothing about a day it was not told the date of", () => {
     expect(couldSay("Heute ist Ferientag.", { allDay: true })).toEqual([]);
+  });
+});
+
+describe("a stretch away from home", () => {
+  /* The one sentence that reaches past today. It is derived from two dates and
+     handed in, so this needs no store and no clock: what the calendar found is
+     the argument. */
+  const trip = (week: Appointment[], moment: Date, awayFrom?: string) =>
+    announce(week, moment, house(), awayFrom).map(line => line.text);
+  /* Local dates, the way the rest of the app writes them: `toISOString` turns a
+     central European midnight into the day before. */
+  const days = (count: number) => {
+    const date = new Date(`${TUESDAY}T00:00`);
+    date.setDate(date.getDate() + count);
+    return iso(date);
+  };
+  const away = (lines: string[]) => lines.filter(line => line.includes("fahren wir weg"));
+
+  it("says nothing about a trip further off than the horizon", () => {
+    /* *Bald* said eight days out is the same word for something else entirely,
+       and a sentence that is always there says nothing at all. */
+    expect(away(trip([], at("09:00"), days(8)))).toEqual([]);
+  });
+
+  it("says it inside the horizon, and says it last", () => {
+    const lines = trip([appointment("08:00", "09:30", { title: "Kita" })], at("08:30"), days(5));
+    expect(lines[0]).toBe("Es ist Dienstagmorgen.");
+    expect(lines[1]).toBe("Jetzt ist Kita.");
+    expect(lines.at(-1)).toBe("Bald fahren wir weg.");
+  });
+
+  it("still says it on the last day of the horizon", () => {
+    expect(away(trip([], at("09:00"), days(7)))).toEqual(["Bald fahren wir weg."]);
+  });
+
+  it("has its own wording for the day before", () => {
+    /* The one distance a three-year-old can act on, and the reason the horizon
+       needs no count: what carries it is that the sentence changed. */
+    expect(away(trip([], at("09:00"), days(1)))).toEqual(["Morgen fahren wir weg."]);
+  });
+
+  it("says nothing on the day itself", () => {
+    /* The day is then the subject, and the day sentence has said it in the
+       household's own words. */
+    expect(away(trip([], at("09:00"), TUESDAY))).toEqual([]);
+    expect(away(trip([], at("09:00"), days(-2)))).toEqual([]);
+  });
+
+  it("gives way to an open choice like everything else", () => {
+    /* While there is something for the child to do, the announcement is only
+       that — a sentence about next week in front of it is a sentence in the way. */
+    const week = [appointment("08:00", "09:00", { symbols: [], options: ["s"] })];
+    const lines = announce(week, at("08:30"), house([card("s", "Schwimmbad")]), days(2));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.text).toContain("aussuchen");
+  });
+
+  it("is played from clips a recorder was asked for", () => {
+    const known = new Set(vocabulary());
+    for (const ahead of [1, 3, 7]) {
+      const parts = announce([], at("09:00"), house(), days(ahead)).at(-1)!.parts as Part[];
+      expect(parts.every(part => !part.own && known.has(part.say))).toBe(true);
+    }
+  });
+
+  it("lists both sentences on the appointment they belong to", () => {
+    /* What the board will say about this record, in the fold that lists every
+       sentence it can turn up in — the days before included, so nobody has to
+       find out from the wall. */
+    const said = couldSay("Heute fahren wir ins Saarland.", { allDay: true, away: true, date: "2026-09-03" });
+    expect(said.map(line => line.text)).toEqual([
+      "Es ist Donnerstagmorgen. Heute fahren wir ins Saarland.",
+      "Es ist Donnerstagmittag. Heute fahren wir ins Saarland.",
+      "Es ist Donnerstagnachmittag. Heute fahren wir ins Saarland.",
+      "Es ist Donnerstagabend. Heute fahren wir ins Saarland.",
+      "Bald fahren wir weg.",
+      "Morgen fahren wir weg.",
+    ]);
+  });
+
+  it("lists them even where nothing was written in the Ansage", () => {
+    /* They are fixed clips and are not built from the word, so the board says
+       them whether or not the household wrote one. */
+    expect(couldSay("", { allDay: true, away: true, date: "2026-09-03" }).map(line => line.text))
+      .toEqual(["Bald fahren wir weg.", "Morgen fahren wir weg."]);
+  });
+
+  it("offers them to no day that stays at home", () => {
+    const said = couldSay("Heute ist Ferientag.", { allDay: true, date: "2026-09-03" }).map(line => line.text);
+    expect(said.some(line => line.includes("fahren wir weg"))).toBe(false);
   });
 });

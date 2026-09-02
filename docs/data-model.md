@@ -16,11 +16,20 @@ birthday record it used to need.
 | `symbols` | What it shows, directly. An ordinary appointment needs nothing else. |
 | `options`, `chosen` | Which cards are offered, and which one an input picked. |
 | `people`, `showPeople` | Who it concerns, and whether the board shows them. |
+| `away` | All-day only: the household is not at home. Read by the announcement, never drawn. |
 | `series` | Which batch it was created in, if any. A label, never a rule. |
 
 **An appointment is always concrete.** No rule is ever stored in its place, so the
 board reads what was planned rather than working anything out, and a change to what
 happens from October cannot rewrite what September's board showed.
+
+**`away` changes nothing about what is drawn.** An absence is the same all-day
+bar it always was, carrying whatever picture the household gave it, and the board
+never reads the field. What reads it is the announcement, which has to choose
+between *Bald fahren wir weg* and saying nothing at all — a picture never has to
+know what it means, and a sentence does. Deriving it from the length of the
+stretch instead would announce a week of holiday care as a trip. See
+[speech](speech.md).
 
 **There is one kind of it.** Timed or all-day is a property, not a type. So is
 decided or still open. Visit and birthday are all-day appointments with a person on

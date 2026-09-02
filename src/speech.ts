@@ -1,8 +1,8 @@
 import { asBlob, remember, say, usePiperRuntime, type OnnxModule } from "@lautstark/stimmquelle";
 import { piperRuntime } from "@lautstark/stimmquelle/runtime";
-import { announce, type Utterance } from "./announce.js";
-import { allCards, allPeople, clips, settings, week } from "./db.js";
-import { mondayOf } from "./model.js";
+import { AHEAD, announce, type Utterance } from "./announce.js";
+import { allCards, allPeople, awayAhead, clips, settings, week } from "./db.js";
+import { addDays, iso, mondayOf } from "./model.js";
 
 /* Saying an announcement out loud. What is said is `announce.ts`; this is only
    how it reaches a speaker.
@@ -155,12 +155,19 @@ export async function hearSample(voice: string, onProgress?: (share: number) => 
 
 /** What the board would say at this moment, without saying it. */
 export async function saying(at: Date): Promise<Utterance[]> {
-  const [appointments, people, cards] = await Promise.all([week(mondayOf(at)), allPeople(), allCards()]);
+  /* The week the board draws, and — separately — the one thing that lies outside
+     it: the next day the household is somewhere else. Asked for as its own
+     question rather than as a longer week, so nothing about what is said today
+     can quietly start reading days that are not on the wall. */
+  const [appointments, ahead, people, cards] = await Promise.all([
+    week(mondayOf(at)), awayAhead(iso(addDays(at, 1)), iso(addDays(at, AHEAD))), allPeople(), allCards(),
+  ]);
   return announce(appointments, at, {
     cards: new Map(cards.map(card => [card.id, card])),
     people: new Map(people.map(person => [person.id, person])),
-  });
+  }, ahead);
 }
+
 
 /**
  * Hear one word, for whoever is deciding what will be said.

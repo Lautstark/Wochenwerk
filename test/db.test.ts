@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
-import { allCards, allPeople, allSeries, clearAll, createSeries, exportAll, importAll, isBackup, putCard, putPerson, saveAzure, dropSeries, editSeries, inSeries, put, reachOf, remove, repattern,
+import { allCards, allPeople, allSeries, awayAhead, clearAll, createSeries, exportAll, importAll, isBackup, putCard, putPerson, saveAzure, dropSeries, editSeries, inSeries, put, reachOf, remove, repattern,
   reshapeOf, saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
@@ -356,5 +356,42 @@ describe("a backup", () => {
   it("refuses a file that is not one of ours rather than reading half of it", () => {
     expect(isBackup({ termine: [] })).toBe(false);
     expect(isBackup(null)).toBe(false);
+  });
+});
+
+describe("the next day away from home", () => {
+  /* What the announcement asks the store: not what happens, only whether we will
+     be here. The window is the announcement's rule and is handed in. */
+  const inSevenDays = (from: Date) => awayAhead(iso(addDays(from, 1)), iso(addDays(from, 7)));
+  const trip = { ...shape(), away: true };
+
+  it("finds a day a rule put there, and gives the first of the stretch", async () => {
+    await createSeries({ kind: "daily" }, iso(addDays(monday, 4)), iso(addDays(monday, 6)), trip);
+    expect(await inSevenDays(monday)).toBe(iso(addDays(monday, 4)));
+  });
+
+  it("looks past nothing else that is planned", async () => {
+    await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("09:00", "10:00"));
+    expect(await inSevenDays(monday)).toBeUndefined();
+  });
+
+  it("stops at the window rather than at the week", async () => {
+    /* The day it is about is usually not on the board at all — that is the whole
+       reason the question exists — but a trip a fortnight off is not *bald*. */
+    await put({ ...trip, id: uuid(), date: iso(addDays(monday, 9)), updatedAt: 0 } as Appointment);
+    expect(await inSevenDays(monday)).toBeUndefined();
+    expect(await awayAhead(iso(addDays(monday, 1)), iso(addDays(monday, 14)))).toBe(iso(addDays(monday, 9)));
+  });
+
+  it("says nothing about today, whatever today is", async () => {
+    await put({ ...trip, id: uuid(), date: iso(monday), updatedAt: 0 } as Appointment);
+    expect(await inSevenDays(monday)).toBeUndefined();
+  });
+
+  it("forgets a day that was taken out of the rule", async () => {
+    const id = await createSeries({ kind: "daily" }, iso(addDays(monday, 3)), iso(addDays(monday, 4)), trip);
+    const days = await inSeries(id);
+    await remove(days[0]!.id);
+    expect(await inSevenDays(monday)).toBe(iso(addDays(monday, 4)));
   });
 });

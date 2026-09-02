@@ -88,6 +88,12 @@ const FRAMES = {
   youCan: "Du kannst",
   pick: "wählen.",
   done: "Heute ist nichts mehr geplant.",
+  /* The one thing said about a day that is not today. Two fixed clips rather
+     than a sentence per trip: the household would have to record a second
+     wording for every holiday it ever plans, and "Heute fahren wir ins
+     Saarland" cannot be turned into the sentence before it. See docs/speech.md. */
+  away: "Bald fahren wir weg.",
+  awayTomorrow: "Morgen fahren wir weg.",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
   or: "oder",
@@ -128,6 +134,12 @@ const SOON = 20;
    a word and no time to hang it on; what is true and useful at nine is that
    nothing is being waited for. */
 const HORIZON = 30;
+/* How many days ahead a trip is worth mentioning. Seven, and the number never
+   reaches the child: *bald* said a month out is the same word for something else
+   entirely, so what carries the distance is that the sentence was not there
+   yesterday and is there today. That is as close to a count of sleeps as a board
+   gets that may not count. */
+export const AHEAD = 7;
 
 const fixed = (say: string): Part => ({ say, own: false });
 const own = (say: string): Part => ({ say, own: true });
@@ -177,7 +189,7 @@ function namedOptions(appointment: Appointment, household: Household): string[] 
  * What the board says when the button is pressed: two or three short sentences,
  * always in the same order, chosen without any state of their own.
  */
-export function announce(week: Appointment[], at: Date, household: Household): Utterance[] {
+export function announce(week: Appointment[], at: Date, household: Household, awayFrom?: string): Utterance[] {
   const now = reading(at), today = iso(at);
   /* Parallel appointments share the width of the day, and one of them has to be
      the one that is spoken. The innermost wins: the one that began last, and of
@@ -196,7 +208,26 @@ export function announce(week: Appointment[], at: Date, household: Household): U
      a sentence in the way. */
   if (running && undecided(running)) return [choosing(running, household)];
 
-  return [dayLine(week, at, now, household), ...nowLine(running, now, week, today, household), ...nextLine(week, at, now, running, household)];
+  return [dayLine(week, at, now, household), ...nowLine(running, now, week, today, household),
+    ...nextLine(week, at, now, running, household), ...awayLine(awayFrom, today)];
+}
+
+/* The one sentence that reaches past today, and it is last on purpose.
+ *
+ * *Einmal schlafen, dann ist Kita* reached past it once and was taken out, for a
+ * reason that does not hold here: it appeared only when the day had emptied out,
+ * which is bedtime, when a board on a wall is behind somebody's back. This one
+ * stands on every press of the whole day, and it is about the one thing a week
+ * cannot show — that we will not be here.
+ *
+ * Derived from two dates and nothing else, so two presses a minute apart say the
+ * same thing. On the day itself there is no sentence: the day is then the
+ * subject, and `dayFact` has said it in the household's own words. */
+function awayLine(awayFrom: string | undefined, today: string): Utterance[] {
+  if (!awayFrom || awayFrom <= today) return [];
+  const days = Math.round((Date.parse(`${awayFrom}T00:00`) - Date.parse(`${today}T00:00`)) / 86400000);
+  if (days > AHEAD) return [];
+  return [utter(fixed(days === 1 ? FRAMES.awayTomorrow : FRAMES.away))];
 }
 
 /* Es ist Dienstagmorgen — plus at most one clause, because an all-day
@@ -333,11 +364,15 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
   return [about(next, utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : [])))];
 }
 
-/* The day is as far as it goes. *Einmal schlafen, dann ist Kita* was the one
-   sentence that reached past it, and it reached for a moment nobody presses in:
-   it needed the day emptied out and something on the next one, which is bedtime,
-   when a board on a wall is behind somebody's back. What the board is for is the
-   day in front of the child, and it says so and stops. */
+/* What comes next stops at the day. *Einmal schlafen, dann ist Kita* reached past
+   it once, and it reached for a moment nobody presses in: it needed the day
+   emptied out and something on the next one, which is bedtime, when a board on a
+   wall is behind somebody's back. What the board is for is the day in front of
+   the child, and this sentence says so and stops.
+
+   `awayLine` is the one thing said about a day that is not today, and it is a
+   sentence of its own rather than a longer *next*: it is about where we will be
+   and not about what happens after Kita. See docs/speech.md. */
 function restOfIt(): Utterance {
   return utter(fixed(FRAMES.done));
 }
@@ -384,6 +419,8 @@ export type Shape = {
   picked?: boolean;
   /** All day rather than at a time: a different set of sentences entirely. */
   allDay?: boolean;
+  /** And a day the household is not at home: two more, said on the days before. */
+  away?: boolean;
   /** A card rather than an appointment: it can be the answer laid at the slot. */
   card?: boolean;
   /** Whose birthday it is, and how old they turn. Said from the person, after
@@ -456,7 +493,14 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     ];
   }
 
-  if (!said) return [];
+  /* Said on the days before rather than on the day, so they belong to no daypart
+     and are not built from the word — which is also why an absence with nothing
+     written in its Ansage still lists them: the board will say them either way. */
+  const ahead: Possible[] = shape.allDay && shape.away
+    ? [{ text: FRAMES.away, when: `bis ${AHEAD} Tage vorher` }, { text: FRAMES.awayTomorrow, when: "am Tag davor" }]
+    : [];
+
+  if (!said) return ahead;
   const w = own(said), who = shape.who ? own(shape.who) : undefined;
   const tail = shape.picked ? [fixed(FRAMES.decided)] : [];
 
@@ -464,10 +508,10 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
      the day, and the day sentence is the only one that carries it. */
   /* An all-day fact says a sentence rather than a word — see `dayFact`. It is
      handed one, so nothing here wraps it. */
-  if (shape.allDay) return days.map(day => ({
+  if (shape.allDay) return [...days.map(day => ({
     text: line(fixed(FRAMES.day), fixed(day.word), fixed(FRAMES.stop), w),
     when: day.when,
-  }));
+  })), ...ahead];
 
   const possible: Possible[] = [];
   possible.push(
@@ -493,6 +537,7 @@ export function standing(): string[] {
   return [
     ...DAYS.map(day => line(fixed(FRAMES.day), fixed(day))),
     FRAMES.nothing, FRAMES.done, FRAMES.free, FRAMES.look,
+    FRAMES.away, FRAMES.awayTomorrow,
     FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
   ];
 }

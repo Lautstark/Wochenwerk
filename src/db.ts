@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { adopt, adopted, file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
-import { addDays, cameFrom, expand, iso, isDerived, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
+import { addDays, cameFrom, expand, iso, isDerived, notAtHome, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 import { changes } from "@lautstark/werkzeuge/changed";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
@@ -208,19 +208,35 @@ async function dropRecord(store: Kept, id: string): Promise<void> {
   changed.touched();
 }
 
-/* One week is what was stored for those days plus what the rules put there.
+/* A stretch of days is what was stored for them plus what the rules put there.
 
    The stored ones come first and win: an appointment that carries a series is an
    occurrence somebody edited, and it stands in for the day the rule would have
-   drawn. Everything else is arithmetic over seven days, which is nothing. */
-export async function week(monday: Date): Promise<Appointment[]> {
-  const from = iso(monday), to = iso(addDays(monday, 6));
+   drawn. Everything else is arithmetic over a handful of days, which is nothing.
+
+   A week is the one the board draws; the announcement asks for a longer stretch,
+   because the one thing it says about a day that is not on screen is that we
+   will not be here. */
+export async function between(from: string, to: string): Promise<Appointment[]> {
   const database = await db();
   const stored = await database.getAllFromIndex("appointments", "date", IDBKeyRange.bound(from, to));
   const instead = new Set(stored.filter(item => item.series).map(item => `${item.series}@${item.date}`));
   const derived = (await database.getAll("series")).flatMap(series => expand(series, from, to));
   return [...stored, ...derived.filter(item => !instead.has(item.id))]
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+export const week = (monday: Date): Promise<Appointment[]> => between(iso(monday), iso(addDays(monday, 6)));
+
+/** The first day inside a stretch that the household spends somewhere else. */
+/* Asked of the store rather than worked out from a week, because the day the
+   announcement is about is usually not on the board at all. How far ahead to
+   look is the announcement's rule and is handed in; which days are away days is
+   this file's, and it is the same merge as any other range — a rule's days
+   included, an edited day standing in for the one it replaced, and a deleted one
+   gone. */
+export async function awayAhead(from: string, to: string): Promise<string | undefined> {
+  if (to < from) return undefined;
+  return (await between(from, to)).filter(notAtHome).map(item => item.date).sort()[0];
 }
 const dayBefore = (date: string) => iso(addDays(new Date(`${date}T00:00`), -1));
 const shapeOf = ({ id: _id, date: _date, series: _series, chosen: _chosen, updatedAt: _at, ...rest }: Appointment): Shape => rest;

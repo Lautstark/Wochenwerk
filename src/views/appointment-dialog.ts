@@ -56,11 +56,11 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const title = el("input", { class: "title-input", attrs: { type: "text", autocomplete: "off" } });
   const date = input("date"), from = input("time", { attrs: { step: board.snap * 60 } });
   const to = input("time", { attrs: { step: board.snap * 60 } }), spanTo = input("date");
-  const whole = input("checkbox");
+  const whole = input("checkbox"), notHome = input("checkbox");
   const atOpen = input("checkbox"), atClose = input("checkbox");
   title.value = draft.title ?? "";
   date.value = draft.date; from.value = draft.start ?? "09:00"; to.value = draft.end ?? "09:30";
-  spanTo.value = draft.date; whole.checked = allDay(draft);
+  spanTo.value = draft.date; whole.checked = allDay(draft); notHome.checked = !!draft.away;
 
   /* One row, and the fields in it appear or not. A second row holding a second
      copy of the day was how the first one lost its input to the other.
@@ -81,11 +81,17 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const lasts = el("span", { class: "lbl__aside" });
   const toField = el("label", { class: "field-row" },
     el("span", { class: "lbl lbl--split" }, el("span", { text: "Bis" }), lasts), to);
-  const spanField = field("Bis", spanTo);
+  /* Under the field that spans the stretch, because that is the field it
+     answers: a day the household is somewhere else is a day that lasts all day,
+     and the column it hangs in is the one Ganztägig brings and takes away. So
+     nothing has to remember to hide it, and it cannot be ticked on an
+     appointment with a time, where it would mean nothing. */
+  const spanCol = el("div", { class: "field-col" }, field("Bis", spanTo),
+    switchUnder(notHome, "Wir sind nicht zu Hause"));
   const dayCol = el("div", { class: "field-col" }, dayField, switchUnder(whole, "Ganztägig"));
   const fromCol = el("div", { class: "field-col" }, fromField, switchUnder(atOpen, "ab dem Aufstehen", board.from));
   const toCol = el("div", { class: "field-col" }, toField, switchUnder(atClose, "bis zum Schlafengehen", board.to));
-  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanField);
+  const timeRow = el("div", { class: "row-of row-of--top" }, dayCol, fromCol, toCol, spanCol);
   const seriesLine = el("p", { class: "small muted" });
 
   /* The two edges are a shortcut, not a third thing to store: ticked means the
@@ -229,6 +235,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
           : {}),
         picked: !!draft.chosen,
         allDay: whole.checked,
+        away: whole.checked && notHome.checked,
         date: draft.date,
         ...(born.length ? { birthday: { names: born.map(person => person.name), age: ages.size === 1 ? [...ages][0] : undefined } } : {}),
         ...(whole.checked && on.length && !born.length && !draft.symbols.length ? { visiting: on.map(person => person.name) } : {}),
@@ -282,6 +289,10 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     draft.date = date.value || draft.date;
     if (whole.checked) { draft.start = undefined; draft.end = undefined; }
     else { draft.start = from.value || "09:00"; draft.end = to.value || "09:30"; }
+    /* Absent rather than false where it was not ticked: a flag nobody set is one
+       the record does not carry, and every other optional field here is written
+       the same way. */
+    draft.away = whole.checked && notHome.checked ? true : undefined;
     draft.showPeople = showPeople.checked;
   };
 
@@ -297,7 +308,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
     fromCol.hidden = whole.checked;
     toCol.hidden = whole.checked;
-    spanField.hidden = !whole.checked;
+    spanCol.hidden = !whole.checked;
     /* Derived, never stored: ticked means the time already is that edge of the
        day. Written after the columns are placed so that a time changed by hand
        unticks the box on the same pass. */
@@ -534,5 +545,9 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
 
   for (const control of [title, date, from, to, spanTo]) control.addEventListener("input", () => void sync());
   whole.addEventListener("change", () => void sync());
+  /* Redrawn like the rest: what it changes is which sentences the Ansage fold
+     lists, and a fold that still shows the old set is a fold that lies about
+     what the board will say. */
+  notHome.addEventListener("change", () => void sync());
   void sync();
 }
