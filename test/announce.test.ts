@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announce, couldSay, vocabulary, type Household, type Part } from "../src/announce.js";
+import { announce, answered, couldSay, vocabulary, type Household, type Part } from "../src/announce.js";
 import type { Appointment, Card, Person, SymbolRef } from "../src/model.js";
 
 /* 2026-09-01 is a Tuesday, and 09-02 the Wednesday after it. */
@@ -328,6 +328,32 @@ describe("the word that is said", () => {
   it("falls back to the title where no Ansage was written", () => {
     const week = [appointment("08:00", "09:00", { title: "Turnen" })];
     expect(said(week, at("08:30"), house())[1]).toBe("Jetzt ist Turnen.");
+  });
+});
+
+describe("a card that answers the question", () => {
+  it("is said back by name, and says nothing about when", () => {
+    /* The light over the slot says that something arrived; which card was
+       understood is what only the sentence can say. Most answers are given to a
+       question whose time has not come — tomorrow's included — so "Jetzt ist
+       Schwimmbad" would be a promise about another moment. */
+    expect(answered("Schwimmbad").text).toBe("Du hast Schwimmbad ausgesucht.");
+  });
+
+  it("is played from the card's own word and two clips around it", () => {
+    const parts = answered("Schwimmbad").parts;
+    expect(parts.map(part => part.say)).toEqual(["Du hast", "Schwimmbad", "ausgesucht."]);
+    expect(parts.map(part => part.own)).toEqual([false, true, false]);
+    const known = new Set(vocabulary());
+    expect(parts.filter(part => !part.own).every(part => known.has(part.say))).toBe(true);
+  });
+
+  it("is offered to a card and to nothing else", () => {
+    /* An appointment's own word is never laid at the slot. Offering it there
+       would prepare a sentence nothing can ever say. */
+    const line = "Du hast Turnen ausgesucht.";
+    expect(couldSay("Turnen", { card: true }).map(said => said.text)).toContain(line);
+    expect(couldSay("Turnen").map(said => said.text)).not.toContain(line);
   });
 });
 

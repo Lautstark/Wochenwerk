@@ -164,6 +164,14 @@ title is not consulted at all.
 | open, more than three | *Jetzt darfst du aussuchen. Schau, welche Karten daliegen. Was möchtest du tun?* |
 | decided, and running | *Jetzt ist Schwimmbad. Das hast du ausgesucht.* |
 | decided, and ahead | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
+| answered, at the slot | *Du hast Schwimmbad ausgesucht.* |
+
+**The answer is said back.** A card laid at the slot is answered out loud, the way
+a card that fits nothing has been all along — the light over the slot says that
+something arrived, and only the sentence says which card was understood, which is
+what a child cannot check from across the room when two cards look alike. It is
+said once per answer, and it says nothing about when: most answers are given to a
+question whose time has not come, tomorrow's included.
 
 **The sentence ends by asking, not by instructing.** It used to end *Leg eine
 Karte in den Schlitz*, and that described a mechanism the board does not have:

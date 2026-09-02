@@ -7,6 +7,7 @@ import { allCards, allPeople, allSeries, pullFromFolder, put, settings, week, wh
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { listen } from "./reader.js";
+import { answered } from "./announce.js";
 import { announceAt, preview } from "./speech.js";
 import { el } from "./ui.js";
 
@@ -445,6 +446,13 @@ async function reads(uid: string | null): Promise<void> {
     if (open.chosen === card.id) return;
     await put({ ...open, chosen: card.id });
     flare(open.date, false);
+    /* And it is said back, through the same door the refusal answers through. The
+       light over the slot says that something arrived; only the sentence says
+       which card was understood, which is the whole of what a child cannot check
+       from across the room when two cards look alike. Said once per answer: a
+       card lying there reads over and over, and the line above returns on every
+       read after the first. */
+    void preview(answered(spokenAs(card)).text).then(why => { if (why) trouble(why); });
   } else {
     /* No reader is not no card. A reader that was unplugged would otherwise
        withdraw every answer at once, which is the one failure that would reach the

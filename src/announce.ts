@@ -68,6 +68,15 @@ const FRAMES = {
   soonChooseFrom: "Gleich darfst du aussuchen:",
   afterChooseFrom: "Danach darfst du aussuchen:",
   thenChooseFrom: "Dann darfst du aussuchen:",
+  /* Said at the slot, the moment a card answers the question — the one thing that
+     happens at this board and used to happen silently, while the card that
+     answers nothing has been spoken to all along. It names the card back, because
+     which one was understood is the one thing the light over the slot cannot say.
+     It says nothing about when: most answers are given to a question whose time
+     has not come, tomorrow's included, and *Jetzt ist Schwimmbad* would be a
+     promise about a moment that is not this one. */
+  youChose: "Du hast",
+  choseIt: "ausgesucht.",
   done: "Heute ist nichts mehr geplant.",
   decided: ". Das hast du ausgesucht.",
   choose: "Jetzt darfst du aussuchen:",
@@ -330,6 +339,9 @@ function choosing(running: Appointment, household: Household): Utterance {
     : utter(fixed(FRAMES.look)));
 }
 
+/** What is said at the slot when a card answers the question it was asked. */
+export const answered = (word: string): Utterance => utter(fixed(FRAMES.youChose), own(word), fixed(FRAMES.choseIt));
+
 /* Every sentence a record can turn up in, for whoever is writing its word.
 
    Derived from the same frames the board speaks from rather than listed by hand,
@@ -349,6 +361,8 @@ export type Shape = {
   picked?: boolean;
   /** All day rather than at a time: a different set of sentences entirely. */
   allDay?: boolean;
+  /** A card rather than an appointment: it can be the answer laid at the slot. */
+  card?: boolean;
   /** Whose birthday it is, and how old they turn. Said from the person, after
       the day sentence — so it wants `date` like every other day sentence. */
   birthday?: { names: string[]; age?: number };
@@ -440,6 +454,9 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft" },
     { text: line(fixed(FRAMES.then), w, ...tail), when: "in einer Lücke davor" },
   );
+  /* Only a card can be the answer to a question: an appointment's own word is
+     never laid at the slot, so it is never said back. */
+  if (shape.card) possible.push({ text: answered(said).text, when: "wenn die Karte gewählt wird" });
   return possible;
 }
 

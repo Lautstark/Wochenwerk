@@ -39,7 +39,10 @@ export function cardEditor(card: Card, done: (id: string | null) => void): HTMLE
      aussuchen: Schwimmbad oder Bouldern" is a fact about that appointment, and a
      one-card rendering of it is a sentence the board will almost never say. The
      word is heard here; the sentences are read where they are true. */
-  const speech = speechField(() => name.value.trim() || draft.name, () => ({}), { list: false });
+  /* A card is the one word that can be laid at the slot, so it has one sentence
+     an appointment's word never has. Marked here rather than guessed from the
+     empty shape, so what is prepared on save is what the board will say. */
+  const speech = speechField(() => name.value.trim() || draft.name, () => ({ card: true }), { list: false });
   speech.box.value = draft.speech ?? "";
 
   const slot = el("div", { class: "slot" });
