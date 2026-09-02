@@ -1,4 +1,4 @@
-import { openDialog, confirmDialog } from "@lautstark/design/dialog";
+import { openDialog, confirmDialog } from "./dialog.js";
 import { button, el, field, fill, input, spacer } from "../ui.js";
 import { addDays, allDay, board, bornOn, cardSays, clock, dateLabel, dayLabel, derivedName, iso, minute, samePattern,
   strays, titleOf, weekdays, type Appointment, type Pattern, type Person, type SymbolRef } from "../model.js";
@@ -293,7 +293,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const ansage = el("label", { class: "field-row" }, ansageLabel, speech.node);
 
   const handle = openDialog({
-    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", closeLabel: "Schließen", wide: true,
+    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", wide: true,
     /* Two groups, in this order: when it happens, then what the board does with
        it. What is *said* closes the second group rather than opening it — it is
        read off what is shown, so it cannot be settled before the symbol or the
@@ -490,7 +490,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     } else {
       const sure = await confirmDialog({
         title: "Termin löschen", body: `„${titleOf(draft, shown().cards, shown().people) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
-        confirmLabel: "Löschen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+        confirmLabel: "Löschen", danger: true,
       });
       if (!sure) return;
     }
@@ -542,7 +542,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
         if (change.dropping.length) {
           const own = change.dropping.filter(item => strays(item, draft)).length;
           const sure = await confirmDialog({
-            title: "Serie ändern", danger: true, confirmLabel: "Ändern", cancelLabel: "Abbrechen", closeLabel: "Schließen",
+            title: "Serie ändern", danger: true, confirmLabel: "Ändern",
             body: [`${change.dropping.length} Termine fallen weg${own ? `, ${own} davon mit eigenen Änderungen` : ""}`,
               change.adding.length ? `${change.adding.length} kommen dazu` : "",
               moved ? `ab ${dateLabel(cut)} — was davor liegt, bleibt wie es ist` : ""].filter(Boolean).join(", ") + ".",

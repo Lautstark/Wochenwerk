@@ -1,4 +1,4 @@
-import { openDialog, confirmDialog } from "@lautstark/design/dialog";
+import { openDialog, confirmDialog } from "./dialog.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from "@lautstark/design/theme";
 import { listVoices } from "@lautstark/stimmquelle";
 import { standing } from "../announce.js";
@@ -148,7 +148,7 @@ export function openSettings(say: (line: string) => void) {
   const data = makePanel("Löschen");
 
   const handle = openDialog({
-    title: "Einstellungen", closeLabel: "Schließen", wide: true,
+    title: "Einstellungen", wide: true,
     body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, look.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
     onClose: () => keepingPanel?.dispose(),
@@ -592,13 +592,13 @@ export function openSettings(say: (line: string) => void) {
 
   const eraseCard = async (card: Card) => {
     if (await confirmDialog({ title: "Karte entfernen", body: `„${card.name}“ wird entfernt. Termine, die sie zur Wahl stellen, verlieren sie.`,
-      confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true })) {
+      confirmLabel: "Entfernen", danger: true })) {
       await run(() => removeCard(card.id), "Karte entfernt.");
     }
   };
   const erasePerson = async (person: Person) => {
     if (await confirmDialog({ title: "Person entfernen", body: `${person.name} wird entfernt. Termine bleiben, verlieren aber diese Person.`,
-      confirmLabel: "Entfernen", cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true })) {
+      confirmLabel: "Entfernen", danger: true })) {
       await run(() => removePerson(person.id), "Person entfernt.");
     }
   };
@@ -613,7 +613,7 @@ export function openSettings(say: (line: string) => void) {
 
     if (reach === "unreachable") {
       const sheet = openDialog({
-        title: "Geht gerade nicht", closeLabel: "Schließen",
+        title: "Geht gerade nicht",
         body: [`Der Ordner „${named}“ antwortet nicht. Löschen würde nur diesen Browser leeren — `
           + `der Ordner behielte alles und gäbe es beim nächsten Start zurück. `
           + `Verbinde den Ordner wieder und versuch es dann.`],
@@ -636,8 +636,7 @@ export function openSettings(say: (line: string) => void) {
       body: everything
         ? `${list} werden gelöscht.${far} Das lässt sich nicht rückgängig machen.`
         : `${list} werden gelöscht. Karten und Personen bleiben.${far}`,
-      confirmLabel: everything ? "Alles löschen" : "Termine löschen",
-      cancelLabel: "Abbrechen", closeLabel: "Schließen", danger: true,
+      confirmLabel: everything ? "Alles löschen" : "Termine löschen", danger: true,
       /* Only the total asks for a word, and it is the only act in this product
          that does. Emptying the calendar keeps the cards and the people and is a
          thing a household does at the end of a term — asking for typing there

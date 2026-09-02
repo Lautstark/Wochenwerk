@@ -1,4 +1,4 @@
-import { openDialog } from "@lautstark/design/dialog";
+import { openDialog } from "./dialog.js";
 import { button, el, spacer } from "../ui.js";
 import { bornOn, type Appointment, type Person } from "../model.js";
 import { couldSay } from "../announce.js";
@@ -35,7 +35,7 @@ export function birthdaySheet(appointment: Appointment, born: Person[]): void {
   const why = el("p", { class: "hint", attrs: { role: "status" } });
 
   const handle = openDialog({
-    title: `${names} Geburtstag`, closeLabel: "Schließen",
+    title: `${names} Geburtstag`,
     body: [el("div", { class: "stack" },
       ...said.map(line => el("div", { class: "sentence" },
         playButton("Ansage anhören", () => line.text, words => { why.textContent = words; }),

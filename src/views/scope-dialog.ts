@@ -1,4 +1,4 @@
-import { openDialog } from "@lautstark/design/dialog";
+import { openDialog } from "./dialog.js";
 import { button, el, spacer } from "../ui.js";
 
 export type Scope = "one" | "from" | "all";
@@ -62,7 +62,7 @@ export function askScope(verb: "ändern" | "löschen", counts: { from: number; a
     const cancel = button("Abbrechen", "quiet", () => handle.close());
 
     const handle = openDialog({
-      title: `${words.what} ${verb}`, closeLabel: "Schließen",
+      title: `${words.what} ${verb}`,
       body: [el("div", { class: "stack" },
         choice("one", words.one),
         between ? choice("from", words.from, counts.from) : null,
