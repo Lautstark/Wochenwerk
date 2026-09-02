@@ -123,6 +123,8 @@ a.btn { text-decoration: none; }
 .row-of { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .row-of > [hidden] { display: none; }
 .field-row { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; }
+.check { display: flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer; }
+.check input { flex: 0 0 auto; margin: 0; }
 /* A field with the switch that replaces it underneath. Two labels, not one
    nested in the other: a checkbox inside the field's own <label> would give the
    box two names and the field none. Standing free the switches read as belonging

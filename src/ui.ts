@@ -58,6 +58,12 @@ export function fill(container: Element, ...children: Child[]): void {
 export function field(label: string, input: HTMLElement): HTMLLabelElement {
   return el("label", { class: "field-row" }, el("span", { class: "lbl", text: label }), input);
 }
+/* A box and its words on one line. `field` stacks a label above its control,
+   which is right for something to type in and wrong for something to tick: it
+   leaves the box adrift under a heading it belongs beside. */
+export function check(label: string, box: HTMLInputElement): HTMLLabelElement {
+  return el("label", { class: "check" }, box, el("span", { text: label }));
+}
 export function input(type: string, props: Props = {}): HTMLInputElement {
   /* A checkbox is not a field: `.field` is full width, which turns a box into a
      stretched row with its label pushed to the far side. */

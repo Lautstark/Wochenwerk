@@ -2,7 +2,7 @@ import { openDialog, confirmDialog } from "@lautstark/design/dialog";
 import { listVoices } from "@lautstark/stimmquelle";
 import { standing } from "../announce.js";
 import { prepare } from "../speech.js";
-import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
+import { button, check, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
@@ -383,13 +383,13 @@ export function openSettings(say: (line: string) => void) {
           await settle("Ordner verbunden.");
         }, ""))) : null,
 
-      connected && !asking ? el("p", { class: "small", text: `Der Kalender liegt in „${folderName(where)}“. Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche.` }) : null,
+      connected && !asking ? el("p", { class: "small", text: "Jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche." }) : null,
       /* Consent, where a reader knows what it means: beside the folder they just
          chose, off until they say so, and off again in the same place. What it
          stores is said outright, because nobody can agree to what they were not
          told. */
-      connected && !asking ? field("Den anderen Lautstark-Programmen zeigen, welcher Ordner das ist", tell) : null,
-      connected && !asking ? el("p", { class: "small muted", text: `Legt den Namen „${folderName(where)}“ in einem Cookie ab, den alle lautstark.tech-Programme lesen können — und der bei jedem Aufruf mitgeschickt wird. Sonst wird nichts geteilt.` }) : null,
+      connected && !asking ? check("Anderen Lautstark-Programmen zeigen, wo der Ordner liegt", tell) : null,
+      connected && !asking ? el("p", { class: "small muted", text: "Der Name steht dann in einem Cookie, das alle lautstark.tech-Seiten lesen und das bei jedem Aufruf mitgeht. Mehr wird nicht geteilt." }) : null,
       ablageNeedsAttention(where) ? el("p", { class: "notice bad", text: whereSays(where) }) : null,
       where.kind === "conflicted"
         ? el("p", { class: "notice bad", text: `${where.ids.length} Datei(en) liegen zweimal im Ordner. Wochenwerk entscheidet das nicht — öffne den betroffenen Termin.` })
@@ -418,7 +418,7 @@ export function openSettings(say: (line: string) => void) {
          the same subject from the other side — and it stays offered with a folder
          connected, because it is not the same promise. A folder carries a mistake
          everywhere within seconds; a file from Tuesday does not. */
-      asking ? null : el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme in einer Datei — sie altert, aber sie übersteht auch einen Fehler, den ein mitlaufender Ordner sofort mitmacht. Enthalten sind Termine, Serien, Karten und Personen; die Einstellungen dieses Geräts nicht, ein Sprachschlüssel gehört nicht in eine Datei, die man verschickt." }),
+      asking ? null : el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme. Sie altert — aber sie übersteht einen Fehler, den der Ordner sofort mitmacht." }),
       asking ? null : el("div", { class: "acts" },
         button("Sicherung als Datei", "sm", () => void run(async () => {
           const backup = await exportAll();
