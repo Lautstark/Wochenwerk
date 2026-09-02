@@ -64,17 +64,43 @@ const sound = (blob: Blob, mine: number) => new Promise<void>(done => {
    to try. `speak` refuses a `system:` id rather than inventing audio with no
    sound in it, so the two are asked differently on purpose. */
 async function utter(text: string, voice: string, mine: number, onProgress?: (share: number) => void): Promise<void> {
-  if (voice.startsWith("system:")) return say(text, voice);
-  if (voice.startsWith("piper:")) readyPiper();
-  const { wav } = await remember(clips, text, voice, {
-    ...await spoken(),
-    /* Only the share, because that is all a caller can draw. A piper voice is
-       63 MB on its first sentence and silent while it arrives, which is long
-       enough to read as a button that did nothing. */
-    ...(onProgress ? { onProgress: (p: { share: number }) => onProgress(p.share) } : {}),
-  });
-  if (generation !== mine) return;
-  return sound(asBlob(wav), mine);
+  try {
+    /* Awaited rather than returned, all the way down: a promise handed back out
+       of the `try` settles outside it, and the whole point here is to be the one
+       who catches it. */
+    if (voice.startsWith("system:")) return await say(text, voice);
+    if (voice.startsWith("piper:")) readyPiper();
+    const { wav } = await remember(clips, text, voice, {
+      ...await spoken(),
+      /* Only the share, because that is all a caller can draw. A piper voice is
+         63 MB on its first sentence and silent while it arrives, which is long
+         enough to read as a button that did nothing. */
+      ...(onProgress ? { onProgress: (p: { share: number }) => onProgress(p.share) } : {}),
+    });
+    if (generation !== mine) return;
+    return await sound(asBlob(wav), mine);
+  } catch (error) {
+    /* A press that no longer owns the speaker has nothing to report. It did not
+       fail: `stop()` took the speaker off it, on purpose, because somebody
+       pressed again — and that arrives here as a rejection, because a cancelled
+       utterance is an *error* to the Web Speech API and an aborted request is one
+       to everything else.
+
+       The rule is the same one the line above already applies to the successful
+       half — this press is not the current one, so it neither plays nor says
+       anything — and it is here rather than at the three callers because all
+       three had the same bug: the board wrote „Die Ansage ging nicht" on the wall
+       for a child who pressed twice, and it stayed there until the next press,
+       while `showing(undefined)` in that handler took down the card the *new*
+       announcement had just lit.
+
+       Not by the message. „interrupted" belongs to stimmquelle rather than to
+       this file, and an interruption from outside — the tab hidden, the system
+       speaking over us — reads exactly the same. The generation counter knows the
+       one thing the string cannot: that this abort is our own doing. */
+    if (generation !== mine) return;
+    throw error;
+  }
 }
 
 /* Azure is asked with the household's own key, from the tab, and the key never
