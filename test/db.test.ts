@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addDays, iso, type Appointment } from "../src/model.js";
-import { allSeries, clearAll, createSeries, dropSeries, editSeries, inSeries, put, reachOf, remove, repattern,
+import { allCards, allPeople, allSeries, clearAll, createSeries, exportAll, importAll, isBackup, putCard, putPerson, saveAzure, dropSeries, editSeries, inSeries, put, reachOf, remove, repattern,
   reshapeOf, saveSettings, saveVoice, seriesFrom, setBirthday, settings, uuid, week } from "../src/db.js";
 
 const monday = new Date("2026-08-31T00:00");
@@ -314,5 +314,47 @@ describe("a batch that is a rule rather than its days", () => {
     await put({ ...tuesday, title: "Besuch" });
     await remove((await week(monday)).find(item => item.title === "Besuch")!.id);
     expect(await week(monday)).toHaveLength(6);
+  });
+});
+
+/* A snapshot in a file: the thing that survives a mistake a live folder would
+   carry everywhere within seconds. */
+describe("a backup", () => {
+  const fill = async () => {
+    await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("18:00", "19:00"));
+    await putCard({ id: uuid(), name: "Malen", updatedAt: 1 });
+    await putPerson({ id: uuid(), name: "Kind", initials: "KI", tone: "#4f8fd6", updatedAt: 1 });
+  };
+
+  it("carries the rules and what they are about, and comes back whole", async () => {
+    await fill();
+    const backup = await exportAll();
+    await clearAll();
+    expect(await allSeries()).toHaveLength(0);
+    expect(await importAll(backup)).toBeGreaterThan(0);
+    expect(await allSeries()).toHaveLength(1);
+    expect(await week(monday)).toHaveLength(7);
+    expect((await allCards())[0].name).toBe("Malen");
+    expect((await allPeople())[0].name).toBe("Kind");
+  });
+
+  it("leaves this device's setup out, because a key is not part of a calendar", async () => {
+    await saveAzure({ key: "geheim", region: "westeurope" });
+    const backup = await exportAll();
+    expect(JSON.stringify(backup)).not.toContain("geheim");
+  });
+
+  it("adds and never overwrites, so reading one into a calendar in use is safe", async () => {
+    await fill();
+    const backup = await exportAll();
+    const before = (await allSeries())[0];
+    await editSeries(before.id, { title: "Abendbrot" });
+    expect(await importAll(backup)).toBe(0);
+    expect((await allSeries())[0].shape.title).toBe("Abendbrot");
+  });
+
+  it("refuses a file that is not one of ours rather than reading half of it", () => {
+    expect(isBackup({ termine: [] })).toBe(false);
+    expect(isBackup(null)).toBe(false);
   });
 });

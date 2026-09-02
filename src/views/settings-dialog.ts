@@ -4,7 +4,7 @@ import { standing } from "../announce.js";
 import { prepare } from "../speech.js";
 import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
-import { clearAll, clearAppointments, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
+import { clearAll, clearAppointments, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid } from "../db.js";
 import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
   renderings, says, sourceInUse, supportsPicker, useFolder, useFolderFiles, useZip } from "../symbols.js";
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
@@ -100,6 +100,17 @@ const actionSays = (id: string, connected: boolean) =>
   id === "choose" ? (connected ? "Anderer Ordner" : "Ordner wählen")
     : id === "confirm" ? "Erneut erlauben" : id === "retry" ? "Nochmal versuchen" : "Ordner vergessen";
 const folderName = (status: AblageStatus) => "folder" in status ? status.folder : "";
+
+/* A file the browser hands over. Nothing here is stored — the anchor exists for
+   the length of one click. */
+function save(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const link = el("a", { attrs: { href: url, download: name } });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function openSettings(say: (line: string) => void) {
   const ablage = makePanel("Wo alles liegt");
@@ -400,7 +411,30 @@ export function openSettings(say: (line: string) => void) {
               return;
             }
             await settle("Ordner verbunden.");
-          }, "")))));
+          }, "")))),
+      asking ? null : el("hr", { class: "hair" }),
+      asking ? null : el("p", { class: "sub", text: "Herausnehmen und einlesen" }),
+      /* Kept beside the store rather than in a rubric of its own, because it is
+         the same subject from the other side — and it stays offered with a folder
+         connected, because it is not the same promise. A folder carries a mistake
+         everywhere within seconds; a file from Tuesday does not. */
+      asking ? null : el("p", { class: "small muted", text: "Eine Sicherung ist eine Momentaufnahme in einer Datei — sie altert, aber sie übersteht auch einen Fehler, den ein mitlaufender Ordner sofort mitmacht. Enthalten sind Termine, Serien, Karten und Personen; die Einstellungen dieses Geräts nicht, ein Sprachschlüssel gehört nicht in eine Datei, die man verschickt." }),
+      asking ? null : el("div", { class: "acts" },
+        button("Sicherung als Datei", "sm", () => void run(async () => {
+          const backup = await exportAll();
+          const day = new Date().toISOString().slice(0, 10);
+          save(`wochenwerk-sicherung-${day}.json`, JSON.stringify(backup, null, 2));
+        }, "Sicherung geschrieben.")),
+        button("Sicherung einlesen", "sm quiet", () => pickFile("application/json,.json", false,
+          files => void run(async () => {
+            const data: unknown = JSON.parse(await files[0].text());
+            if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
+            const added = await importAll(data);
+            await load();
+            say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
+          }, "")))),
+      asking ? null : el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie. Symbole stehen als Verweise darin, keine Bilddateien — die Datei enthält also kein METACOM." }));
+
 
     symbols.state.textContent = fromFolder ? `METACOM aus „${fromFolder}“` : says(status);
     fill(symbols.body,

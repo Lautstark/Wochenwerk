@@ -312,6 +312,59 @@ const everything = async () => ({
   karten: await allCards(), personen: await allPeople(),
 });
 
+/* A snapshot in a file.
+ *
+ * Not a second store and not a substitute for one: a folder is where the work
+ * lives, and this is what survives a mistake the folder would faithfully carry
+ * everywhere within seconds. It ages, which is the point — it is the state of an
+ * afternoon, kept.
+ *
+ * What is in it is what a household made: the appointments, the rules behind
+ * them, the cards and the people. What is not in it is this device's setup. A
+ * speech key belongs to a machine and not to a calendar, and a file people send
+ * each other is the last place for one. */
+export const BACKUP = "wochenwerk";
+export type Backup = { [BACKUP]: number; at: number; termine: Appointment[]; serien: Series[];
+  karten: Card[]; personen: Person[] };
+
+export async function exportAll(): Promise<Backup> {
+  const [termine, serien, karten, personen] = await Promise.all([
+    allAppointments(), allSeries(), allCards(), allPeople(),
+  ]);
+  return { [BACKUP]: 1, at: Date.now(), termine, serien, karten, personen };
+}
+
+export const isBackup = (data: unknown): data is Backup =>
+  !!data && typeof data === "object" && typeof (data as Backup)[BACKUP] === "number";
+
+/* Reading one adds and never overwrites — the rule the family's other products
+   already follow, and the only one that is safe without asking a question per
+   record. Somebody restoring into an empty calendar gets all of it back; somebody
+   reading a file into a calendar they have kept working in gets what was missing
+   and keeps what they wrote. */
+export async function importAll(backup: Backup): Promise<number> {
+  const database = await db();
+  const have = {
+    termine: new Set((await allAppointments()).map(item => item.id)),
+    serien: new Set((await allSeries()).map(item => item.id)),
+    karten: new Set((await allCards()).map(item => item.id)),
+    personen: new Set((await allPeople()).map(item => item.id)),
+  };
+  const store = { termine: "appointments", serien: "series", karten: "cards", personen: "people" } as const;
+  let added = 0;
+  for (const kind of KINDS) {
+    const coming = (backup[kind] ?? []).filter(record => record?.id && !have[kind].has(record.id));
+    if (!coming.length) continue;
+    const writing = database.transaction(store[kind], "readwrite");
+    await Promise.all([...coming.map(record => writing.store.put(record as never)), writing.done]);
+    added += coming.length;
+  }
+  await mirror("termine", "serien");
+  await pushKind("karten", await allCards());
+  await pushKind("personen", await allPeople());
+  return added;
+}
+
 /** Empty the calendar./** Empty the calendar. Cards, people and their birthdays stay. */
 export async function clearAppointments(): Promise<number> {
   const database = await db();
