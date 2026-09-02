@@ -47,11 +47,12 @@ sentences off one *und*. It becomes a second short sentence instead. The two the
 stand in the same shape, *Es ist …* and *Heute ist …*, and at this age a parallel
 is easier to follow than an ellipsis.
 
-**A birthday takes the whole day sentence.** On every other day that sentence
-answers *which day is it*, and the daypart is the useful half of the answer; on
-this one the answer is the birthday, and a child who is turning four is not
-waiting to hear that it is also Tuesday. The rail still carries the daypart,
-drawn, all day.
+**A birthday follows the day; it does not replace it.** It used to take the whole
+day sentence, and then the one press that always opens *Es ist …* opened
+somewhere else instead — on the day of the year a child presses the button most.
+The shape is what is learned here, so the day and the daypart come first on every
+press and the birthday is the sentence after them, in the same *Heute ist …* as a
+named day fact.
 
 ## The shape
 
@@ -77,7 +78,7 @@ facts cost one line.
 | when | said |
 | --- | --- |
 | always | *Es ist Dienstagmorgen.* — and so *Dienstagmittag*, *Dienstagnachmittag*, *Dienstagabend* |
-| somebody's birthday | *Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
+| somebody's birthday | *Es ist Dienstagmorgen. Heute ist der Geburtstag von Mia. Mia wird vier Jahre alt.* |
 | a guest | *Es ist Dienstagmorgen, und Oma kommt.* |
 | a day fact with something of its own to say | *Es ist Dienstagmorgen. Heute fahren wir ins Saarland.* |
 

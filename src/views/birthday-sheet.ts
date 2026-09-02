@@ -28,7 +28,10 @@ import { playButton } from "./pieces.js";
 export function birthdaySheet(appointment: Appointment, born: Person[]): void {
   const names = born.map(person => person.name).join(" und ");
   const years = new Set(born.map(person => Number(appointment.date.slice(0, 4)) - Number(person.birthday!.slice(0, 4))));
-  const said = couldSay("", { birthday: { names: born.map(person => person.name), age: years.size === 1 ? [...years][0] : undefined } });
+  const said = couldSay("", {
+    birthday: { names: born.map(person => person.name), age: years.size === 1 ? [...years][0] : undefined },
+    date: appointment.date,
+  });
   const why = el("p", { class: "hint", attrs: { role: "status" } });
 
   const handle = openDialog({

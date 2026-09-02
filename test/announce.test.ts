@@ -32,19 +32,28 @@ describe("the day sentence", () => {
     expect(day("19:15")).toBe("Es ist Dienstagabend.");
   });
 
-  it("gives the whole day sentence to a birthday, with the age spelled out", () => {
-    /* The day sentence answers *which day is it*, and on this one the answer is
-       the birthday rather than the weekday. The age is the one number a child is
-       told, and it is a word so that the ban on digits still holds. */
+  it("says a birthday after the day and the daypart, with the age spelled out", () => {
+    /* The day sentence starts the same way on every press, a birthday included —
+       that shape is the whole of what is learned here. The age is the one number
+       a child is told, and it is a word so that the ban on digits still holds. */
     const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
     const lines = said(week, at("09:00"), house([], [person("b", "Mia", "2023-09-01")]));
-    expect(lines[0]).toBe("Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.");
+    expect(lines[0]).toBe("Es ist Dienstagmorgen. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.");
   });
 
   it("leaves the age out rather than guessing at one it has no word for", () => {
     const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
     const lines = said(week, at("09:00"), house([], [person("b", "Oma", "1955-09-01")]));
-    expect(lines[0]).toBe("Heute ist der Geburtstag von Oma.");
+    expect(lines[0]).toBe("Es ist Dienstagmorgen. Heute ist der Geburtstag von Oma.");
+  });
+
+  it("keeps one full stop where a birthday and a day fact fall together", () => {
+    /* *Jahre alt.* is recorded with its own, so the sentence after it is not
+       given a second one. */
+    const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] }),
+      appointment(undefined, undefined, { id: "ferien", symbols: [], title: "Ferientag" })];
+    const lines = said(week, at("09:00"), house([], [person("b", "Mia", "2023-09-01")]));
+    expect(lines[0]).toBe("Es ist Dienstagmorgen. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt. Heute ist Ferientag.");
   });
 
   it("gives a named day fact its own sentence rather than a clause on the day", () => {
@@ -357,6 +366,16 @@ describe("what a word can turn up in", () => {
     const said = couldSay("Spielplatz", { picked: true }).map(line => line.text);
     expect(said).toContain("Jetzt ist Spielplatz. Das hast du ausgesucht.");
     expect(said).toContain("Spielplatz ist gleich fertig.");
+  });
+
+  it("gives a birthday the day sentence too, once per daypart", () => {
+    const said = couldSay("", { birthday: { names: ["Mia"], age: 3 }, date: "2026-09-03" });
+    expect(said.map(line => line.text)).toEqual([
+      "Es ist Donnerstagmorgen. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.",
+      "Es ist Donnerstagmittag. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.",
+      "Es ist Donnerstagnachmittag. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.",
+      "Es ist Donnerstagabend. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.",
+    ]);
   });
 
   it("gives an all-day appointment the day sentence, once per daypart", () => {

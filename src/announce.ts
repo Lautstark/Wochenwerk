@@ -105,6 +105,10 @@ const utter = (...parts: Part[]): Utterance => {
   return { parts, text: /[.!?]$/.test(text) ? text : `${text}.` };
 };
 
+/* A full stop between two sentences of one utterance, and none where the clip
+   before it already carries one — *Jahre alt.* is recorded with its own. */
+const stopped = (parts: Part[]): Part[] => /[.!?]$/.test(parts.at(-1)?.say ?? ".") ? [] : [fixed(FRAMES.stop)];
+
 /* Which appointment a sentence is about, where it is about one. The board lifts
    that card while the sentence plays, so the sound and the picture answer the
    same question at the same moment — which is most of what makes an announcement
@@ -158,14 +162,13 @@ export function announce(week: Appointment[], at: Date, household: Household): U
    else all-day is said by its own spoken word or not at all. */
 function dayLine(week: Appointment[], at: Date, now: string, household: Household): Utterance {
   const facts = week.filter(item => item.date === iso(at) && allDay(item));
-  /* A birthday takes the day sentence rather than riding along at the end of it.
-     On every other day the sentence answers *which day is it*, and the daypart is
-     the useful half of that; on this one the answer is the birthday, and a child
-     who is turning four is not waiting to hear that it is also Tuesday. The rail
-     still carries the daypart, drawn, all day. */
-  const born = birthdayLine(facts, household);
-  if (born) return born;
   const dayWord = `${WEEKDAYS[(at.getDay() + 6) % 7]}${DAYPARTS[daypartOf(now)]}`;
+  /* A birthday follows the day rather than replacing it. It used to take the
+     whole sentence, and then the one press that always begins *Es ist …* began
+     somewhere else instead — on the day of the year a child presses the button
+     most. The shape is what is learned here, so the day and the daypart come
+     first on every press, and the birthday is the sentence after them. */
+  const born = birthdayClause(facts, household);
   const guests = visitClause(facts, household);
   const named = namedFact(facts, household);
   /* A guest rides along on the day sentence — *und Oma kommt* adds a person to
@@ -175,25 +178,26 @@ function dayLine(week: Appointment[], at: Date, now: string, household: Househol
      ist Ferientag" hangs two sentences off one *und*. It becomes its own short
      sentence instead. The two then stand in the same shape, *Es ist …* and *Heute
      ist …*, and a parallel is easier for a two-year-old than an ellipsis. */
-  return utter(fixed(FRAMES.day), fixed(dayWord),
-    ...(guests.length ? [fixed(FRAMES.and), ...guests] : []),
-    ...(named ? [fixed(FRAMES.stop), own(named)] : []));
+  const parts = [fixed(FRAMES.day), fixed(dayWord), ...(guests.length ? [fixed(FRAMES.and), ...guests] : [])];
+  if (born.length) parts.push(...stopped(parts), ...born);
+  if (named) parts.push(...stopped(parts), own(named));
+  return utter(...parts);
 }
 
 /* Whose birthday it is, and how old they are turning — the age from the person's
    own date rather than from anything stored on the appointment, so it is right
    for a hundred years of them and cannot drift. */
-function birthdayLine(facts: Appointment[], household: Household): Utterance | undefined {
+function birthdayClause(facts: Appointment[], household: Household): Part[] {
   for (const fact of facts) {
     const born = peopleOn(fact, household).filter(person => bornOn(person, fact.date));
     if (!born.length) continue;
     const names = listing(born.map(person => person.name), fixed(FRAMES.and2));
     const years = new Set(born.map(person => Number(fact.date.slice(0, 4)) - Number(person.birthday!.slice(0, 4))));
     const age = years.size === 1 ? AGES[[...years][0]!] : undefined;
-    return utter(fixed(FRAMES.birthdayOf), ...names,
-      ...(age ? [fixed(FRAMES.stop), ...names, fixed(born.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : []));
+    return [fixed(FRAMES.birthdayOf), ...names,
+      ...(age ? [fixed(FRAMES.stop), ...names, fixed(born.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : [])];
   }
-  return undefined;
+  return [];
 }
 
 /* A guest is a person with no symbol on them — the same record, which is why this
@@ -314,7 +318,8 @@ export type Shape = {
   picked?: boolean;
   /** All day rather than at a time: a different set of sentences entirely. */
   allDay?: boolean;
-  /** Whose birthday it is, and how old they turn. Said from the person. */
+  /** Whose birthday it is, and how old they turn. Said from the person, after
+      the day sentence — so it wants `date` like every other day sentence. */
   birthday?: { names: string[]; age?: number };
   /** All-day, carrying people and no symbol: a guest. Also said from the person. */
   visiting?: string[];
@@ -346,11 +351,12 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
   if (shape.birthday?.names.length) {
     const age = shape.birthday.age === undefined ? undefined : AGES[shape.birthday.age];
     const who = names(shape.birthday.names);
-    return [{
-      text: line(fixed(FRAMES.birthdayOf), ...who,
-        ...(age ? [fixed(FRAMES.stop), ...who, fixed(shape.birthday.names.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : [])),
-      when: "als ganzer Tagessatz, jeden Druck",
-    }];
+    const clause = [fixed(FRAMES.birthdayOf), ...who,
+      ...(age ? [fixed(FRAMES.stop), ...who, fixed(shape.birthday.names.length > 1 ? FRAMES.turnsPlural : FRAMES.turns), fixed(age), fixed(FRAMES.yearsOld)] : [])];
+    return days.map(day => ({
+      text: line(fixed(FRAMES.day), fixed(day.word), fixed(FRAMES.stop), ...clause),
+      when: day.when,
+    }));
   }
   if (shape.visiting?.length) return days.map(day => ({
     text: line(fixed(FRAMES.day), fixed(day.word), fixed(FRAMES.and), ...names(shape.visiting!),
