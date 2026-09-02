@@ -323,6 +323,11 @@ export function openSettings(say: (line: string) => void) {
       connected || asking ? null : el("p", { class: "small", text: "Ein Ordner für alle Lautstark-Programme. Jedes legt darin sein eigenes Fach an, und jedes Gerät, das den Ordner erreicht, sieht dieselbe Woche." }),
       connected || asking ? null : tree(["Lautstark", "├── METACOM_9_Desktop", "├── wochenwerk/", "└── bildhaft/"]),
       connected || asking ? null : el("p", { class: "small muted", text: "Ohne Ordner liegt der Kalender nur in diesem Browser — das reicht für einen Haushalt mit einem Gerät. Noch keiner da? Wähle, wo er liegen soll, dann legen wir ihn dort an." }),
+      /* True for everybody, always — which is why it needs nothing remembered
+         across products to be said. Each product is its own origin, so a folder
+         handle cannot travel between them and the picking cannot be skipped;
+         what can be skipped is the wondering which folder to pick. */
+      connected || asking ? null : el("p", { class: "small muted", text: "Benutzt du schon ein anderes Lautstark-Programm, zeig hier auf denselben Ordner." }),
 
       /* Asked once, and only where the answer is genuinely open: a folder that
          already gathers Lautstark work is obviously the right one and nothing is
