@@ -13,11 +13,12 @@ html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font, ui-sans-serif, system-ui, sans-serif); }
 #app { height: 100%; }
 
-/* A native <dialog> sizes to its content, so a sheet whose contents happen to be
-   narrow arrives narrow. components.css sets the ceiling; this sets the width and
-   gives `wide` — which the package marks but does not style — something to mean. */
-dialog.sheet { width: min(620px, 92vw); }
-dialog.sheet.wide { width: min(900px, 94vw); max-width: none; }
+/* components.css draws both widths since 1.25.0 — `wide` used to be a class it
+   marked and did not style, which is why this file had a figure for it. What is
+   left is the one place wochenwerk differs on purpose: its wide sheet is the
+   settings dialog, a column of panels rather than a grid of cards, and 900px is
+   where a line of German stops being comfortable to read. */
+dialog.sheet { --sheet-w-wide: min(900px, 94vw); }
 
 .shell { --gutter: 3.6rem; height: 100%; max-width: 1700px; margin: 0 auto; padding: 14px 18px 8px;
   display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; min-height: 0; }
