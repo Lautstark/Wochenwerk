@@ -307,6 +307,13 @@ export function openSettings(say: (line: string) => void) {
      null. It lives across one render because the question is asked in the panel
      rather than in a dialog over it — a modal on top of a modal is the thing this
      dialog was rebuilt to stop doing. */
+  /* Declared before the panel, not after it. `wherePanel` renders once while it
+     is being built, and where a folder is connected that first render asks the
+     switch what it reads — a `let` below this line is still in its dead zone
+     then, and the throw takes the whole dialog with it. It only happens with a
+     folder, which is why no browser without one ever showed it. */
+  let told = false;
+
   const store = wherePanel({
     store: ablageStore,
     adopt: adoptFolder,
@@ -344,7 +351,6 @@ export function openSettings(say: (line: string) => void) {
       el("p", { class: "small muted", text: "Einlesen fügt hinzu und überschreibt nie. Drin sind Termine, Serien, Karten und Personen — keine Bilder, keine Einstellungen." }),
     ],
   });
-  let told = false;
   /* The name of the folder METACOM was found in, and what a fruitless look
      turned up — both only until the next render, because both are answers to a
      question somebody just asked. */
