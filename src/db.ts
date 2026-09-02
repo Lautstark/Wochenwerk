@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { adopt, adopted, dropTheOldMark, file, isStore, KINDS, markedTheOldWay, pushKind, readKind, unfile } from "./folder.js";
+import { adopt, adopted, file, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
 import { addDays, cameFrom, expand, iso, isDerived, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 
 /* IndexedDB through `idb`, a store per kind with real indexes — the family's
@@ -311,25 +311,6 @@ const everything = async () => ({
   termine: await allAppointments(), serien: await allSeries(),
   karten: await allCards(), personen: await allPeople(),
 });
-
-/* Wochenwerk marked its folders before the package could, with a record in a kind
-   of its own. Those folders are stores and must keep being read, so the old mark
-   is honoured once and traded for the package's: the folder is read first — the
-   old mark is the word that it is a store, and this is the last thing that will
-   ever take that word for it — and only then is what this browser now holds
-   handed to `adopt`, which writes it back and marks the folder. Reading first is
-   not a nicety. Without it a browser that has not opened since somebody else
-   edited the folder would hand `adopt` the older copy, and the newer one would be
-   overwritten with no conflict and nothing said.
-
-   This is deletable once the household's folder has started once on this version,
-   which is a thing somebody has to check rather than assume. */
-export async function settleMark(): Promise<void> {
-  if (!isStore() || await adopted() || !(await markedTheOldWay())) return;
-  await pull();
-  const went = await adopt(await everything());
-  if (went.adopted) await dropTheOldMark();
-}
 
 /** Empty the calendar./** Empty the calendar. Cards, people and their birthdays stay. */
 export async function clearAppointments(): Promise<number> {

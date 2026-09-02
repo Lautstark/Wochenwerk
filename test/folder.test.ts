@@ -7,15 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
    and the last test here is that day written down. */
 
 const there = { termine: [] as any[], karten: [] as any[], personen: [] as any[], serien: [] as any[] };
-let marked = false, refuse = 0, oldMark = false;
+let marked = false, refuse = 0;
 
 vi.mock("../src/folder.js", () => ({
   KINDS: ["termine", "karten", "personen", "serien"],
   isStore: () => true, isStale: () => false,
   file: async () => {}, unfile: async () => {},
   adopted: async () => marked,
-  markedTheOldWay: async () => oldMark,
-  dropTheOldMark: async () => { oldMark = false; },
   /* The package's own adopt: write everything, check it landed, then mark — and
      refuse a folder that is already a store. */
   adopt: async (everything: Record<string, any[]>) => {
@@ -37,7 +35,7 @@ vi.mock("../src/folder.js", () => ({
   readKind: async (kind: keyof typeof there) => there[kind],
 }));
 
-const { adoptFolder, allCards, clearAll, pullFromFolder, put, settleMark, uuid, week } = await import("../src/db.js");
+const { adoptFolder, allCards, clearAll, pullFromFolder, put, uuid, week } = await import("../src/db.js");
 const { iso } = await import("../src/model.js");
 
 const monday = new Date("2026-08-31T00:00");
@@ -45,7 +43,7 @@ const appointment = (title: string) =>
   ({ id: uuid(), date: iso(monday), title, symbols: [], options: [], people: [], showPeople: false, updatedAt: 1 });
 
 beforeEach(async () => {
-  marked = false; refuse = 0; oldMark = false;
+  marked = false; refuse = 0;
   for (const kind of Object.keys(there)) (there as any)[kind] = [];
   await clearAll();
 });
@@ -96,41 +94,5 @@ describe("reading the folder on start", () => {
     await put(appointment("Turnen"));
     expect(await pullFromFolder()).toBe(false);
     expect(await week(monday)).toHaveLength(1);
-  });
-});
-
-describe("a folder Wochenwerk marked before the package could", () => {
-  it("is handed over once, and keeps being read", async () => {
-    there.termine = [appointment("Turnen")];
-    oldMark = true;
-    await settleMark();
-    expect(marked).toBe(true);
-    expect(oldMark).toBe(false);
-    expect((await week(monday)).map(item => item.title)).toEqual(["Turnen"]);
-    expect(there.termine.map(item => item.title)).toEqual(["Turnen"]);
-  });
-
-  it("is left alone where the package has already marked it", async () => {
-    marked = true; oldMark = true;
-    await settleMark();
-    expect(oldMark).toBe(true);
-  });
-
-  it("reads the folder before handing it back, so a newer folder is not overwritten", async () => {
-    /* This browser has not opened since somebody else edited the folder. */
-    await put(appointment("Turnen"));
-    there.termine = [appointment("Schwimmen")];
-    oldMark = true;
-    await settleMark();
-    expect(there.termine.map(item => item.title)).toEqual(["Schwimmen"]);
-    expect((await week(monday)).map(item => item.title)).toEqual(["Schwimmen"]);
-  });
-
-  it("keeps its old mark where the handover did not complete", async () => {
-    there.termine = [appointment("Turnen"), appointment("Schwimmen")];
-    oldMark = true; refuse = 1;
-    await settleMark();
-    expect(marked).toBe(false);
-    expect(oldMark).toBe(true);
   });
 });

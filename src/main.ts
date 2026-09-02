@@ -1,7 +1,7 @@
 import "./style.css";
 import { addDays, allDay, birthdayName, board, bornOn, dayLabel, daypartTimes, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, undecided, weekdays,
   type Appointment, type Card, type Person, type SymbolRef } from "./model.js";
-import { allCards, allPeople, allSeries, pullFromFolder, settings, settleMark, week, whenStuck } from "./db.js";
+import { allCards, allPeople, allSeries, pullFromFolder, settings, week, whenStuck } from "./db.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { owed, pictureFor, pictures, preferRendering, restore } from "./symbols.js";
 import { announceAt } from "./speech.js";
@@ -305,8 +305,6 @@ await restore().catch(() => false);
    afterwards: another household member editing on another machine is the reason
    a folder was chosen at all. */
 await ablage.restore().catch(() => null);
-/* One-time: a folder Wochenwerk marked before the package could is handed over. */
-await settleMark().catch(() => undefined);
 await pullFromFolder().catch(() => undefined);
 /* The board resolves references rather than searching, but a reference whose
    qualified path no longer matches is looked up by name — and that lookup answers

@@ -16,13 +16,7 @@ export const KINDS = ["termine", "karten", "personen", "serien"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Filed = Appointment | Card | Person | Series;
 
-/* Before the package could answer "is this folder a store?", Wochenwerk answered
-   it itself with a record in a kind of its own. The package answers it now, and
-   this name stays only long enough to recognise the folders marked the old way
-   and hand them over. See `settleMark`. */
-const LEGACY = "ablage";
-const LEGACY_ID = "00000000-0000-4000-8000-000000000000";
-export const ablage = new Ablage({ app: "wochenwerk", kinds: [...KINDS, LEGACY] });
+export const ablage = new Ablage({ app: "wochenwerk", kinds: KINDS });
 export const supported = Ablage.supported;
 
 /** Whether the folder is the store rather than a copy of one. */
@@ -65,9 +59,6 @@ export async function pushKind(kind: Kind, records: Filed[]): Promise<void> {
 export const adopted = async (): Promise<boolean> =>
   isStore() && !isStale() && ablage.adopted();
 export const adopt = (everything: Record<Kind, Filed[]>) => ablage.adopt(everything);
-export const markedTheOldWay = async (): Promise<boolean> =>
-  isStore() && !isStale() && (await ablage.list(LEGACY)).length > 0;
-export const dropTheOldMark = () => ablage.remove(LEGACY, LEGACY_ID);
 
 export const readKind = <T extends Filed>(kind: Kind) => ablage.all(kind) as Promise<T[]>;
 export const changes = () => ablage.poll();
