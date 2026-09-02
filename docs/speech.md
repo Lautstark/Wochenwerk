@@ -33,9 +33,9 @@ is the day in front of the child. It says the day is over and stops.
 
 The exception is the one thing the day in front of the child cannot show: that we
 will not be here. A week of columns says what happens on it and nothing about the
-week after, so a holiday exists for the child on the morning it starts and not a
-day earlier — and *bald fahren wir weg* is what a household says out loud for a
-fortnight before that morning. It is not the old sentence in a new place: that
+week after, so a stretch of days elsewhere exists for the child on the morning it
+starts and not a day earlier — and *bald fahren wir weg* is what a household says
+out loud for a fortnight before that morning. It is not the old sentence in a new place: that
 one turned up on its own at the end of an empty day, and this one stands on every
 press of the whole day, which is when somebody is actually in front of the board.
 
@@ -153,18 +153,22 @@ clips and no word of the household's in either.
 | it started today or earlier | nothing — the day sentence carries it |
 | further off than seven days | nothing |
 
-**Which days those are is on the record and is never worked out.** An appointment
-carries `away`, and the switch that sets it hangs under the field that spans the
+**Which days those are is on the record and is never worked out.** It is not a
+holiday the record is marking — a holiday is the narrowest of the things this
+covers, beside a weekend at a grandmother's, a week at a hospital, the days
+around a move. What is marked is that we are somewhere else; what kind of
+somewhere else is what the appointment's picture and its own sentence say. An
+appointment carries `away`, and the switch that sets it hangs under the field that spans the
 stretch, so it exists only where it can mean something. Deriving it instead —
 anything all-day, anything longer than two days — would have the board say *bald
 fahren wir weg* about a Ferientag or a week of holiday care, with full
 conviction. A picture never has to know what it means; a sentence chooses a
 wording and so does.
 
-**Two fixed clips rather than a wording per trip.** A day fact says a sentence of
-the household's own — *Heute fahren wir ins Saarland* — and the sentence before it
-cannot be built from that one. Without the flag every holiday would need a second
-recording, made once for the first trip and never again for the fourth, and the
+**Two fixed clips rather than a wording per absence.** A day fact says a sentence
+of the household's own — *Heute fahren wir ins Saarland* — and the sentence before
+it cannot be built from that one. Without the flag every absence would need a
+second recording, made once for the first and never again for the fourth, and the
 board would go quiet exactly where it had something to say. With it there is one
 clip for every absence a household will ever plan, and it is recorded before the
 first one.

@@ -487,7 +487,7 @@ describe("a stretch away from home", () => {
   /* The one sentence that reaches past today. It is derived from two dates and
      handed in, so this needs no store and no clock: what the calendar found is
      the argument. */
-  const trip = (week: Appointment[], moment: Date, awayFrom?: string) =>
+  const pressed = (week: Appointment[], moment: Date, awayFrom?: string) =>
     announce(week, moment, house(), awayFrom).map(line => line.text);
   /* Local dates, the way the rest of the app writes them: `toISOString` turns a
      central European midnight into the day before. */
@@ -498,34 +498,34 @@ describe("a stretch away from home", () => {
   };
   const away = (lines: string[]) => lines.filter(line => line.includes("fahren wir weg"));
 
-  it("says nothing about a trip further off than the horizon", () => {
+  it("says nothing about a stretch further off than the horizon", () => {
     /* *Bald* said eight days out is the same word for something else entirely,
        and a sentence that is always there says nothing at all. */
-    expect(away(trip([], at("09:00"), days(8)))).toEqual([]);
+    expect(away(pressed([], at("09:00"), days(8)))).toEqual([]);
   });
 
   it("says it inside the horizon, and says it last", () => {
-    const lines = trip([appointment("08:00", "09:30", { title: "Kita" })], at("08:30"), days(5));
+    const lines = pressed([appointment("08:00", "09:30", { title: "Kita" })], at("08:30"), days(5));
     expect(lines[0]).toBe("Es ist Dienstagmorgen.");
     expect(lines[1]).toBe("Jetzt ist Kita.");
     expect(lines.at(-1)).toBe("Bald fahren wir weg.");
   });
 
   it("still says it on the last day of the horizon", () => {
-    expect(away(trip([], at("09:00"), days(7)))).toEqual(["Bald fahren wir weg."]);
+    expect(away(pressed([], at("09:00"), days(7)))).toEqual(["Bald fahren wir weg."]);
   });
 
   it("has its own wording for the day before", () => {
     /* The one distance a three-year-old can act on, and the reason the horizon
        needs no count: what carries it is that the sentence changed. */
-    expect(away(trip([], at("09:00"), days(1)))).toEqual(["Morgen fahren wir weg."]);
+    expect(away(pressed([], at("09:00"), days(1)))).toEqual(["Morgen fahren wir weg."]);
   });
 
   it("says nothing on the day itself", () => {
     /* The day is then the subject, and the day sentence has said it in the
        household's own words. */
-    expect(away(trip([], at("09:00"), TUESDAY))).toEqual([]);
-    expect(away(trip([], at("09:00"), days(-2)))).toEqual([]);
+    expect(away(pressed([], at("09:00"), TUESDAY))).toEqual([]);
+    expect(away(pressed([], at("09:00"), days(-2)))).toEqual([]);
   });
 
   it("gives way to an open choice like everything else", () => {

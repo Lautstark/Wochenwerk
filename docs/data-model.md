@@ -28,8 +28,14 @@ bar it always was, carrying whatever picture the household gave it, and the boar
 never reads the field. What reads it is the announcement, which has to choose
 between *Bald fahren wir weg* and saying nothing at all — a picture never has to
 know what it means, and a sentence does. Deriving it from the length of the
-stretch instead would announce a week of holiday care as a trip. See
+stretch instead would announce a week of holiday care as an absence. See
 [speech](speech.md).
+
+**And it is not *Urlaub*.** A holiday is one of the things it covers and the
+narrowest of them: a weekend at a grandmother's, a week at a hospital, the days
+around a move are all the same fact about where the household is. The field says
+that and nothing else; what kind of elsewhere it is, is what the appointment's
+own picture and its own sentence say.
 
 **There is one kind of it.** Timed or all-day is a property, not a type. So is
 decided or still open. Visit and birthday are all-day appointments with a person on

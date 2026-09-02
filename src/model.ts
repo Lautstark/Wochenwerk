@@ -64,6 +64,11 @@ export type Appointment = {
   people: string[];
   showPeople: boolean;
   /** Whether the household is not at home on this day. */
+  /* Not *Urlaub*: a holiday is one of the things this covers and the narrowest
+     of them. A weekend at a grandmother's, a week at a hospital, the days
+     around a move — the record says only that we are somewhere else, and the
+     announcement says only that. What kind of somewhere else it is, is what the
+     appointment's own picture and its own sentence say. */
   /* All-day only, and it changes nothing about what is drawn: an absence is the
      same bar it always was, carrying whatever picture the household gave it. It
      is read by the announcement alone, which has to choose a wording and so has

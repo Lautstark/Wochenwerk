@@ -363,10 +363,10 @@ describe("the next day away from home", () => {
   /* What the announcement asks the store: not what happens, only whether we will
      be here. The window is the announcement's rule and is handed in. */
   const inSevenDays = (from: Date) => awayAhead(iso(addDays(from, 1)), iso(addDays(from, 7)));
-  const trip = { ...shape(), away: true };
+  const elsewhere = { ...shape(), away: true };
 
   it("finds a day a rule put there, and gives the first of the stretch", async () => {
-    await createSeries({ kind: "daily" }, iso(addDays(monday, 4)), iso(addDays(monday, 6)), trip);
+    await createSeries({ kind: "daily" }, iso(addDays(monday, 4)), iso(addDays(monday, 6)), elsewhere);
     expect(await inSevenDays(monday)).toBe(iso(addDays(monday, 4)));
   });
 
@@ -377,19 +377,19 @@ describe("the next day away from home", () => {
 
   it("stops at the window rather than at the week", async () => {
     /* The day it is about is usually not on the board at all — that is the whole
-       reason the question exists — but a trip a fortnight off is not *bald*. */
-    await put({ ...trip, id: uuid(), date: iso(addDays(monday, 9)), updatedAt: 0 } as Appointment);
+       reason the question exists — but a fortnight off is not *bald*. */
+    await put({ ...elsewhere, id: uuid(), date: iso(addDays(monday, 9)), updatedAt: 0 } as Appointment);
     expect(await inSevenDays(monday)).toBeUndefined();
     expect(await awayAhead(iso(addDays(monday, 1)), iso(addDays(monday, 14)))).toBe(iso(addDays(monday, 9)));
   });
 
   it("says nothing about today, whatever today is", async () => {
-    await put({ ...trip, id: uuid(), date: iso(monday), updatedAt: 0 } as Appointment);
+    await put({ ...elsewhere, id: uuid(), date: iso(monday), updatedAt: 0 } as Appointment);
     expect(await inSevenDays(monday)).toBeUndefined();
   });
 
   it("forgets a day that was taken out of the rule", async () => {
-    const id = await createSeries({ kind: "daily" }, iso(addDays(monday, 3)), iso(addDays(monday, 4)), trip);
+    const id = await createSeries({ kind: "daily" }, iso(addDays(monday, 3)), iso(addDays(monday, 4)), elsewhere);
     const days = await inSeries(id);
     await remove(days[0]!.id);
     expect(await inSevenDays(monday)).toBe(iso(addDays(monday, 4)));

@@ -3,12 +3,12 @@ import { button, el, spacer } from "../ui.js";
 
 export type Scope = "one" | "from" | "all";
 /* What the batch in front of the person *is*, which is not what it is made of.
-   A weekly Kita is a rule and its days are occurrences of it; a holiday is one
-   thing that lasts, and its days are days. Both are the same records and the
-   same batch — `runsOf` puts the second back together for the board — so the
-   only place the difference has to show is here, in the words the question is
-   asked in. „Alle Termine der Serie" about four days away from home asks a
-   person to think of their holiday as a repetition. */
+   A weekly Kita is a rule and its days are occurrences of it; a stretch of days
+   away is one thing that lasts, and its days are days. Both are the same records
+   and the same batch — `runsOf` puts the second back together for the board — so
+   the only place the difference has to show is here, in the words the question
+   is asked in. „Alle Termine der Serie" about four days at somebody's
+   grandmother asks a person to think of those days as a repetition. */
 export type Kind = "series" | "stretch";
 
 const WORDS = {

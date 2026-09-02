@@ -89,9 +89,9 @@ const FRAMES = {
   pick: "wählen.",
   done: "Heute ist nichts mehr geplant.",
   /* The one thing said about a day that is not today. Two fixed clips rather
-     than a sentence per trip: the household would have to record a second
-     wording for every holiday it ever plans, and "Heute fahren wir ins
-     Saarland" cannot be turned into the sentence before it. See docs/speech.md. */
+     than a wording per absence: the household would have to record a second
+     sentence for every one it ever plans, and "Heute fahren wir ins Saarland"
+     cannot be turned into the sentence before it. See docs/speech.md. */
   away: "Bald fahren wir weg.",
   awayTomorrow: "Morgen fahren wir weg.",
   decided: ". Das hast du ausgesucht.",
@@ -134,7 +134,7 @@ const SOON = 20;
    a word and no time to hang it on; what is true and useful at nine is that
    nothing is being waited for. */
 const HORIZON = 30;
-/* How many days ahead a trip is worth mentioning. Seven, and the number never
+/* How many days ahead an absence is worth mentioning. Seven, and the number never
    reaches the child: *bald* said a month out is the same word for something else
    entirely, so what carries the distance is that the sentence was not there
    yesterday and is there today. That is as close to a count of sleeps as a board

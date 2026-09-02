@@ -91,7 +91,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   /* Under Ganztägig rather than under the field that spans the stretch, though
      that is the field it belongs to by meaning. The span field goes once the
      appointment is a batch — it cannot change one — and the switch has to stay
-     reachable on exactly those: a holiday is ticked as *nicht zu Hause* after it
+     reachable on exactly those: a stretch is ticked as *nicht zu Hause* after it
      exists at least as often as while it is being written. So it hangs under the
      switch it depends on instead, in the column that never goes, and it is the
      one control here that has to be hidden by hand. */
