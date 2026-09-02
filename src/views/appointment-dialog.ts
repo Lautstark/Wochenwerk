@@ -130,8 +130,12 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   });
 
   /* What the two sides differ in is whether the appointment is already answered,
-     so that is what they are named after. „Symbole" named the half rather than
-     the answer — both sides carry symbols now.
+     so that is what they are named after — in the same shape on both halves,
+     and in the board's own verb. *Aussuchen* is the word the child hears when
+     the question comes up, so it is the word for the half that produces it, and
+     „steht fest" beside „wird ausgesucht" is one grammar rather than a state
+     beside a property. „Symbole" named the half rather than the answer, and
+     both sides carry symbols anyway.
 
      And neither half names who does the answering. „Kind wählt" did, and this
      calendar is not only a child's: the same appointment offering the same
@@ -164,7 +168,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   };
   const kinds = el("div", { class: "segmented" },
     kindButton("steht fest", flip("symbols")),
-    kindButton("wählbar", flip("choice")));
+    kindButton("wird ausgesucht", flip("choice")));
   /* A chooser with no question above it. Both halves answer what the board does
      with this appointment, so that is what the label says. */
   const kindsRow = el("div", {}, el("span", { class: "lbl", text: "Am Board" }), kinds);
