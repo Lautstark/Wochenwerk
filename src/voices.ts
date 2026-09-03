@@ -65,42 +65,37 @@ export async function offered(withKey = true): Promise<Voice[]> {
   return [...here.filter(voice => voice.source === "piper"), ...await azureCatalogue(azure), ...here.filter(voice => voice.source !== "piper")];
 }
 
-/** Who renders it: what somebody choosing is actually deciding between. */
-export const sourceOf = (source: Voice["source"]) =>
-  source === "azure" ? "Azure" : source === "system" ? "Vom Gerät" : "Mitgeliefert";
-
-/* stimmquelle publishes three, and a corpus of several speakers is `mixed` rather
-   than a guess. A system voice has none at all — the Web Speech API publishes a
-   name and a language and nothing else, and guessing from the name is how somebody
-   gets told their voice is a woman because it is called Anna. */
-export const genderOf = (gender: string) =>
-  gender === "female" ? "weiblich" : gender === "male" ? "männlich" : gender === "mixed" ? "gemischt" : gender;
-
-/** `63_201_294` → `63 MB`. Whole megabytes: it is a number somebody glances at. */
-export const weighs = (bytes: number) => `${Math.round(bytes / 1e6)} MB`;
-
-/** What decides between two voices, in one line and with no verdict in it. */
-export const factsOf = (voice: Voice) => [
-  sourceOf(voice.source),
-  genderOf(voice.gender),
-  voice.needsKey ? "Schlüssel nötig" : voice.downloadBytes ? weighs(voice.downloadBytes) : "",
-].filter(Boolean).join(" · ");
+/* Who renders it, whose voice it is and what it costs used to be four little
+   translators here — `sourceOf`, `genderOf`, `weighs` and the `factsOf` that
+   joined them. They are `@lautstark/stimmquelle/voice-picker`'s `factsOf` now,
+   in the same words and with the same rule about which cost a row states, so
+   there is one answer to "what does a row say about a voice" in the family
+   rather than three that had drifted. The picker also matches the search against
+   exactly that line, which is why keeping a second copy here would be a way for
+   the list to answer to something it is not showing. */
 
 /**
- * What has to be said out loud about a voice rather than implied.
+ * What has to be said out loud about a voice rather than implied — and only what
+ * is this product's to weigh.
  *
  * The board is a wall device. „Braucht Netz" is not a slow start there, it is
  * silence — and `offline` is per voice rather than per source: Chrome lists its
  * Google voices beside the ones on the machine and they are synthesised on
  * Google's servers. Levelling is the other half: a system voice never goes
  * through the loudness chain, so it will not match the ones beside it, and that
- * is invisible until two appointments in a row are read out.
+ * is invisible until two appointments in a row are read out. Both facts mean
+ * something else in a browser tab at a desk, which is why the picker asks rather
+ * than says: this is its `notes()` hook.
+ *
+ * `rushesFragments` is gone from here, and only from here. The picker says that
+ * one itself, in every product and in both languages — and it says it better,
+ * because it prints the punctuation mark („Hallo!") instead of describing it.
+ * Saying it twice would put the same sentence on the row twice.
  */
 export function caveats(voice: Voice): string[] {
   const said: string[] = [];
   if (!voice.makesFile) said.push("Wird nicht angeglichen — sie ist lauter oder leiser als die anderen.");
   if (!voice.offline) said.push("Spricht über das Netz. Hat das Board keins, bleibt sie stumm.");
-  if (voice.rushesFragments) said.push("Spricht einzelne Wörter sehr kurz. Mit einem Satzzeichen am Ende nimmt sie sich Zeit.");
   return said;
 }
 

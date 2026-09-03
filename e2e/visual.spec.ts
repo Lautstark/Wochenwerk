@@ -171,7 +171,7 @@ test("the settings dialog, folded", async ({ page }) => {
 });
 
 /*
- * The four panels the move is actually about, shot one at a time.
+ * The five panels the move is actually about, shot one at a time.
  *
  * The panel element and not the page: a full-page shot of a dialog is mostly
  * the dim behind it, and every one of these would go red together the moment
@@ -222,6 +222,74 @@ test("the Symbole panel, unfolded", async ({ page }) => {
   await expect(symbols.locator(".metacom-panel")).toBeVisible();
   await expect(symbols.getByText("Noch kein METACOM-Ordner gewählt.")).toBeVisible();
   await expect(symbols).toHaveScreenshot("panel-symbole.png");
+});
+
+test("the Stimme panel, unfolded", async ({ page }) => {
+  await openSettings(page);
+  const voice = await open(page, "Stimme");
+  /* @lautstark/stimmquelle/voice-picker, drawn by design 1.30.0's `.voice-picker`
+     rules, with this calendar's own sentence above it.
+   *
+   * This shot is new with the migration, and the reason it is new is the whole
+   * argument for taking it. The picker was the largest hand-drawn surface in this
+   * dialog and no baseline showed a single row of it: the four shots above are
+   * the other panels, and the dialog shot is the column folded, where this panel
+   * is one line of text. So the check that is supposed to say „the CSS moved and
+   * nothing moved on screen" could not have seen this move at all — the same trap
+   * vorlaut-editor's METACOM migration walked into, where every template stayed
+   * byte-identical and that read as „nothing changed".
+   *
+   * Two things are asserted rather than left to the pixels, because a pixel diff
+   * of an empty list and a pixel diff of a broken one look equally like „it
+   * moved". The list has to have voices in it — piper's German catalogue ships
+   * inside the package, so this is fixed without a key and without the network —
+   * and the row has to be a radio, which is the one piece of this that a
+   * screenshot cannot check at all. */
+  await expect(voice.locator(".voice-picker")).toBeVisible();
+  await expect(voice.locator('.voices [role="radio"]').first()).toBeVisible();
+  /* No language chips, and not because this product asked for none. The module
+     draws them only where the catalogue holds more than one language, and
+     `offered()` asks stimmquelle for German — so the row is empty and
+     `.voice-picker__filters:empty` takes it out of the grid. The absence is a
+     consequence of the rule rather than a setting, which is worth holding: a
+     release that started drawing „Alle Sprachen" over a list of one language
+     would be a chip that narrows nothing. */
+  await expect(voice.locator(".voice-picker__filters")).toBeHidden();
+
+  /* Narrowed before the shutter, and both reasons are about the picture being
+     worth keeping.
+   *
+   * The list is not fixed. `offered()` asks for the device's own voices as well
+   * as the shipped ones, and on this machine that is „Anna", „Rocko" and a dozen
+   * more macOS names that another laptop, or the same one after an update, does
+   * not have. A baseline of that is a baseline of somebody's operating system.
+   *
+   * And it no longer fits. This is the second of the two changes the migration
+   * makes on purpose: the 340px scroll box is gone — a wheel gesture latches to
+   * the inner list for its whole run, so the sheet did not move and the panel
+   * below could not be reached — and the panel is now as tall as its list. Shot
+   * whole, most of the file would be the blank under a panel taller than the
+   * viewport, and how much blank would depend on what the machine had to say.
+   *
+   * „Mitgeliefert" is the source word printed on every bundled row, so this is
+   * the module's own search matching what the module's own facts line says, and
+   * what is left is exactly the German piper catalogue: fixed by the version of
+   * @lautstark/stimmquelle in the lockfile, and nothing else. */
+  await voice.locator(".voice-picker__search .field").fill("Mitgeliefert");
+  /* Named by @lautstark/stimmquelle's `labelOf` — the tier is inside the name
+     because two German piper voices are both „Thorsten". Asserted as words for
+     HEADINGS' reason: a failure here should say which name went missing rather
+     than hand somebody a picture of a list to squint at.
+   *
+   * On `.voice__name` and not on the radio's accessible name, which is the whole
+   * row read out — the name, then the facts, then any hint. That is right for a
+   * screen reader and wrong for an assertion: it would go red the day a voice
+   * changes size. */
+  await expect(voice.locator(".voice__name", { hasText: "Thorsten (medium)" })).toBeVisible();
+  /* The four bundled ones and nothing else — which is what says the field really
+     narrowed rather than that the shot happened to be taken early. */
+  await expect(voice.locator('.voices [role="radio"]')).toHaveCount(4);
+  await expect(voice).toHaveScreenshot("panel-stimme.png");
 });
 
 test("the Löschen panel, unfolded", async ({ page }) => {

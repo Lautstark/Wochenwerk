@@ -3,6 +3,19 @@
    week grid, which no product had, and the handful of names bildhaft uses for the
    same parts. Nothing here shadows a name components.css owns.
 
+   That last sentence had stopped being true and nothing was checking it. It is a
+   claim about *two* files, so a release of the other one can falsify it without
+   anybody touching this one — which is what design 1.30.0 did: it began drawing
+   `.voices`, `.voice`, `.voice__name`, `.voice__facts` and `.voice__hint`, and
+   this file was defining all five. The import above puts components.css first,
+   so every one of those local rules won, and the shared drawing was dead the day
+   it shipped. They are gone with the picker that emitted them, and the sentence
+   is true again. The way to re-check it is to intersect the class names of the
+   two files: the only ones left in common are qualified or scoped on purpose —
+   `dialog.sheet`, `a.btn`, `.face.sm`, `.sheet > .body > .panel:last-of-type`,
+   `.more > summary .section`/`.state`, `.speech-row .field`/`.btn` — and each
+   carries its reason where it stands.
+
    The board does not and must not take any of this — it is a display with no
    chrome and keeps its own stylesheet. See ADR 002. */
 @import "@lautstark/design/tokens/wochenwerk.css";
@@ -185,35 +198,16 @@ a.btn { text-decoration: none; }
 .picker__item--add:hover { background: var(--surface-2); }
 .picker__add { font-size: 20px; line-height: 1; }
 
-/* One choice with several answers, so the rows look like the picker above them
-   rather than like a stack of buttons: the accent is what "the one in force"
-   looks like everywhere in this family. Left-aligned and stacked, because what
-   decides between two voices is a line of facts under the name. */
-/* A key turns three voices into thirty, so the list scrolls in a box of its own
-   rather than pushing the panel below it off the screen. Rows sit close: they are
-   one list to run an eye down, not five cards. */
-.voices { display: flex; flex-direction: column; gap: 2px; padding: 2px;
-  max-height: min(46vh, 340px); overflow-y: auto; }
-/* Two buttons to a row: one to hear the voice, one to choose it. A button inside
-   a button does not render, so the row is a wrapper — vorlaut's shape, and below
-   is vorlaut's paint, down to the 40px on the ▶. */
-.voiceRow { display: flex; align-items: center; gap: 8px; }
-.play { width: 40px; flex: none; justify-content: center; padding: 8px 0;
-  font-variant-numeric: tabular-nums; }
-.voice { flex: 1 1 auto; min-width: 0; display: block; text-align: left;
-  border: 1px solid transparent; background: none; color: var(--text);
-  font: inherit; cursor: pointer; padding: 8px 11px; border-radius: var(--radius-item); }
-.voice:hover { background: var(--surface-2); }
-/* The chosen one is a soft fill and a name in the accent — no ring. A row that is
-   the answer to a question is not a row that is being pointed at, and 2px of
-   accent around it read as a focus marker parked on the wrong row. The paint
-   hangs off `aria-checked` rather than a class of its own, so what a screen reader
-   is told and what the eye is shown cannot come apart. */
-.voice[aria-checked="true"] { background: var(--accent-soft); }
-.voice[aria-checked="true"] .voice__name { color: var(--accent-strong); font-weight: 650; }
-.voice__name { font-size: 14.5px; }
-.voice__facts { display: block; }
-.voice__hint { display: block; margin-top: 3px; color: var(--text-dim); }
+/* The voice list used to be drawn here — `.voices`, `.voiceRow`, `.play` and the
+   five `.voice*` rules. components.css draws all of them since 1.30.0, so they
+   are gone rather than kept: this file is imported *after* it, so every rule left
+   standing here would have won and the move would have changed nothing on
+   screen while looking like it had. Two of them said something different from
+   what the shared file says, and both differences are the point of the move — the
+   facts line was 13.5px in `--text-dim` here, through a `.small muted` pair in
+   the markup that nothing in components.css draws, and `.voices` was a 340px
+   scroller nested inside the sheet's own scrolling body. `.voiceRow` and `.play`
+   are `.voices__row` and `.voices__play` there. */
 
 .rows { display: flex; flex-direction: column; gap: 6px; }
 .row--line { display: flex; align-items: center; gap: 9px; padding: 7px 8px 7px 10px;

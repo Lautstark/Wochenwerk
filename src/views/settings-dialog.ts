@@ -7,7 +7,7 @@ import { button, check, el, field, fill, input, pickFile, spacer } from "../ui.j
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
 import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
-import { labelOf, nameOf, offered, type Voice } from "../voices.js";
+import { caveats, labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
 import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder, nest, stopTelling, tellOthers, toldByOthers } from "../folder.js";
@@ -15,6 +15,7 @@ import { adoptFolder, pullFromFolder } from "../db.js";
 import { wherePanel } from "@lautstark/sicherung/ablage-panel";
 import { backupPanel } from "@lautstark/sicherung/backup-panel";
 import { metacomPanel } from "@lautstark/bildquelle/metacom-panel";
+import { voicePicker } from "@lautstark/stimmquelle/voice-picker";
 import { backup } from "../backup.js";
 /* Not a local six-liner any more. The one it replaced revoked the blob URL
    synchronously after `link.click()`, which is the exact bug @lautstark/werkzeuge
@@ -26,7 +27,6 @@ import type { AblageStatus } from "@lautstark/sicherung/ablage";
 import { cardThumb, dropdown, face, overflow, row } from "./pieces.js";
 import { cardEditor } from "./card-editor.js";
 import { personEditor } from "./person-editor.js";
-import { voiceChoice } from "./voice-panel.js";
 
 /**
  * Azure's own region names. A datalist suggests rather than restricts, so a
@@ -187,7 +187,7 @@ export function openSettings(say: (line: string) => void) {
     title: "Einstellungen", wide: true,
     body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, look.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
-    onClose: () => { keepingPanel?.dispose(); symbolsPanel.dispose(); },
+    onClose: () => { keepingPanel?.dispose(); symbolsPanel.dispose(); picker.dispose(); },
   });
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -216,7 +216,21 @@ export function openSettings(say: (line: string) => void) {
      choosable, and the line above it says what is missing and why. */
   let refused = "";
 
-  const picker = voiceChoice({
+  /* The family's voice list, from the package that owns the catalogue it draws —
+     the field to narrow it with, the rows, the roving tabindex and the arrow
+     keys are all `@lautstark/stimmquelle/voice-picker` now, painted by design
+     1.30.0's `.voice-picker` rules. conventions.md §5 #10 is the measurement.
+
+     No `lang`: this calendar is German by policy and has no language to change,
+     which is the case the module's value form is for. No `chosenName` either —
+     what a stored voice is called is `labelOf` asked of the list it is in, and a
+     voice that is not in the list is exactly the case that has no such list. The
+     notice above the picker is where that is explained in words.
+
+     Built once beside the panels, and disposed with the dialog: a 63 MB model
+     still arriving after the sheet closed would otherwise write a per-cent onto
+     a button in a tree nobody can see. */
+  const picker = voicePicker({
     voices: () => voices,
     current: () => chosen,
     pick: id => { if (id && id !== chosen) void choose(id); },
@@ -229,13 +243,26 @@ export function openSettings(say: (line: string) => void) {
       try { await hearSample(voice.id, onProgress); }
       catch (error) { say(`${labelOf(voice, voices)} konnte nicht sprechen: ${(error as Error)?.message ?? "unbekannter Fehler"}`); }
     },
+    /* The two catalogue facts whose weight is this product's, and only those:
+       the module already says the one about clipped fragments in its own words.
+       See `caveats` — a board on a wall is why „braucht Netz" is silence here
+       and a slow start in a browser tab.
+
+       The cast is the one place this wiring is not honest to the compiler, and
+       it is honest to the runtime: `notes` is declared over the module's own
+       `Pickable`, which lists only the fields a picker reads, while what it
+       hands back is whatever `voices()` gave it — an `Offered`, with the two
+       flags below on it. Narrowing `caveats` instead is not open: `makesFile`
+       and `offline` are not `Pickable` fields at all, which is exactly why they
+       are this product's to say. */
+    notes: voice => caveats(voice as Voice),
   });
 
   /* Choosing writes. There is no pending state and no Save: the panel's heading
      is what stands in the settings record, the way every other panel's is. */
   async function choose(id: string) {
     chosen = id;
-    picker.draw();
+    picker.refresh();
     await run(() => saveVoice(id), `Der Kalender spricht jetzt mit ${nameOf(voices, id) || "dieser Stimme"}.`);
     /* The sentences that belong to no appointment — the day in its twenty-eight
        forms, and the ones about nothing happening — have no other moment to be
@@ -515,7 +542,7 @@ export function openSettings(say: (line: string) => void) {
       chosen && !named ? el("p", { class: "notice", text: "Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert." }) : null,
       !loaded ? null
         : voices.length ? picker.node : el("p", { class: "empty", text: "keine Stimme verfügbar" }));
-    picker.draw();
+    picker.refresh();
 
     const cardList = [...shown().cards.values()];
     cards.state.textContent = `${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`;
