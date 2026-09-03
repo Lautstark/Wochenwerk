@@ -71,7 +71,7 @@ Baselines belong to the machine that drew them — these are a macOS Chromium's,
 ## Routes
 
 - `/` — the board: the symbol view of the week, for the child
-- `/kalender.html` — the calendar: a week grid of hours and columns, for parents
+- `/kalender/` — the calendar: a week grid of hours and columns, for parents
 
 Both read and write the same IndexedDB store, so a change in the calendar reaches the board within a minute. The board runs on the real wall clock: the current weekday, the dates of the week and the now state come from the system time, and it redraws on every minute boundary.
 
