@@ -76,11 +76,20 @@ export default defineConfig({
 
   expect: {
     toHaveScreenshot: {
-      /* Not zero. Chromium renders the same subpixel edge a shade differently
-         between runs of the same binary; a handful of pixels either way is that
-         and not a change to the design. Anything a CSS move does to a panel is
-         orders of magnitude above this. */
-      maxDiffPixels: 40,
+      /* Zero, and the reason is a measurement rather than a preference.
+         
+         This said 40 on the argument that Chromium renders a subpixel edge a
+         shade differently between runs, and that anything a CSS move does is
+         orders of magnitude above that. The second half is false. bildhaft moved
+         one padding by 2px to prove its own suite was live: the difference was
+         **17 pixels**. Under a tolerance of 40 that change would have passed
+         unremarked — a real layout shift, inside the slack meant for noise.
+         
+         The other three products run at zero and were green over repeated runs
+         on this machine and on the runner, so the noise the tolerance was
+         guarding against does not appear to exist. If it ever does, the answer
+         is to find what is nondeterministic, not to widen the gate: a check that
+         cannot see 17 pixels cannot see a panel losing a row. */
     },
   },
 
