@@ -289,6 +289,15 @@ test("the Stimme panel, unfolded", async ({ page }) => {
   /* The four bundled ones and nothing else — which is what says the field really
      narrowed rather than that the shot happened to be taken early. */
   await expect(voice.locator('.voices [role="radio"]')).toHaveCount(4);
+  /* The pointer, off the list. It is still where it clicked the heading, the
+     rows come up underneath it, and `.voice:hover` paints whichever one it
+     lands on — which on this machine was none and on the Linux runner was the
+     first. That is a real difference between two baselines of the same CSS, and
+     it moves again the day a sentence above the list wraps differently. Only
+     this shot needs it: the other four have no row that paints under a pointer.
+     Not `hover: none` on the project, because the hover rule is part of what
+     these baselines are here to hold. */
+  await page.mouse.move(0, 0);
   await expect(voice).toHaveScreenshot("panel-stimme.png");
 });
 
