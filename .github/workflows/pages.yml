@@ -34,6 +34,17 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Shared packages, and whether anything newer has shipped
+        # Warns, never fails: being a patch behind is not a reason to block a
+        # deploy that fixes something else. The pin is what stops an install
+        # moving the build; this is what stops the pin going quietly stale.
+        #
+        # wochenwerk was the one product not running this, and the one product
+        # that had gone stale - design v1.26.1 against v1.27.0 everywhere else,
+        # bildquelle v2.0.0 against v2.1.0. Nothing looked wrong, because that
+        # release moved no shared CSS. The next one will, and then the drift is
+        # a product quietly drawn from an older stylesheet than its siblings.
+        run: node node_modules/@lautstark/design/pins.js
       - name: Types
         run: npm run check
       # `npm test` is tools/no-private.mjs and then vitest. The first is why a
