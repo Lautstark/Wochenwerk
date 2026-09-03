@@ -59,7 +59,16 @@ export default defineConfig({
    * the question is actually asked. To take it up in CI, record a Linux
    * baseline in the Playwright docker image and commit that beside these.
    */
-  ignoreSnapshots: !!process.env.CI,
+  /* Pixels belong to the machine that drew them, and Playwright keeps platforms
+     apart by file name. The baselines here are a macOS Chromium's, so a Linux
+     runner finds none of its own, writes one and passes — a green tick for a
+     comparison that never happened. Until Linux baselines are committed beside
+     the darwin ones, CI runs the rest of the spec and skips the pixels.
+
+     RECORD is the one exception: the workflow that exists to *make* those Linux
+     baselines has to be allowed to compare-and-write, or it would record
+     nothing. See .github/workflows/baselines.yml. */
+  ignoreSnapshots: !!process.env.CI && !process.env.RECORD_BASELINES,
 
   use: {
     baseURL: ORIGIN,
