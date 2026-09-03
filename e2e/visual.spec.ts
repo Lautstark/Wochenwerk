@@ -149,7 +149,11 @@ test("the folder picker is available, so the panels below are the ones with fold
 const HEADINGS: ReadonlyArray<readonly [string, string]> = [
   ["Ablage", "Kein Ordner — der Kalender liegt nur hier."],
   ["Sicherung", "Nur von Hand"],
-  ["Symbole", "Noch kein METACOM-Ordner gewählt."],
+  /* @lautstark/bildquelle/metacom-panel answers '' for „no folder chosen" and
+     this product supplies the fallback, exactly as „Sicherung" does one row up.
+     It states what is happening rather than what is missing: with no licensed
+     folder the search answers from ARASAAC, and needs no setting up to do it. */
+  ["Symbole", "Von ARASAAC"],
   ["Stimme", "keine gewählt"],
   ["Sprachdienst", "Kein Schlüssel"],
   ["Karten", "0 Karten"],
@@ -167,7 +171,7 @@ test("the settings dialog, folded", async ({ page }) => {
 });
 
 /*
- * The three panels the move is actually about, shot one at a time.
+ * The four panels the move is actually about, shot one at a time.
  *
  * The panel element and not the page: a full-page shot of a dialog is mostly
  * the dim behind it, and every one of these would go red together the moment
@@ -195,6 +199,29 @@ test("the Sicherung panel, unfolded", async ({ page }) => {
      Tagen" in it, and a baseline of one of those would rot overnight. */
   await expect(keeping.getByText("Noch kein Ordner für Sicherungskopien.")).toBeVisible();
   await expect(keeping).toHaveScreenshot("panel-sicherung.png");
+});
+
+test("the Symbole panel, unfolded", async ({ page }) => {
+  await openSettings(page);
+  const symbols = await open(page, "Symbole");
+  /* @lautstark/bildquelle/metacom-panel, with this calendar's own material
+     around it: where METACOM belongs inside the Ablage above, which fassung the
+     search prefers below.
+
+     This shot is new with the migration and it is the one components.css asked
+     for by name — its note beside `.standing.bad .dot` says the rule "changes
+     nothing that was already drawn" only because no product emitted
+     `.metacom-panel` yet, and that the migration is where that has to be
+     checked. This is that check. `.metacom-panel` and `.metacom-panel__note` are
+     drawn by @lautstark/design v1.29.0 and by nothing in this repository, so a
+     regression in either is a regression in four products at once.
+
+     Empty like the rest: no folder chosen, so the state line is the grey dot and
+     „Noch kein METACOM-Ordner gewählt." and there is no count and no folder name
+     to rot. */
+  await expect(symbols.locator(".metacom-panel")).toBeVisible();
+  await expect(symbols.getByText("Noch kein METACOM-Ordner gewählt.")).toBeVisible();
+  await expect(symbols).toHaveScreenshot("panel-symbole.png");
 });
 
 test("the Löschen panel, unfolded", async ({ page }) => {

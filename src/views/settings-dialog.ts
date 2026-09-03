@@ -6,8 +6,7 @@ import { prepare } from "../speech.js";
 import { button, check, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
-import { connect, forget, metacom, needsAttention, preferredRendering, preferRendering, rebuild, reconnect,
-  renderings, says, sourceInUse, supportsPicker, useFolder, useFolderFiles, useZip } from "../symbols.js";
+import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
 import { labelOf, nameOf, offered, type Voice } from "../voices.js";
 import { hearSample } from "../speech.js";
 import { load, shown } from "../store.js";
@@ -15,6 +14,7 @@ import { ablage as ablageStore, adopted, folders, HOME, isStore, metacomInFolder
 import { adoptFolder, pullFromFolder } from "../db.js";
 import { wherePanel } from "@lautstark/sicherung/ablage-panel";
 import { backupPanel } from "@lautstark/sicherung/backup-panel";
+import { metacomPanel } from "@lautstark/bildquelle/metacom-panel";
 import { backup } from "../backup.js";
 /* Not a local six-liner any more. The one it replaced revoked the blob URL
    synchronously after `link.click()`, which is the exact bug @lautstark/werkzeuge
@@ -136,6 +136,42 @@ export function openSettings(say: (line: string) => void) {
     headline: text => { keeping.state.textContent = text || "Nur von Hand"; },
   });
   const symbols = makePanel("Symbole");
+  /* The other of §4.9's two folder questions, and the same arrangement as the
+     one above it: the licence notice, the state line and the four acts are the
+     package's, and what stays here is what only this calendar knows — that
+     METACOM belongs *in the Ablage*, and which fassung the search prefers.
+
+     No `actions`, so all four are drawn. conventions.md §4.13 says a product
+     passing that list owes an entry explaining the absence, and there is none
+     to explain: wochenwerk already had all four, and „Erneut erlauben" was the
+     fifth button the shared „Ordner wählen" absorbs.
+
+     No `lang` either. This calendar is German by policy and has no language to
+     change, which is the case the module's value form is for.
+
+     Built once beside `keepingPanel`, for the reason written there: it
+     subscribes to the provider, and one built inside `sync` would subscribe
+     again on every repaint. */
+  const symbolsPanel = metacomPanel({
+    metacom,
+    /* '' is the module's answer for „no folder chosen", and the fallback is the
+       same decision as „Nur von Hand" above: what is true when nothing is set
+       up. Without a folder the search answers from ARASAAC, which is what the
+       body of this panel already says in the same breath. */
+    headline: text => { symbols.state.textContent = text || "Von ARASAAC"; },
+    after: async action => {
+      /* Both of this panel's own scraps of memory are answers to „is METACOM
+         sitting in the Ablage?", and any act on the shared block below has just
+         made them stale. `fromFolder` survives „Neu einlesen" alone, because
+         that re-reads the same folder and so cannot move it; what an earlier
+         look found is worth nothing the moment a folder is chosen either way. */
+      if (action !== "reread") fromFolder = null;
+      looked = null;
+      await load();
+      sync();
+    },
+    say,
+  });
   const voice = makePanel("Stimme");
   const speech = makePanel("Sprachdienst");
   const cards = makePanel("Karten");
@@ -151,7 +187,7 @@ export function openSettings(say: (line: string) => void) {
     title: "Einstellungen", wide: true,
     body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, look.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
-    onClose: () => keepingPanel?.dispose(),
+    onClose: () => { keepingPanel?.dispose(); symbolsPanel.dispose(); },
   });
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -409,7 +445,6 @@ export function openSettings(say: (line: string) => void) {
   }
 
   function sync() {
-    const status = metacom.status();
     /* Where the household keeps its week. Not a backup: connecting a folder makes
        it the store, and this browser holds a copy of it from that moment. Once one
        is connected there is nothing left to explain — the heading names it, and
@@ -424,11 +459,12 @@ export function openSettings(say: (line: string) => void) {
 
     const connected = isStore();
     const where = ablageStatus();
-    symbols.state.textContent = fromFolder ? `METACOM aus „${fromFolder}“` : says(status);
     fill(symbols.body,
       /* Where the calendar lives in a folder, METACOM belongs beside it: dropped
          in once, found by every device. The alternative is a file dialog per
-         device, which is the step people give up at. */
+         device, which is the step people give up at. conventions.md §4.9 leaves
+         this sentence with the product on purpose: nothing else in the family
+         has an Ablage holding the store, so nothing else has it to say. */
       metacom.isReady() ? null : el("p", { class: "small", text: connected
         ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage."
         : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung." }),
@@ -440,27 +476,32 @@ export function openSettings(say: (line: string) => void) {
       looked ? el("p", { class: "notice bad", text: looked.length
         ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.`
         : "Der Ordner ist noch leer." }) : null,
+      /* Wochenwerk's own way in, and deliberately not one of the module's four:
+         it looks inside the Ablage the calendar is already connected to instead
+         of asking anybody for a folder. So it keeps a row of its own above the
+         shared block — the package owns the `.acts` inside that block and
+         rebuilds it on every paint, and a button appended there would be gone
+         by the next status change. */
+      connected && !metacom.isReady()
+        ? el("div", { class: "acts" }, button("Nochmal nachsehen", "sm primary", () => void run(async () => {
+            const found = await metacomInFolder();
+            looked = found ? null : await folders();
+            if (found) { await useFolder(found.handle); fromFolder = found.name; looked = null; }
+            sync();
+          }, ""))) : null,
+      /* The licence notice, the state line and the four acts, from
+         @lautstark/bildquelle/metacom-panel — the same block in every Lautstark
+         programme. What used to stand here was five buttons and a second copy of
+         the status sentence; „Erneut erlauben" is the one the shared „Ordner
+         wählen" absorbs, because it tries the stored handle before any picker. */
+      symbolsPanel.node,
+      /* What the module cannot know: which folder this is, out of the two places
+         it could have come from. The panel's own line says how many symbols and
+         out of what name; this says whether that name is the shared Ablage, and
+         therefore whether the other devices in the house draw with it too. */
       metacom.isReady() ? el("p", { class: "small", text: fromFolder
         ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.`
         : "Gezeichnet wird mit METACOM aus einem eigenen Ordner." }) : null,
-      needsAttention(status) ? el("p", { class: "notice bad", text: says(status) }) : null,
-      el("div", { class: "acts" },
-        connected && !metacom.isReady()
-          ? button("Nochmal nachsehen", "sm primary", () => void run(async () => {
-              const found = await metacomInFolder();
-              looked = found ? null : await folders();
-              if (found) { await useFolder(found.handle); fromFolder = found.name; looked = null; }
-              sync();
-            }, "")) : null,
-        button(supportsPicker ? (connected ? "Anderen Ordner wählen" : "Ordner wählen") : "Ordner hochladen",
-          connected || metacom.isReady() ? "sm quiet" : "sm",
-          () => supportsPicker ? void run(() => connect(), "Ordner gelesen.")
-            : pickFile("", true, files => void run(() => useFolderFiles(files), "Ordner gelesen."))),
-        button("ZIP lesen", "sm quiet", () => pickFile(".zip,application/zip", false, files => void run(() => useZip(files[0]), "ZIP gelesen."))),
-        status.kind === "needs-setup" && status.code === "permission-needed"
-          ? button("Erneut erlauben", "sm primary", () => void run(() => reconnect(), "Erlaubnis wieder da.")) : null,
-        metacom.isReady() ? button("Neu einlesen", "sm quiet", () => void run(() => rebuild(), "Neu eingelesen.")) : null,
-        metacom.isReady() ? button("Ordner vergessen", "sm destructive", () => void run(async () => { fromFolder = null; await forget(); }, "Ordner vergessen.")) : null),
       renderingChooser());
 
     /* One voice for the whole calendar, so the heading names it the way the other

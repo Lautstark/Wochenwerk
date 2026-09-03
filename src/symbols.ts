@@ -1,4 +1,4 @@
-import { attributionsFor, foldGerman, getProvider, metacom, MetacomProvider, needsAttention, PROVIDER_IDS,
+import { attributionsFor, foldGerman, getProvider, metacom, PROVIDER_IDS,
   type Candidate, type ProviderId, type ProviderStatus } from "@lautstark/bildquelle";
 import type { SymbolRef } from "./model.js";
 
@@ -7,22 +7,22 @@ import type { SymbolRef } from "./model.js";
    nothing derived from that folder leaves the browser. ARASAAC is fetched from its
    public API. The providers are the package's own singletons, so every surface that
    asks is asking the same one. See ADR 002 and bildquelle's README. */
-export { metacom, needsAttention, PROVIDER_IDS, foldGerman };
+export { metacom, PROVIDER_IDS, foldGerman };
 export type { Candidate, ProviderId, ProviderStatus };
 
-/** Chromium keeps a chosen folder across visits; everywhere else there is no picker. */
-export const supportsPicker = MetacomProvider.supportsPersistentPicker;
 export const restore = () => metacom.restore();
-export const connect = () => metacom.pickDirectory();
 /* A folder the household already dropped beside its calendar, adopted without a
    second file dialog. The capability is the same one the picker grants; what is
-   saved is the picking, which is where setting up gets abandoned. */
+   saved is the picking, which is where setting up gets abandoned.
+
+   The only one of these left. Picking a folder, reading a ZIP, re-reading,
+   forgetting and asking for permission again were five more wrappers over five
+   more `metacom` methods, each with one caller in the settings dialog — and
+   @lautstark/bildquelle/metacom-panel now calls all five itself, from the block
+   that draws the buttons. This one stays because no shared panel can have it:
+   it is handed a directory the Ablage found, which is a folder question only
+   this calendar knows how to ask. */
 export const useFolder = (handle: FileSystemDirectoryHandle) => metacom.useDirectoryHandle(handle);
-export const useFolderFiles = (files: FileList | File[]) => metacom.useFileList(files);
-export const useZip = (file: File) => metacom.useZip(file);
-export const reconnect = () => metacom.requestPermission();
-export const rebuild = () => metacom.rebuildIndex();
-export const forget = () => metacom.forget();
 
 /* METACOM ships the same symbols several times over — with and without a frame,
    with and without the word printed on the picture — as parallel folders holding
@@ -86,19 +86,13 @@ export async function pictures(refs: SymbolRef[]): Promise<Map<string, string>> 
 }
 export const pictureFor = (urls: Map<string, string>, ref: SymbolRef) => urls.get(key(ref)) ?? null;
 
-/* The package answers with codes and never with words, so that a host is not handed
-   German it cannot translate. These are ours. */
-export function says(status: ProviderStatus): string {
-  switch (status.kind) {
-    case "ready": return "Ordner verbunden.";
-    case "loading": return status.code === "indexing" ? "Ordner wird gelesen …" : "Wird geladen …";
-    case "needs-setup": return status.code === "no-folder"
-      ? "Noch kein METACOM-Ordner gewählt."
-      : "Der Browser braucht die Erlaubnis für den Ordner erneut.";
-    case "error": switch (status.code) {
-      case "no-images": return "In diesem Ordner liegen keine Bilder. Zeigt er auf PNG_ohne_Rahmen?";
-      case "read-failed": return "Der Ordner ließ sich nicht lesen.";
-      case "network": return "Die Symbolsuche ist gerade nicht erreichbar.";
-    }
-  }
-}
+/* `says()` used to stand here: a switch over every status code, in this
+   calendar's own German, written because the package answers with codes and
+   never with words. It had one caller, and both places it printed — the panel's
+   heading and the warning inside it — are now the module's own
+   `headlineFor`/`stateLineFor`, in the same words as the other three products.
+   conventions.md §4.12 draws the line it crossed: a *status code* is a fact a
+   host phrases in its own voice wherever it turns up, but the fixed furniture of
+   one panel is the panel, and this switch was only ever asked for by that panel.
+   The re-exported `ProviderStatus` stays for a host that shows a status
+   somewhere else; nothing here does today. */
