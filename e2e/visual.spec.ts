@@ -1,3 +1,5 @@
+import { existsSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 /*
@@ -67,6 +69,45 @@ async function open(page: Page, heading: string): Promise<Locator> {
   await expect(node).toHaveJSProperty("open", true);
   return node;
 }
+
+/* One set of pictures per platform, and what decides whether they run.
+ *
+ * Playwright files a snapshot under the platform that drew it, because that is
+ * what draws it: the same CSS on Linux and on macOS disagrees on every
+ * antialiased edge. A platform with no baseline of its own is not looking at a
+ * regression — it is looking at nothing — and Playwright's own default is to
+ * write the missing file and pass, which is a green tick for a comparison that
+ * did not happen.
+ *
+ * This used to be answered by `ignoreSnapshots: !!process.env.CI` in the config,
+ * and that was worse than it looked. It turned the comparison off by an
+ * environment variable, and every local verification of this suite was run as
+ * `CI=true` — so the pictures went uncompared here too, and a stale baseline sat
+ * unnoticed through several commits that claimed to have checked it.
+ *
+ * So the question is asked of the directory rather than of the environment: are
+ * there pictures for the platform this is running on? Committing them is the
+ * whole of turning the comparison on, and there is no flag to forget to put
+ * back. bildhaft wrote this first; mitreden and vorlaut-editor carry it too.
+ *
+ * To give a platform baselines, run .github/workflows/baselines.yml there — or
+ * locally, `npx playwright test e2e/visual.spec.ts --update-snapshots`. */
+const SNAPSHOTS = fileURLToPath(new URL("./visual.spec.ts-snapshots", import.meta.url));
+
+function recordedHere(): boolean {
+  if (!existsSync(SNAPSHOTS)) return false;
+  return readdirSync(SNAPSHOTS).some((name) => name.endsWith(`-${process.platform}.png`));
+}
+
+test.beforeEach(async ({}, testInfo) => {
+  /* 'missing' and 'none' only ever compare; 'all' and 'changed' write — and a
+     run that is here to write must not skip itself out of ever producing a
+     first baseline. */
+  const recording = testInfo.config.updateSnapshots === "all"
+    || testInfo.config.updateSnapshots === "changed";
+  test.skip(!recording && !recordedHere(),
+    `No baseline recorded for ${process.platform}. See the note in this file.`);
+});
 
 test("the folder picker is available, so the panels below are the ones with folders in them", async ({ page }) => {
   await page.goto("/kalender/");
