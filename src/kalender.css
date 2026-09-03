@@ -143,7 +143,6 @@ a.btn { text-decoration: none; }
 .lbl--split { display: flex; justify-content: space-between; gap: 8px; }
 .lbl__aside { color: var(--text-faint); }
 .choice { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.acts { display: flex; gap: 8px; flex-wrap: wrap; }
 /* What pushes the rest of a row to the far end. components.css does not define
    this name — its foot ends flush right on its own — so a sheet that wants one
    action away from the others, Löschen apart from Sichern, needs it defined
@@ -295,9 +294,6 @@ a.btn { text-decoration: none; }
 /* A folder drawn the way a file manager draws it. Recognition beats instruction:
    somebody who cannot follow a sentence about nesting can copy a shape they have
    seen a thousand times. */
-.tree { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12px;
-  line-height: 1.8; overflow-x: auto; }
 
 /* A heading inside a panel, for the half of a subject that is a handful of
    actions rather than a state. */
@@ -307,10 +303,3 @@ a.btn { text-decoration: none; }
 
 /* The shared panel from @lautstark/sicherung/ablage-panel. The classes are its
    markup; these are this product's tokens under them. */
-.where-panel { display: grid; gap: 11px; }
-.where { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: var(--radius-sm); background: var(--surface); }
-.where b { font-size: 13px; font-weight: 600; }
-.where.bad { border-color: var(--danger); }
-.where-share { display: grid; gap: 6px; }
-.where-panel p { margin: 0; }
