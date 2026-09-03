@@ -13,8 +13,11 @@
 # amd64, and amd64 under QEMU segfaults during `npm ci`. An arm64 image would run
 # natively and produce baselines nobody could prove match the runner.
 #
-# So the recording happens here. Run this by hand, download the artifact, commit
-# the PNGs beside the darwin ones, and CI compares from then on.
+# So the recording happens here. Run this by hand, download the artifact and
+# commit the PNGs beside the darwin ones — that is the whole of it. The spec asks
+# the snapshot directory whether a baseline exists for the platform it is running
+# on, so committing the files is what turns the comparison on. Nothing else to
+# flip, and nothing to remember to flip back.
 name: Record visual baselines
 
 on:
@@ -36,10 +39,6 @@ jobs:
       - name: Install the Playwright browser
         run: npx playwright install --with-deps chromium
       - name: Record
-        # RECORD_BASELINES lifts the `ignoreSnapshots` that keeps the ordinary CI
-        # run from comparing against baselines it does not have.
-        env:
-          RECORD_BASELINES: "1"
         run: npx playwright test e2e/visual.spec.ts --update-snapshots
       - name: Hand them back
         uses: actions/upload-artifact@v4
