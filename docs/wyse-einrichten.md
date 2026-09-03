@@ -130,7 +130,7 @@ tragen.
 Also als Benutzer `wochenwerk`, noch ohne Kiosk:
 
 ```bash
-startx /usr/bin/chromium https://lautstark.tech/Wochenwerk/kalender.html
+startx /usr/bin/chromium https://lautstark.tech/Wochenwerk/kalender/
 ```
 
 Dort:
