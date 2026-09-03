@@ -53,6 +53,21 @@ npm run dev
 npm run build
 ```
 
+## Checks
+
+```bash
+npm run check            # types, including the e2e specs
+npm test                 # nobody real, then vitest
+npm run test:e2e         # Playwright: the settings dialog, pixel for pixel
+npm run test:e2e:update  # re-record the baselines, on purpose
+```
+
+The e2e suite is a visual one and small on purpose. It photographs the settings dialog on `/kalender/` folded, and the **Ablage**, **Sicherung** and **Löschen** panels unfolded, comparing each against a PNG committed under `e2e/visual.spec.ts-snapshots/`. It exists because CSS is moving out of this product and into [`@lautstark/design`](https://github.com/Lautstark/design), and a move that is supposed to change nothing is the one change no behavioural test can catch.
+
+The board at `/` is deliberately not photographed and must not be added. It is a display on a wall with its own system of weekday colours, committed to dark, and it is not part of what is being unified.
+
+Baselines belong to the machine that drew them — these are a macOS Chromium's, which is why the file names end `-darwin.png`. CI runs the same suite with the comparison switched off, so what it proves there is that the route loads and every panel unfolds; the pixel gate is local. `--update-snapshots` is a deliberate act: read the diff first, because re-recording is how a regression becomes the new normal.
+
 ## Routes
 
 - `/` — the board: the symbol view of the week, for the child

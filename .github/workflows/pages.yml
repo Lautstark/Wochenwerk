@@ -2,8 +2,9 @@ name: Deploy to GitHub Pages
 
 # The shape is bildhaft's deploy.yml by way of vorlaut-editor's: check, then
 # build, then deploy, with pull requests checked and never published. Wochenwerk
-# has no Playwright and no Python, so the check job is the three commands the
-# repository already runs by hand.
+# has no Python, so the check job is the two commands the repository already
+# runs by hand — and, since 2026-09-03, an e2e job beside it, which is the last
+# thing this repository was missing that its three siblings had.
 
 on:
   push:
@@ -42,8 +43,63 @@ jobs:
       - name: Nobody real, and the tests
         run: npm test
 
+  e2e:
+    # The browser tests, laid out the way bildhaft and mitreden lay theirs out:
+    # cache the browser, install chromium alone, run the suite, keep the report
+    # only when something went wrong.
+    #
+    # ## What this job does and does not prove
+    #
+    # The suite is visual — committed PNGs of the settings dialog and its
+    # panels, so that CSS moving out of this product and into @lautstark/design
+    # can be shown to change nothing. Pixels belong to the machine that drew
+    # them: the baselines in the repository are a macOS Chromium's, and this
+    # runner's Linux Chromium disagrees with them on every antialiased edge.
+    # Playwright keeps the two apart by platform in the file name, so without
+    # anything further this runner would find no baseline of its own, write one,
+    # and pass — a green tick for a comparison that never happened.
+    #
+    # So playwright.config.ts sets `ignoreSnapshots` under CI and this job runs
+    # the rest of the spec: the calendar loads, the dialog opens, all nine
+    # headings say what they should, and each of the three panels unfolds with
+    # its contents in it. That is a real smoke test of the route the deploy is
+    # about to publish. The pixel comparison stays local, beside the person
+    # moving the CSS, which is where the question gets asked.
+    #
+    # To bring the pixels here too, record a Linux baseline in the matching
+    # `mcr.microsoft.com/playwright` image, commit it beside the darwin ones and
+    # drop `ignoreSnapshots`.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      # The config's webServer starts `vite` itself, so there is nothing to
+      # start here. It is the dev server rather than a preview of a bundle,
+      # deliberately — see the note at the top of playwright.config.ts. The
+      # build is still gated: the `build` job below needs this one.
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   build:
-    needs: check
+    needs: [check, e2e]
     # Pull requests are checked but never published.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest

@@ -10,6 +10,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts", "vite.config.ts"],
+  /* The e2e suite is in here on purpose. `npm run check` is the only thing that
+     reads these files without running them, and a spec that no longer compiles
+     — a renamed export, a locator helper given the wrong shape — is otherwise
+     found by whoever next runs Playwright, which for a visual baseline may be
+     weeks after the change that broke it. */
+  "include": ["src/**/*.ts", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"],
   "exclude": ["node_modules"]
 }

@@ -13,6 +13,14 @@
 # testing
 /coverage
 
+# Playwright's own output. The baselines under e2e/*-snapshots/ ARE committed —
+# they are the check — but what a run produces about them is not: the actual
+# and diff PNGs of a failure, and the HTML report over them.
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 /.next/
 /.vinext/
