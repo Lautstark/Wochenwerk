@@ -36,6 +36,13 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Whether the install matches the pins
+        # A baseline is committed, and a wrong one is committed forever: every
+        # later run then compares against the wrong picture and passes. The
+        # panels in these shots are drawn by the shared packages, so a stale
+        # install records that version's stylesheet as the truth.
+        run: npm run preflight
+
       - name: Install the Playwright browser
         run: npx playwright install --with-deps chromium
       - name: Record
