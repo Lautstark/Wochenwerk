@@ -8,6 +8,7 @@ Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board 
 - [Data model](docs/data-model.md)
 - [Speech](docs/speech.md)
 - [Hardware](docs/hardware.md)
+- [Wandgerät einrichten](docs/wyse-einrichten.md)
 
 ## Prerequisites
 
