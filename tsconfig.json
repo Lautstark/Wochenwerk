@@ -10,7 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  /* The e2e suite is in here on purpose. `npm run check` is the only thing that
+  /* The e2e suite is in here on purpose. `npm run typecheck` is the only thing that
      reads these files without running them, and a spec that no longer compiles
      — a renamed export, a locator helper given the wrong shape — is otherwise
      found by whoever next runs Playwright, which for a visual baseline may be

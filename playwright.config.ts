@@ -31,7 +31,7 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
  * and the loop that move is made in is `npm run dev`. Comparing against a
  * bundle would put a build step between an edit and the answer to "did that
  * change anything", which is the one question these tests exist to answer
- * quickly. The build stays gated by `npm run check` and the Pages workflow.
+ * quickly. The build stays gated by `npm run typecheck` and the Pages workflow.
  */
 export default defineConfig({
   testDir: "./e2e",

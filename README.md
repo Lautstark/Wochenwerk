@@ -56,7 +56,7 @@ npm run build
 ## Checks
 
 ```bash
-npm run check            # types, including the e2e specs
+npm run typecheck            # types, including the e2e specs
 npm test                 # nobody real, then vitest
 npm run test:e2e         # Playwright: the settings dialog, pixel for pixel
 npm run test:e2e:update  # re-record the baselines, on purpose

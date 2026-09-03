@@ -46,7 +46,7 @@ jobs:
         # a product quietly drawn from an older stylesheet than its siblings.
         run: node node_modules/@lautstark/design/pins.js
       - name: Types
-        run: npm run check
+        run: npm run typecheck
       # `npm test` is tools/no-private.mjs and then vitest. The first is why a
       # household's own week cannot reach a public site through a fixture; it
       # passes with a note where .private-names is absent, which is the case
