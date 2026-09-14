@@ -237,7 +237,8 @@ export type Announced = { lines: string[]; trouble?: string };
 export type Showing = (id: string | undefined) => void;
 
 /**
- * Say it. Two or three sentences, in order, and a press during them starts again.
+ * Say it. Two or three sentences, in order — four where two things run beside
+ * each other — and a press during them starts again.
  *
  * The trouble it reports is for whoever is setting the board up and never for the
  * child: no voice chosen yet, or a voice that would not speak. The board has one

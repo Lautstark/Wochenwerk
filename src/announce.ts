@@ -185,28 +185,81 @@ function namedOptions(appointment: Appointment, household: Household): string[] 
   return said.length && said.length === appointment.options.length && said.length <= 3 ? said : undefined;
 }
 
+/* How many things can be happening at once and still each get a sentence. Two,
+   and it is a lower number than the three `namedOptions` allows on purpose: there
+   the ceiling counts words in one list, and here it counts whole sentences, which
+   is the heavier unit by far. Two is also what the case *is* — one child here and
+   one child there, which is the shape a household with two children runs into and
+   the shape a household with one never does. */
+const TOGETHER = 2;
+
+/* One appointment is the bracket around another where it starts no later and ends
+   no earlier on the grid the board draws them on, and is genuinely wider at one
+   end or the other. Two that fill exactly the same span bracket nothing: that is
+   the side-by-side case at its plainest — two children, two places, the same
+   hour — and neither of them is the thing the other is inside of. */
+const brackets = (outer: Appointment, inner: Appointment) =>
+  snapped(outer.start!) <= snapped(inner.start!) && snapped(outer.end!) >= snapped(inner.end!)
+  && (snapped(outer.start!) < snapped(inner.start!) || snapped(outer.end!) > snapped(inner.end!));
+
+/* What is left once every bracket is taken out: the things that have nothing
+   running inside them. One pass is enough for a nest of any depth, because a
+   middle layer is a bracket around the layer below it and drops on its own. */
+const innermost = (here: Appointment[]) => here.filter(item => !here.some(other => brackets(item, other)));
+
+/* The one that began last, and of two that began together the one that ends
+   first. It is the rule that used to decide every parallel moment, kept for the
+   one it is still asked about — see the ceiling in `announce`. */
+const deepest = (of: Appointment[]) =>
+  [...of].sort((a, b) => snapped(b.start!) - snapped(a.start!) || snapped(a.end!) - snapped(b.end!))[0]!;
+
 /**
  * What the board says when the button is pressed: two or three short sentences,
- * always in the same order, chosen without any state of their own.
+ * always in the same order, chosen without any state of their own — and four
+ * where two things genuinely run beside each other, which is the one place the
+ * shape widens and the order still holds.
  */
 export function announce(week: Appointment[], at: Date, household: Household, awayFrom?: string): Utterance[] {
   const now = reading(at), today = iso(at);
-  /* Parallel appointments share the width of the day, and one of them has to be
-     the one that is spoken. The innermost wins: the one that began last, and of
-     two that began together the one that ends first.
+  /* Parallel appointments share the width of the day, and there are two ways for
+     them to be parallel.
 
-     The earlier start used to win, which is nearly always the bracket rather than
-     what is happening inside it — a therapy hour inside a Kita day was never
-     announced at all, on any press, because the Kita had started first and would
-     go on for hours. The specific thing is the one the child is in. */
+     **Nested.** A therapy hour inside a Kita day: the innermost wins, and the
+     bracket waits. The earlier start used to win, which is nearly always the
+     bracket rather than what is happening inside it — an hour that always fell
+     inside another was never announced at all, on any press, all year. The
+     specific thing is the one the child is in, and this has not changed.
+
+     **Side by side.** Two children, two places, the same hour — and here the rule
+     written for nesting was quietly wrong. Where neither appointment contains the
+     other, *the innermost* means nothing: the sort picked one of them, and the
+     other was never spoken. That is worse on this board than anywhere else,
+     because `nowLine` addresses a child by name where an appointment concerns
+     exactly one — so the board named one child and left the other out of a
+     sentence that was about her. Both are said now, one sentence each, in the
+     order the day has them in. */
   const here = timedOn(week, today).filter(item => item.start! <= now && now < item.end!);
-  const running = here.length < 2 ? here[0]
-    : [...here].sort((a, b) => snapped(b.start!) - snapped(a.start!) || snapped(a.end!) - snapped(b.end!))[0];
+  const inner = innermost(here);
+  /* And a ceiling, because a sentence apiece does not scale. Past two the
+     announcement is a schedule being read out, and the same judgement that stops
+     `namedOptions` at three stops this at two.
+
+     What happens past it is the old single innermost — but said *without the
+     name*. An address is a promise that the sentence is for you, and it is a
+     false one the moment two other things are being left out; a board that names
+     one child and silently drops two is worse than one that names nobody. So the
+     ceiling takes the sentences and the address together, and what is left is a
+     plain *Jetzt ist Turnen* — no worse than what this board said all along, and
+     honest about being less than the whole. */
+  const together = inner.length <= TOGETHER;
+  const running = together ? inner : [deepest(inner)];
 
   /* The one thing that outranks the shape: while a choice is open there is
      something for the child to do, and a sentence about Tuesday in front of it is
-     a sentence in the way. */
-  if (running && undecided(running)) return [choosing(running, household)];
+     a sentence in the way. A second sentence about what the other child is doing
+     is in the way for the same reason — the child is standing at the slot. */
+  const open = running.find(undecided);
+  if (open) return [choosing(open, household)];
 
   /* Nothing running and nothing left: *Heute ist nichts mehr geplant* already says
      both of those, and *Gerade ist nichts geplant* in front of it is the same fact
@@ -217,7 +270,7 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      The sibling case drops the other one: where something is still coming but
      hours off, the *now* sentence stays and *danach ist nichts geplant* goes. Both
      times the sentence that survives is the one with something in it. */
-  const empty = !running && !timedOn(week, today).some(item => item.start! > now);
+  const empty = !running.length && !timedOn(week, today).some(item => item.start! > now);
   /* Nothing is announced while we are already somewhere else. The day sentence is
      what says where we are, and *morgen fahren wir weg* on the first day of four
      at a grandmother's is about the second day of the stretch we are standing
@@ -225,7 +278,7 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      because everything else in the announcement is right. */
   const elsewhere = week.some(item => item.date === today && notAtHome(item));
   return [dayLine(week, at, now, household),
-    ...(empty ? [] : nowLine(running, now, week, today, household)),
+    ...(empty ? [] : nowLine(running, now, household, together)),
     ...nextLine(week, at, now, running, household),
     ...awayLine(elsewhere ? undefined : awayFrom, today)];
 }
@@ -316,33 +369,50 @@ function namedFact(facts: Appointment[], _household: Household): string | undefi
    rather than something empty: there is no honest sentence about an appointment
    whose word nobody has written, and inventing one from its file name is the
    thing docs/speech.md exists to forbid. */
-function nowLine(running: Appointment | undefined, now: string, week: Appointment[], today: string, household: Household): Utterance[] {
+function nowLine(running: Appointment[], now: string, household: Household, address: boolean): Utterance[] {
   /* One sentence for an empty moment, whatever comes after it. There used to be
      two — the gap before something added *Du kannst spielen* — and the addition
      was the board telling a child what to do with their own time, which is not
      what it is for. It says what is true and stops; the next sentence says
      whether anything is coming. */
-  if (!running) return [utter(fixed(FRAMES.nothing))];
+  if (!running.length) return [utter(fixed(FRAMES.nothing))];
+  /* One sentence each, in the order the day has them in. Two of these is the
+     side-by-side case and each carries its own `about`, so the ring moves from
+     one card to the other as the sentences go by and never lights both at once —
+     the board is saying one thing at a time, and the card has to agree. */
+  return running.flatMap(item => nowFor(item, now, household, address));
+}
+
+function nowFor(running: Appointment, now: string, household: Household, address: boolean): Utterance[] {
   const said = spokenName(running, household.cards);
   if (!said) return [];
   /* Addressed by name where the appointment concerns exactly one person: that is
      the difference between an announcement and being meant. Two is a list, and a
-     list is not an address. */
+     list is not an address. Withheld past the ceiling, where naming one of three
+     would be the board meaning one child at the other two. */
   const people = peopleOn(running, household);
-  const who = people.length === 1 ? own(people[0]!.name) : undefined;
+  const who = address && people.length === 1 ? own(people[0]!.name) : undefined;
   if (minute(running.end!) - minute(now) <= board.snap)
     return [about(running, utter(...(who ? [who, fixed(FRAMES.comma)] : []), own(said), fixed(FRAMES.ending)))];
   const decided = running.chosen ? [fixed(FRAMES.decided)] : [];
   return [about(running, utter(...(who ? [who, fixed(FRAMES.nowFor)] : [fixed(FRAMES.now)]), own(said), ...decided))];
 }
 
-function nextLine(week: Appointment[], at: Date, now: string, running: Appointment | undefined, household: Household): Utterance[] {
-  /* What is still running around the one being announced resumes the moment it
-     ends, and that is what comes next — before anything that has not started.
+function nextLine(week: Appointment[], at: Date, now: string, running: Appointment[], household: Household): Utterance[] {
+  /* What is still running around the ones being announced resumes the moment they
+     end, and that is what comes next — before anything that has not started.
      Without this the board said "Heute ist nichts mehr geplant" during a therapy
-     hour with three more hours of Kita around it. */
-  const around = running
-    ? timedOn(week, iso(at)).filter(item => item !== running && item.start! <= now && item.end! > running.end!)
+     hour with three more hours of Kita around it.
+
+     *Around* is now measured against the whole of what is being said rather than
+     against one appointment: the bracket has to outlast every sentence in the
+     *now* slot, or *danach* would be promising something that is already being
+     spoken as happening. And what is being announced is never a candidate — a
+     board that says "jetzt ist Turnen" and then offers Turnen as what comes next
+     is talking about the same hour twice. */
+  const until = running.reduce((latest, item) => item.end! > latest ? item.end! : latest, running[0]?.end ?? now);
+  const around = running.length
+    ? timedOn(week, iso(at)).filter(item => !running.includes(item) && item.start! <= now && item.end! > until)
         .sort((a, b) => snapped(a.end!) - snapped(b.end!))[0]
     : undefined;
   if (around) {
@@ -358,12 +428,16 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
      the gap after whatever is happening now, so it is measured from the end of a
      running appointment and from this minute when nothing is running — which is
      what makes "Danach kommt Turnen" right at nine for a Turnen that follows Kita
-     at two, and wrong for a supper five hours behind it. */
-  const wait = minute(next.start!) - (running ? minute(running.end!) : minute(now));
+     at two, and wrong for a supper five hours behind it.
+
+     Where two things run beside each other it is the later of the two ends: what
+     the child is waiting through is the whole busy stretch, and a meal a quarter
+     of an hour after the second of them ends is *danach* for both children. */
+  const wait = minute(next.start!) - (running.length ? minute(until) : minute(now));
   if (!soon && wait > HORIZON) {
     /* Nothing running and nothing near: the *now* sentence has already said there
        is time to play, and saying it twice in two wordings is worse than once. */
-    return running ? [utter(fixed(FRAMES.free))] : [];
+    return running.length ? [utter(fixed(FRAMES.free))] : [];
   }
   if (undecided(next)) {
     const offered = namedOptions(next, household);
@@ -372,13 +446,13 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
        named the sentence stops after saying a choice is coming — asking what the
        child wants, between nothing said, is a question with no answer in it. */
     return [about(next, offered
-      ? utter(fixed(soon ? FRAMES.soonChooseFrom : running ? FRAMES.afterChooseFrom : FRAMES.thenChooseFrom),
+      ? utter(fixed(soon ? FRAMES.soonChooseFrom : running.length ? FRAMES.afterChooseFrom : FRAMES.thenChooseFrom),
           ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking))
-      : utter(fixed(soon ? FRAMES.soonChoose : running ? FRAMES.afterChoose : FRAMES.thenChoose)))];
+      : utter(fixed(soon ? FRAMES.soonChoose : running.length ? FRAMES.afterChoose : FRAMES.thenChoose)))];
   }
   const said = spokenName(next, household.cards);
   if (!said) return [];
-  const when = soon ? FRAMES.soon : running ? FRAMES.after : FRAMES.then;
+  const when = soon ? FRAMES.soon : running.length ? FRAMES.after : FRAMES.then;
   return [about(next, utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : [])))];
 }
 

@@ -144,6 +144,121 @@ describe("two at once", () => {
     const both = [appointment("09:00", "12:00", { title: "Kita" }), appointment("09:00", "09:30", { title: "Turnen" })];
     expect(said(both, at("09:10"), house())[1]).toBe("Jetzt ist Turnen.");
   });
+
+  it("says nothing of the bracket in the now slot — the inner one is the whole of it", () => {
+    /* Three sentences and not four: the bracket is not a second thing happening,
+       it is the thing this one is inside of, and it has its own place in *next*. */
+    expect(said(week(), at("11:10"), house()))
+      .toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Turnen.", "Danach kommt wieder Kita."]);
+  });
+
+  it("keeps the bracket rule through a nest of any depth", () => {
+    /* Ferienbetreuung around a Kita day around an hour of therapy. Only the hour
+       is announced; the two layers above it are both brackets, and the first of
+       them to resume is the one that comes next. */
+    const nest = [appointment("08:00", "16:00", { title: "Ferienbetreuung" }),
+      appointment("08:45", "14:00", { title: "Kita" }),
+      appointment("11:00", "11:45", { title: "Turnen" })];
+    expect(said(nest, at("11:10"), house()))
+      .toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Turnen.", "Danach kommt wieder Kita."]);
+  });
+});
+
+describe("two beside each other", () => {
+  /* The gap the nesting rule left. Where neither appointment contains the other
+     there is no innermost, the sort picked one of them, and the other was never
+     spoken at all — on a board that addresses a child by name, which made it one
+     child meant and one child left out of a sentence that was about her. */
+  const home = () => house([], [person("e", "Emma"), person("m", "Mia")]);
+  const parallel = () => [
+    appointment("09:00", "12:00", { title: "Kindergarten", people: ["e"] }),
+    appointment("10:00", "13:00", { title: "Turnen", people: ["m"] }),
+    appointment("13:15", "14:00", { title: "Mittagessen" }),
+  ];
+
+  it("announces both, each addressed to its own person", () => {
+    expect(said(parallel(), at("10:30"), home())).toEqual([
+      "Es ist Dienstagmorgen.",
+      "Emma, jetzt ist Kindergarten.",
+      "Mia, jetzt ist Turnen.",
+      "Danach kommt Mittagessen.",
+    ]);
+  });
+
+  it("counts two that fill the same hour as side by side, not as a bracket", () => {
+    /* Neither is wider than the other at either end, so neither is the thing the
+       other is inside of. This is the household's own case at its plainest. */
+    const same = [appointment("09:00", "10:00", { title: "Kindergarten", people: ["e"] }),
+      appointment("09:00", "10:00", { title: "Turnen", people: ["m"], id: "turnen" })];
+    expect(said(same, at("09:10"), home()).slice(1, 3))
+      .toEqual(["Emma, jetzt ist Kindergarten.", "Mia, jetzt ist Turnen."]);
+  });
+
+  it("says the day first and keeps the order of the day for the two of them", () => {
+    /* The shape is what is learned here: the day sentence opens every press, and
+       the two *now* sentences follow in the order the day has them in. */
+    const lines = said(parallel(), at("10:30"), home());
+    expect(lines[0]).toBe("Es ist Dienstagmorgen.");
+    expect(lines.indexOf("Emma, jetzt ist Kindergarten.")).toBeLessThan(lines.indexOf("Mia, jetzt ist Turnen."));
+  });
+
+  it("rings each card under its own sentence and no other", () => {
+    /* The board lifts the card a sentence is about while it is being said, so
+       with two of them each has to point at its own — a card still lit under the
+       following sentence points at the wrong thing. */
+    const lines = announce(parallel(), at("10:30"), home());
+    expect(lines.map(line => line.about))
+      .toEqual([undefined, "09:00-Kindergarten", "10:00-Turnen", "13:15-Mittagessen"]);
+  });
+
+  it("does not offer as coming what is already being said as happening", () => {
+    /* *Danach* has to be after both of them. A bracket that outlasts only the
+       first would be announced as resuming while the second is still running. */
+    const lines = said(parallel(), at("10:30"), home());
+    expect(lines).not.toContain("Danach kommt wieder Turnen.");
+    expect(lines.filter(line => line.includes("Turnen"))).toHaveLength(1);
+  });
+
+  it("measures the wait from the later of the two ends", () => {
+    /* Kindergarten is over at twelve and Turnen runs to one. What the child is
+       waiting through is the whole busy stretch, so a meal a quarter of an hour
+       after the second one ends is *danach* — and not "nichts geplant", which is
+       what measuring from the first end would have said. */
+    expect(said(parallel(), at("10:30"), home())[3]).toBe("Danach kommt Mittagessen.");
+  });
+
+  it("still says what resumes around both of them", () => {
+    /* A Kita day with two different hours inside it, overlapping each other. The
+       bracket outlasts both, so it is still what comes next. */
+    const week = [appointment("08:45", "15:00", { title: "Kita" }),
+      appointment("11:00", "12:00", { title: "Turnen", people: ["m"] }),
+      appointment("11:30", "12:30", { title: "Musik", people: ["e"] })];
+    expect(said(week, at("11:40"), home())).toEqual([
+      "Es ist Dienstagmorgen.", "Mia, jetzt ist Turnen.", "Emma, jetzt ist Musik.", "Danach kommt wieder Kita.",
+    ]);
+  });
+
+  it("falls back to one, and to no name at all, past the ceiling", () => {
+    /* Three sentences apiece is a schedule being read out, so past two the board
+       says the one the old rule picked. It drops the address with the others: a
+       board that names one child and silently leaves out two is worse than one
+       that names nobody. */
+    const three = [appointment("09:00", "12:00", { title: "Kindergarten", people: ["e"] }),
+      appointment("09:30", "12:30", { title: "Turnen", people: ["m"] }),
+      appointment("10:00", "13:00", { title: "Musik", people: ["e"], id: "musik" })];
+    expect(said(three, at("10:30"), home()))
+      .toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Musik.", "Heute ist nichts mehr geplant."]);
+  });
+
+  it("keeps the name where the third thing is a bracket rather than a third place", () => {
+    /* Three running is not three side by side. A Kita around two parallel hours
+       leaves two innermost, which is under the ceiling, and both are addressed. */
+    const week = [appointment("08:45", "15:00", { title: "Kita" }),
+      appointment("11:00", "12:00", { title: "Turnen", people: ["m"] }),
+      appointment("11:30", "12:30", { title: "Musik", people: ["e"] })];
+    expect(said(week, at("11:40"), home()).slice(1, 3))
+      .toEqual(["Mia, jetzt ist Turnen.", "Emma, jetzt ist Musik."]);
+  });
 });
 
 describe("what comes next", () => {
@@ -286,6 +401,9 @@ describe("what is never said", () => {
     const week = [
       appointment("07:30", "08:15", { title: "Frühstück" }),
       appointment("08:45", "14:00", { title: "Kita", people: ["b"] }),
+      /* Beside the Kita rather than inside it, so the sweep walks the two-at-once
+         sentences as well — two of them want no clip the one wanted. */
+      appointment("13:00", "15:30", { title: "Turnen", people: ["o"] }),
       appointment("15:00", "17:00", { title: undefined, symbols: [], options: ["s", "p"] }),
       appointment("18:00", "19:00", { title: "Abendessen", options: ["s"], chosen: "s" }),
       appointment(undefined, undefined, { symbols: [], people: ["b", "o"] }),

@@ -77,6 +77,13 @@ Predictability is the whole design — the child learns the button by hearing th
 same shape every time — so the choice of what to say is made without any state
 and cannot come out differently on two presses a minute apart.
 
+**The *now* slot holds two sentences where two things genuinely run beside each
+other**, and that is the one place the count widens — to four, on the days it
+happens. What is learned here is the order and not the number: the day still
+opens every press, *now* still follows it, *next* still comes last. A household
+with one child never hears the fourth sentence at all, and one with two hears it
+on the afternoons when there are two places to be.
+
 **Day → now → next**, and a fourth after them where the household is going
 away. With one exception, which outranks all of it:
 
@@ -101,7 +108,7 @@ facts cost one line.
 
 **Now** — what the board draws as the lifted card.
 
-**Two at once: the innermost is announced.** A therapy hour inside a Kita day is
+**Nested: the innermost is announced.** A therapy hour inside a Kita day is
 what the child is in; the Kita is the bracket around it. The one that began last
 wins, and of two that began together the one that ends first — so the specific
 thing is spoken and the bracket waits. It used to be the earlier start, which is
@@ -109,11 +116,40 @@ nearly always the bracket, so an hour that always falls inside another was never
 announced at all, on any press, all year. When the inner one ends the bracket
 resumes, and that is what comes next: *Danach kommt wieder Kita.*
 
+**Side by side: both are announced, one sentence each.** That rule above was
+written for nesting, and it did not foresee this — it reduced every parallel
+moment to one appointment, which is right when one of them is the bracket around
+the other and meaningless when neither contains the other. Two children, two
+places, the same hour: there is no innermost there, so the sort picked one of
+them and the other was never spoken. On this board that is worse than a missing
+sentence, because the *now* sentence addresses a child by name where the
+appointment concerns exactly one — so it said *Emma, jetzt ist Kindergarten* and
+left Mia out of a sentence that was about her. A board that names one child and
+silently omits the other is worse than a board that names nobody.
+
+**What separates the two is containment, and nothing else.** One appointment is
+the bracket around another where it starts no later and ends no earlier on the
+grid the board draws them on, and is genuinely wider at one end or the other.
+Everything else is side by side, two that fill exactly the same hour included —
+those bracket nothing, and they are the household's own case at its plainest.
+
+**And there is a ceiling of two.** Past it the announcement is a schedule being
+read out. It is a lower number than the three that stops a choice from naming
+its cards, deliberately: there the ceiling counts words in one list, and here it
+counts whole sentences. Past two the board says the single innermost the old
+rule picked — and says it *without the name*. An address is a promise that the
+sentence is for you, and it is a false one the moment two other things are being
+left out; so the ceiling takes the sentences and the address together, and what
+is left is a plain *Jetzt ist Turnen*: no worse than this board managed all
+along, and honest about being less than the whole of it.
+
 | when | said |
 | --- | --- |
 | an appointment is running | *Jetzt ist Frühstück.* |
 | it concerns exactly one person | *Mia, jetzt ist Turnen.* |
 | it ends within one grid step | *Frühstück ist gleich fertig.* |
+| two run beside each other | *Emma, jetzt ist Kindergarten. Mia, jetzt ist Turnen.* |
+| more than two do | the innermost of them, and no name |
 | nothing is running | *Gerade ist nichts geplant.* |
 
 Addressing one child by name is the difference between an announcement and
@@ -195,6 +231,15 @@ child waits through the gap after Kita, never through Kita — so a Turnen at
 quarter past two, following a Kita that ends at two, is *danach* at nine in the
 morning, and a supper at six is not. *Gleich* is the one word that stays on the
 wall clock, because it is a promise about how long the child is standing there.
+
+**Where two run beside each other it is the later of the two ends**, and *next*
+means after both of them. What the child waits through is the whole busy stretch,
+so a meal a quarter of an hour after the second one finishes is *danach* for
+both children — and measuring from the first end instead would have answered
+*danach ist nichts geplant* with a meal fifteen minutes off. The same rule keeps
+*Danach kommt wieder Kita* truthful: a bracket is only what comes next if it
+outlasts every sentence the *now* slot is saying, and what is being announced as
+happening is never also offered as coming.
 
 **Choice, while it is running** — the whole announcement, alone.
 
@@ -416,6 +461,13 @@ is about none, and so is *danach ist nichts geplant* — and the board follows t
 one sentence to the next: nothing, then the running card, then the one that is
 coming. A card still lit under the following sentence would point at the wrong
 thing, which is worse than pointing at nothing.
+
+That is also what makes two *now* sentences readable rather than confusing. Two
+things are running, but only one of them is being said at a time, so the ring
+moves from the first card to the second as the sentences go by and never lights
+both at once. The sound says which child, the ring says which card, and they say
+it in the same moment — which is most of how a child who cannot yet follow a
+sentence finds out what it was about.
 
 A ring rather than a fill, because the card's own colour is already saying
 whether it is over, now or ahead and must not have to give that up. The ring is
