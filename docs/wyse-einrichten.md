@@ -31,15 +31,25 @@ kommt aus dem Zwischenspeicher.
 Das Abbild und seine Prüfsumme holen:
 
 ```bash
-cd ~/Downloads && curl -fLO https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.6.0-amd64-netinst.iso
+cd ~/Downloads && curl -fLO "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/$(curl -sL https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/ | grep -oE 'debian-[0-9.]+-amd64-netinst\.iso' | head -1)"
 ```
+
+Die Nummer wird geholt statt hier hingeschrieben, weil Debian etwa alle zwei
+Monate ein Punktrelease herausgibt und `current/` dann nur noch das neue enthält.
+Eine feste Nummer in dieser Datei ist also keine Genauigkeit, sondern ein
+404 mit Verfallsdatum — diese Anleitung ist in den ersten zehn Tagen einmal
+hineingelaufen.
+
+Die Prüfsumme kommt aus derselben Quelle wie das Abbild, und deshalb prüft sie
+den Transportweg und nicht die Herkunft:
 
 ```bash
-echo "65273beed27b2df543b68b65630ba525cfbad8df2b12035732b2dff87d6664e7  debian-13.6.0-amd64-netinst.iso" | shasum -a 256 -c
+cd ~/Downloads && iso=$(ls -t debian-*-amd64-netinst.iso | head -1) && curl -sL https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS | grep " $iso$" | shasum -a 256 -c
 ```
 
-Kommt dort nicht `OK`, ist die Datei unbrauchbar — noch einmal laden, nicht
-weitermachen.
+Kommt dort nicht `OK`, ist die Datei unterwegs kaputtgegangen — noch einmal
+laden, nicht weitermachen. Sonst merkst du es erst, wenn der Wyse nicht bootet,
+und suchst den Fehler im BIOS.
 
 Dann den Stick beschreiben. **Der Datenträgername muss stimmen**, sonst
 überschreibt der Befehl die falsche Platte: erst auflisten, den Stick an seiner
@@ -50,7 +60,7 @@ diskutil list external
 ```
 
 ```bash
-diskutil unmountDisk /dev/diskN && sudo dd if=~/Downloads/debian-13.6.0-amd64-netinst.iso of=/dev/rdiskN bs=4m status=progress
+cd ~/Downloads && iso=$(ls -t debian-*-amd64-netinst.iso | head -1) && diskutil unmountDisk /dev/diskN && sudo dd if="$iso" of=/dev/rdiskN bs=4m status=progress
 ```
 
 `rdiskN` mit `r` ist die rohe Variante und um ein Vielfaches schneller als
@@ -72,8 +82,17 @@ Beim Einschalten **F2** für das Setup, **F12** für ein einmaliges Startmenü.
 
 ## 3 — Debian installieren
 
-Der Standardweg, mit drei Entscheidungen, auf die es ankommt:
+Der Standardweg, mit vier Entscheidungen, auf die es ankommt:
 
+- **Tastaturbelegung**: die, die deine Tastatur *körperlich* hat. Das ist keine
+  Geschmacksfrage, sondern die Stelle, an der diese Installation am teuersten
+  scheitert: unter deutscher Belegung mit einer US-Tastatur wird aus dem Minus
+  ein `ß`, `y` und `z` tauschen die Plätze, und jeder Befehl auf der Notkonsole
+  antwortet nur mit seiner Hilfeseite. Schlimmer ist, was du dabei *nicht* siehst
+  — ein Passwort wird als Sternchen angezeigt und landet verdreht in der
+  Datenbank. Wer es merkt, nachdem der Installer weitergelaufen ist, geht mit
+  `<Zurück>` ins Hauptmenü und ruft **Tastatur konfigurieren** und danach
+  **Benutzer und Passwörter einrichten** noch einmal auf.
 - **Netzwerk**: das WLAN im Installationsprogramm auswählen und die Zugangsdaten
   eintragen. Es schreibt sie nach `/etc/network/interfaces` und
   `/etc/wpa_supplicant/`, und damit steht das WLAN nach jedem Neustart von selbst.
@@ -83,11 +102,55 @@ Der Standardweg, mit drei Entscheidungen, auf die es ankommt:
   und *standard system utilities* anwählen. Der SSH-Server ist der Grund, dass du
   den Rest vom Mac aus tippen kannst statt vor der Wand zu stehen.
 
-Nach dem Neustart vom Mac aus hineingehen:
+### Wenn der Spiegelserver „ungültig" heißt
+
+`Ungültiger Archiv-Spiegel` bedeutet fast nie, dass mit dem Spiegel etwas ist.
+Bevor du einen anderen probierst, miss nach: **Alt+F2**, Enter, und dort
+
+```
+wget http://deb.debian.org/debian/dists/trixie/Release
+```
+
+Lädt das durch — und das tut es meistens —, dann ist Netz, DNS, Route und Uhr in
+Ordnung, und der Fehler steckt im Installer. Der häufigste Grund ist dann das
+**Proxy-Feld**: der Installer schickt jeden Abruf durch einen dort eingetragenen
+Proxy, die Notkonsole nicht. Ein einzelnes hineingerutschtes Zeichen, und alles
+scheitert außer dem Test, den du gerade gemacht hast. Feld mit Backspace
+durchwischen, auch wenn es leer aussieht.
+
+Hilft das nicht, hör auf zu suchen: **„Einen Netzwerk-Spiegel verwenden?" →
+„Nein"**. Das Grundsystem liegt vollständig auf dem Stick. Du verlierst dabei
+nur `openssh-server`, und den holst du nach dem ersten Start an der Konsole nach
+— siehe unten.
+
+### Hineinkommen
+
+`wochenwerk.local` funktioniert **noch nicht**: der Name braucht `avahi-daemon`,
+und eine Installation ohne Desktop bringt ihn nicht mit. Also an der Konsole
+anmelden und die Adresse ablesen:
+
+```
+hostname -I
+```
+
+Und vom Mac aus mit dieser Adresse hinein:
 
 ```bash
-ssh wochenwerk@wochenwerk.local
+ssh wochenwerk@192.168.0.171
 ```
+
+Wurde ohne Netzwerk-Spiegel installiert, fehlt dort noch der SSH-Server. Dann
+zuerst an der Konsole, als `root` (`su -`):
+
+```
+echo "deb http://deb.debian.org/debian trixie main non-free-firmware" > /etc/apt/sources.list
+echo "deb http://deb.debian.org/debian trixie-updates main non-free-firmware" >> /etc/apt/sources.list
+echo "deb http://security.debian.org/debian-security trixie-security main non-free-firmware" >> /etc/apt/sources.list
+apt update && apt install openssh-server avahi-daemon
+```
+
+Danach stimmt auch `wochenwerk.local`, und der Rest dieser Anleitung läuft vom
+Mac aus.
 
 ## 4 — Was das Gerät braucht
 
