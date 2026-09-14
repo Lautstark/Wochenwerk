@@ -166,21 +166,75 @@ Medientasten abfangen.
 
 ## 5 — Ton
 
-Ausgabe wählen und prüfen — am Monitor über HDMI oder analog, je nachdem, wo die
-Lautsprecher hängen:
+**Das hier kostet einen halben Tag, wenn man es rät statt misst.** Die Kette hat
+vier Stufen, und drei davon standen bei der ersten Einrichtung falsch, ohne dass
+irgendwo ein Fehler erschien — es war nur leise.
 
-```bash
+### Zuerst messen, wohin der Ton überhaupt geht
+
+Nicht „hört man etwas", sondern: welches Gerät öffnet der Browser? Während eine
+Ansage läuft:
+
+```
+for p in /proc/[0-9]*; do for fd in $p/fd/*; do t=$(readlink "$fd" 2>/dev/null) || continue; case "$t" in /dev/snd/*) echo "$(cat $p/comm) -> $t";; esac; done; done | sort -u
+```
+
+Steht dort `pcmC0D0p`, geht der Ton auf die **Klinkenbuchse**. `pcmC0D3p` ist der
+erste HDMI-/DisplayPort-Ausgang, also der Monitor. Das war hier der ganze Fehler:
+der Ton lief auf eine Buchse, an der nichts hing, und was zu hören war, war
+Übersprechen.
+
+### Das Profil der Soundkarte
+
+PipeWire bietet nur an, was das Profil freischaltet, und die Vorgabe ist „nur
+analog" — der DisplayPort-Ausgang taucht in `wpctl status` dann gar nicht erst
+auf. Profile anzeigen und umstellen:
+
+```
 wpctl status
+pw-cli enum-params <geräte-id> EnumProfile | grep -E '^\s+(Int|String) ' | paste - - - -
+wpctl set-profile <geräte-id> 4
 ```
 
-```bash
-speaker-test -c2 -t wav -l1
+Index 4 ist `output:hdmi-stereo`, der *erste* HDMI-Ausgang — der, der `pcmC0D3p`
+entspricht. Danach erscheint die Senke „Digital Stereo (HDMI)", und erst dann
+lohnt es sich, an Lautstärken zu drehen.
+
+```
+wpctl set-default <senken-id>
+wpctl set-volume <senken-id> 1.4
 ```
 
-Kommt nichts, ist die falsche Senke voreingestellt: die Nummer aus `wpctl status`
-nehmen und `wpctl set-default <nummer>` setzen. Erst weitergehen, wenn hier
-wirklich etwas zu hören ist — sonst suchst du später einen Fehler im Board, der
-im Kabel liegt.
+Über 1.0 verstärkt PipeWire in Software. 1.4 trägt Sprache durch einen Raum, ohne
+zu verzerren; wo es rau wird, ist 1.2 die sichere Grenze.
+
+### Die Lautstärke des Monitors, ohne an seine Knöpfe zu kommen
+
+Im Rahmen sind die Tasten des Bildschirms nicht mehr erreichbar — und ausgerechnet
+dort stand die Lautstärke auf **20 von 100**. Bildschirme nehmen Steuerbefehle
+aber über dieselbe Leitung entgegen, über die sie ihr Bild bekommen:
+
+```
+sudo apt install ddcutil
+sudo modprobe i2c-dev && echo i2c-dev | sudo tee /etc/modules-load.d/i2c-dev.conf
+sudo usermod -aG i2c $USER
+ddcutil detect
+ddcutil getvcp 62     # Lautstärke lesen
+ddcutil setvcp 62 100 # und aufdrehen
+```
+
+Damit ist das ganze Monitormenü von der Kommandozeile aus erreichbar, nicht nur
+die Lautstärke — Helligkeit ist `10`, Kontrast `12`, Eingangswahl `60`. Für ein
+Gerät, dessen Bedienknöpfe hinter Holz liegen, ist das keine Spielerei, sondern
+die einzige Tür.
+
+### Was hier *nicht* hilft
+
+Eine `~/.asoundrc` mit `softvol` oder einem LADSPA-Kompressor: sobald PipeWire
+läuft, redet Chromium mit PipeWire und nicht mit ALSA, und die Datei ist
+wirkungslos. Sie wurde hier gebaut, bevor gemessen war, wohin der Ton geht — und
+wieder entfernt, weil eine Stufe, die nichts tut, die nächste Person kostet, die
+das Gerät verstehen will.
 
 ## 6 — Erst einrichten, dann zumauern
 
