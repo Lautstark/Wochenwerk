@@ -184,7 +184,7 @@ export function openSettings(say: (line: string) => void) {
   const data = makePanel("Löschen");
 
   const handle = openDialog({
-    title: "Einstellungen", wide: true,
+    title: "Einstellungen", panels: true,
     body: [ablage.node, keeping.node, symbols.node, voice.node, speech.node, cards.node, people.node, look.node, data.node],
     footer: [spacer(), button("Fertig", "primary", () => handle.close())],
     onClose: () => { keepingPanel?.dispose(); symbolsPanel.dispose(); picker.dispose(); },

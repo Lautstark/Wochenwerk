@@ -26,12 +26,20 @@ html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font, ui-sans-serif, system-ui, sans-serif); }
 #app { height: 100%; }
 
-/* components.css draws both widths since 1.25.0 — `wide` used to be a class it
-   marked and did not style, which is why this file had a figure for it. What is
-   left is the one place wochenwerk differs on purpose: its wide sheet is the
-   settings dialog, a column of panels rather than a grid of cards, and 900px is
-   where a line of German stops being comfortable to read. */
-dialog.sheet { --sheet-w-wide: min(900px, 94vw); }
+/* The figure that used to live here is the family's now.
+   
+   This file carried `--sheet-w-wide: min(900px, 94vw)` with the reason beside
+   it: wochenwerk's wide sheet is the settings dialog, a column of panels rather
+   than a grid of cards, and 900px is where a line of German stops being
+   comfortable to read. That reason was right and it was the only one written
+   down anywhere — while bildhaft, mitreden and vorlaut-editor showed the same
+   column of panels at 600px because nobody had asked the question there.
+   
+   So it became `--sheet-w-panels` in components.css and the dialogs here ask
+   for it by name. Nothing about them moves; what moves is the other three.
+   design/docs/conventions.md 4.14 has the whole of it, including why
+   `--sheet-w-wide` stays at 1060px for the one surface that is a grid of
+   cards. */
 
 .shell { --gutter: 3.6rem; height: 100%; max-width: 1700px; margin: 0 auto; padding: 14px 18px 8px;
   display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; min-height: 0; }

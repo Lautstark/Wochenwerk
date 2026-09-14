@@ -297,7 +297,7 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
   const ansage = el("label", { class: "field-row" }, ansageLabel, speech.node);
 
   const handle = openDialog({
-    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", wide: true,
+    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", panels: true,
     /* Two groups, in this order: when it happens, then what the board does with
        it. What is *said* closes the second group rather than opening it — it is
        read off what is shown, so it cannot be settled before the symbol or the
