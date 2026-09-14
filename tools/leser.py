@@ -4,11 +4,17 @@ Sie kennt keine Termine, speichert nichts und beantwortet keine Fragen. Sie sagt
 zwei Dinge — welche Karte aufliegt und dass keine mehr aufliegt — und ist damit ein
 Gerätetreiber und kein Server.
 
-Gegen PC/SC selbst, über das PCSC-Framework, das macOS mitbringt; kein Paket, kein
-Build. `SCardGetStatusChange` wartet, bis sich etwas ändert, also kostet Warten
-nichts und die Meldung kommt in dem Moment, in dem die Karte aufliegt oder weg ist.
-Die UID holt die Pseudo-APDU FF CA 00 00 00, die der PN532 im ACR122U beantwortet,
-ohne dass die Karte irgendein Dateisystem haben müsste.
+Gegen PC/SC selbst, ohne Paket und ohne Build — aber „ohne Paket" heißt auf den
+beiden Maschinen etwas Verschiedenes. macOS bringt PC/SC im System mit, da ist
+wirklich nichts zu tun. Linux nicht: dort ist PC/SC der Dienst `pcscd` mit dem
+CCID-Treiber, und der muss installiert sein und laufen. Was hier fehlt, ist nur das
+Python-Drumherum; die Hälfte, die den Leser anfasst, ist auf dem Wandgerät eine
+Installation. Siehe docs/wyse-einrichten.md.
+
+`SCardGetStatusChange` wartet, bis sich etwas ändert, also kostet Warten nichts und
+die Meldung kommt in dem Moment, in dem die Karte aufliegt oder weg ist. Die UID
+holt die Pseudo-APDU FF CA 00 00 00, die der PN532 im ACR122U beantwortet, ohne dass
+die Karte irgendein Dateisystem haben müsste.
 
     python3 leser.py [port]
 
@@ -23,11 +29,26 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-pcsc = ctypes.CDLL("/System/Library/Frameworks/PCSC.framework/PCSC")
+# Dieselbe Schnittstelle, zwei Rechenbreiten. PC/SC stammt von Windows, und beide
+# Portierungen haben `LONG` so übersetzt, wie es auf ihrer Plattform naheliegend war:
+# Apple hat es in `wintypes.h` auf `int32_t` festgenagelt, pcsc-lite nimmt das C-`long`
+# — und das ist unter Linux auf x86_64 64 Bit breit. Daran hängt nicht nur der
+# Rückgabewert, sondern über `DWORD` auch `SCARDCONTEXT`, `SCARDHANDLE` und die Lage
+# jedes einzelnen Feldes in READERSTATE. Die falsche Breite ist deshalb kein Fehler,
+# den man sieht: die Aufrufe gelingen weiter und liefern Müll.
+#
+# Also eine Datei und zwei Breiten, entschieden beim Laden. Zwei Dateien wären der
+# andere Weg, und der falsche: geteilt ist hier alles außer sechs Zeilen, und was der
+# Haushalt am Mac plant, soll derselbe Leser sein wie der an der Wand.
+if sys.platform == "darwin":
+    pcsc = ctypes.CDLL("/System/Library/Frameworks/PCSC.framework/PCSC")
+    LONG, ULONG = ctypes.c_int32, ctypes.c_uint32
+else:
+    pcsc = ctypes.CDLL("libpcsclite.so.1")
+    LONG, ULONG = ctypes.c_long, ctypes.c_ulong
 
-# Apple typedef'd LONG/ULONG als int32/uint32 — nicht wie pcsc-lite auf Linux.
-DWORD = ctypes.c_uint32
-SCARDCONTEXT, SCARDHANDLE = ctypes.c_int32, ctypes.c_int32
+DWORD = ULONG
+SCARDCONTEXT = SCARDHANDLE = LONG
 
 SCARD_SCOPE_SYSTEM = 2
 SCARD_SHARE_SHARED = 2
@@ -35,24 +56,67 @@ SCARD_PROTOCOL_T0, SCARD_PROTOCOL_T1 = 1, 2
 SCARD_LEAVE_CARD = 0
 SCARD_STATE_UNAWARE, SCARD_STATE_PRESENT = 0x0000, 0x0020
 TIMEOUT = 0x8010000A
+MAX_ATR_SIZE = 33
+
+
+# `#pragma pack(1)` steht in pcsclite.h über beiden Strukturen, auf beiden Plattformen
+# — also byteweise gepackt und nicht so, wie ctypes von sich aus ausrichten würde. Die
+# Feldpositionen kämen hier zufällig auch ohne das hin, weil jedes Feld schon auf
+# seiner natürlichen Grenze liegt; die Größe nicht, und an der hängt der Abstand
+# zwischen zwei READERSTATE in einem Feld. Wir fragen heute nur einen Leser ab, aber
+# ein zweiter wäre eine Zeile — und dann wäre es ein Fehler, der aussieht wie Pech.
+#
+# `_layout_` steht dabei ausgeschrieben, weil ctypes sonst warnt und ab Python 3.19
+# abbricht: es will wissen, nach wessen Regeln „gepackt" gemeint ist. Und es kennt
+# `_pack_` nur unter `"ms"` — `"gcc-sysv"`, was den Headern eigentlich entspräche,
+# lehnt es zusammen mit `_pack_` rundheraus ab. Das ist hier kein Kompromiss: bei
+# Packung 1 bleibt in der Struktur keine einzige Lücke übrig, über die die beiden
+# Modelle verschiedener Meinung sein könnten. Sie unterscheiden sich erst weiter oben,
+# bei Bitfeldern und gröberen Packungen, und beides kommt hier nicht vor.
+# Ältere Pythons kennen `_layout_` gar nicht und übergehen es; auch richtig.
+LAYOUT = "ms"
 
 
 class READERSTATE(ctypes.Structure):
+    _pack_ = 1
+    _layout_ = LAYOUT
     _fields_ = [
         ("szReader", ctypes.c_char_p),
         ("pvUserData", ctypes.c_void_p),
         ("dwCurrentState", DWORD),
         ("dwEventState", DWORD),
         ("cbAtr", DWORD),
-        ("rgbAtr", ctypes.c_ubyte * 33),
+        ("rgbAtr", ctypes.c_ubyte * MAX_ATR_SIZE),
     ]
 
 
 class IO_REQUEST(ctypes.Structure):
+    _pack_ = 1
+    _layout_ = LAYOUT
     _fields_ = [("dwProtocol", DWORD), ("cbPciLength", DWORD)]
 
 
-# ctypes gibt die Rückgabewerte vorzeichenbehaftet zurück; PC/SC-Codes sind es nicht.
+# Die Signaturen ausgeschrieben, statt sie ctypes raten zu lassen — denn ctypes rät
+# 32 Bit. Ohne `restype` liest es jeden Rückgabewert als `int`, ohne `argtypes` schiebt
+# es jede Python-Zahl als `int` in ein Register, in dem unter Linux ein 64 Bit breites
+# `DWORD` erwartet wird. Auf macOS ist beides zufällig richtig, und genau deshalb steht
+# es hier: was nur auf einer der beiden Maschinen stimmt, muss hingeschrieben werden.
+BYTES = ctypes.POINTER(ctypes.c_ubyte)
+for name, args in {
+    "SCardEstablishContext": [DWORD, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(SCARDCONTEXT)],
+    "SCardListReaders": [SCARDCONTEXT, ctypes.c_char_p, ctypes.c_char_p, ctypes.POINTER(DWORD)],
+    "SCardConnect": [SCARDCONTEXT, ctypes.c_char_p, DWORD, DWORD, ctypes.POINTER(SCARDHANDLE), ctypes.POINTER(DWORD)],
+    "SCardTransmit": [SCARDHANDLE, ctypes.POINTER(IO_REQUEST), BYTES, DWORD, ctypes.POINTER(IO_REQUEST), BYTES, ctypes.POINTER(DWORD)],
+    "SCardDisconnect": [SCARDHANDLE, DWORD],
+    "SCardGetStatusChange": [SCARDCONTEXT, DWORD, ctypes.POINTER(READERSTATE), DWORD],
+}.items():
+    function = getattr(pcsc, name)
+    function.argtypes, function.restype = args, LONG
+
+
+# PC/SC-Codes sind vorzeichenlose 32-Bit-Zahlen, kommen aber verschieden hier an: als
+# negatives `int32` auf macOS, als positives `long` unter Linux, wo dieselben Bits in
+# 64 Bit passen. Beide Male sind es dieselben unteren 32 Bit, und die sind gemeint.
 def rc(code):
     return code & 0xFFFFFFFF
 
@@ -130,17 +194,18 @@ class Slot:
         print(f"IN {uid}" if uid else "OUT", flush=True)
 
 
-def poll(slot):
+def attach():
+    """Kontext und Leser — oder gar nichts, und zwar sofort."""
     context = SCARDCONTEXT(0)
     check("SCardEstablishContext",
           pcsc.SCardEstablishContext(SCARD_SCOPE_SYSTEM, None, None, ctypes.byref(context)))
     found = readers(context)
     if not found:
-        print("kein Leser", flush=True)
-        return
-    reader = found[0]
-    print(f"Leser: {reader.decode()}", flush=True)
+        raise OSError("kein Leser")
+    return context, found[0]
 
+
+def poll(slot, context, reader):
     state = (READERSTATE * 1)()
     state[0].szReader = reader
     state[0].dwCurrentState = SCARD_STATE_UNAWARE
@@ -190,13 +255,54 @@ class Bridge(BaseHTTPRequestHandler):
         pass
 
 
+def watch(slot, context, reader, server):
+    """Der Leser — und was es heißt, wenn er aufhört.
+
+    Endet die Beobachtung, aus welchem Grund auch immer — kein Leser angeschlossen,
+    `pcscd` nicht erreichbar, das Gerät im Betrieb abgezogen —, dann endet die Brücke
+    mit ihr. Das ist keine Härte, sondern die einzige Art, dem Board „Leser antwortet
+    nicht" zu sagen: es liest genau das am Abriss des Stroms ab (src/reader.ts,
+    src/main.ts). Eine Brücke, die stattdessen weiterliefe und dabei „keine Karte"
+    meldete, behauptete das Gegenteil von dem, was los ist — und das ist die eine
+    Verwechslung, die docs/hardware.md ausdrücklich ausschließt, weil an ihrem Ende
+    jede gegebene Antwort auf einmal zurückgenommen wäre.
+
+    Neu gestartet wird nicht hier, sondern draußen, von der Sitzung, die sie gestartet
+    hat (~/.xinitrc auf dem Wandgerät). Steckt der Leser wieder, ist der Strom ein paar
+    Sekunden später zurück, und das Board merkt es von selbst: `EventSource` verbindet
+    sich ohne Zutun neu.
+    """
+    try:
+        poll(slot, context, reader)
+    except OSError as error:
+        print(error, flush=True)
+    finally:
+        # Von außerhalb, sonst legt sich `shutdown` mit `serve_forever` schlafen.
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+
 def main(port=8765):
+    # Erst den Leser suchen, dann den Port öffnen — in dieser Reihenfolge, und sie ist
+    # der ganze Unterschied zwischen zwei Meldungen, die das Board auseinanderhält: eine
+    # Brücke, die es nie gab, ist ein Aufbau ohne Leser und keine Störung; eine, die
+    # einmal geantwortet hat und dann weg ist, ist eine (src/reader.ts). Das hängt
+    # daran, dass eine Brücke ohne Leser gar nicht erst antwortet. Bände sie zuerst den
+    # Port und ginge dann, stünde sie beim Neuversuch alle fünf Sekunden kurz Rede — und
+    # an der Wand blinkte im selben Takt „Leser antwortet nicht" auf und wieder weg.
+    context, reader = attach()
+    print(f"Leser: {reader.decode()}", flush=True)
     slot = Slot()
     Bridge.slot = slot
-    threading.Thread(target=poll, args=(slot,), daemon=True).start()
+    server = ThreadingHTTPServer(("127.0.0.1", port), Bridge)
+    threading.Thread(target=watch, args=(slot, context, reader, server), daemon=True).start()
     print(f"Brücke auf http://localhost:{port}/leser", flush=True)
-    ThreadingHTTPServer(("127.0.0.1", port), Bridge).serve_forever()
+    server.serve_forever()
+    raise SystemExit(1)
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 8765)
+    try:
+        main(int(sys.argv[1]) if len(sys.argv) > 1 else 8765)
+    except OSError as error:
+        print(error, flush=True)
+        raise SystemExit(1)

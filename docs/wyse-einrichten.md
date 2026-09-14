@@ -428,11 +428,117 @@ aufgedruckte Wort mit — beides will ein Board für ein Kind nicht, das noch ni
 liest. Die Vorgabe sortiert nur die Suche und schließt nichts aus; was schon in
 der Woche steht, behält sein Bild.
 
-## Was hier noch nicht steht
+## 10 — Der Kartenleser
 
-**Der Leser.** `tools/leser.py` ist die Brücke vom ACR122U in die Seite und
-gehört als `systemd`-Dienst neben Chromium. Solange keine Karten im Spiel sind,
-läuft das Board ohne ihn — die Ansage hängt nicht an ihm.
+Der ACR122U hängt am USB des Wyse, und zwischen ihm und der Seite steht
+`tools/leser.py`. Was [hardware.md](hardware.md) an dieser Brücke „standard
+library only" nennt, gilt für das Python; die Hälfte, die den Leser anfasst, ist
+unter Linux eine Installation. macOS bringt PC/SC im System mit, Debian nicht.
+
+### PC/SC installieren
+
+Als `root` (`su -`):
+
+```bash
+apt install --no-install-recommends pcscd libccid pcsc-tools
+```
+
+`pcscd` ist der Dienst, in dem PC/SC auf Linux überhaupt besteht. `libccid` ist
+der Treiber für die Geräteklasse, zu der der ACR122U gehört — ohne ihn läuft der
+Dienst und sieht trotzdem keinen Leser, was beim Suchen die teuerste Kombination
+ist. `pcsc-tools` braucht die Brücke nicht; `pcsc_scan` daraus ist aber das
+Werkzeug, mit dem man in zehn Sekunden weiß, ob ein Fehler vor oder hinter dem
+Python liegt, und das ist es wert.
+
+### Dem Kernel den Leser wegnehmen
+
+Der Teil, der einen Nachmittag kostet, wenn man ihn nicht weiß: **Linux hat einen
+eigenen NFC-Stack, und der ist schneller.** `pn533_usb` erkennt den ACR122U als
+NFC-Gerät und beansprucht ihn, sobald er steckt; `pcscd` findet danach nichts
+mehr und sagt auch nicht, warum. `pcsc_scan` wartet dann auf „the first reader",
+und das sieht aus wie ein defektes Kabel oder ein defekter Leser.
+
+Also die Module aus dem Weg, als `root`:
+
+```bash
+printf 'blacklist pn533_usb\nblacklist pn533\nblacklist nfc\n' > /etc/modprobe.d/blacklist-nfc.conf
+modprobe -r pn533_usb pn533 nfc
+systemctl enable --now pcscd
+```
+
+Beides, und nicht eins von beiden: `modprobe -r` räumt sie jetzt weg, die Datei
+sorgt dafür, dass sie nach einem Stromausfall nicht zurückkommen. Dass es
+gegriffen hat, zeigt
+
+```bash
+pcsc_scan
+```
+
+— dort muss der Leser mit Namen stehen, und eine aufgelegte Karte muss die
+Anzeige sofort ändern. Erst wenn das steht, lohnt es sich, das Python zu starten.
+
+### Die Brücke auf das Gerät bringen
+
+Sie liegt im Wochenwerk, aber das Wandgerät bekommt keine Arbeitskopie davon —
+aus demselben Grund, aus dem das Board aus dem Netz kommt und nicht aus einem
+`git pull` an der Wand. Also eine einzelne Datei, vom Mac aus:
+
+```bash
+scp tools/leser.py wochenwerk@<adresse>:
+```
+
+Es ist dieselbe Datei, die auch am Mac läuft. Sie sucht sich beim Laden aus, ob
+sie Apples PCSC-Framework oder `libpcsclite.so.1` nimmt, und mit der Bibliothek
+die Breite von `LONG`: Apple hat sie auf 32 Bit festgenagelt, pcsc-lite nimmt das
+C-`long`, und das ist hier 64 Bit breit.
+
+### Und sie mit dem Board starten
+
+Kein `systemd`-Dienst, obwohl das der naheliegende Ort wäre und in einer früheren
+Fassung dieser Datei auch so stand. Ein Systemdienst liefe weiter, wenn gar kein
+Board da ist, und überlebte jede Sitzung — was die Brücke meldet, gilt aber nur
+für das Board auf diesem Bildschirm. Sie gehört in die Sitzung, und die steht
+schon in `~/.xinitrc`. Dort vor den `chromium`-Aufruf:
+
+```bash
+while :; do python3 "$HOME/leser.py"; sleep 5; done &
+BRUECKE=$!
+trap 'kill "$BRUECKE" 2>/dev/null; pkill -f "python3 $HOME/leser.py" 2>/dev/null' EXIT
+```
+
+Und aus `exec chromium \` wird `chromium \`. Das `exec` muss weg: es ersetzt
+diese Shell durch Chromium, und dann ist niemand mehr übrig, der die Brücke
+abräumt, wenn Chromium endet. Sie liefe als Waise weiter und säße beim nächsten
+Anmelden noch auf Port 8765, sodass die neue ihn nicht mehr öffnen könnte — aus
+„das Board hat keinen Leser" würde „das Board hatte einmal einen".
+
+Die Schleife ist dabei kein Notnagel gegen Abstürze. Die Brücke **endet**, wenn
+kein Leser da ist, und das ist Absicht: es ist die einzige Art, dem Board „Leser
+antwortet nicht" zu sagen, denn das Board erkennt die Störung am Abriss des
+Stroms und an nichts sonst. Hier draußen ist dasselbe Ende ein Neuversuch alle
+fünf Sekunden, und damit kommt der Strom von selbst zurück, sobald jemand den
+Leser wieder ansteckt.
+
+### Nachsehen, ob es ankommt
+
+Von außen, ohne das Board anzufassen:
+
+```bash
+ssh wochenwerk@<adresse> 'curl -N http://localhost:8765/leser'
+```
+
+Eine schon aufliegende Karte steht dort sofort — die Brücke schickt jedem, der
+sich verbindet, zuerst den aktuellen Stand. Das Auflegen kommt als
+`data: {"uid": "…"}`, das Abnehmen als `data: {"uid": null}`.
+
+Im Board selbst braucht es dafür nichts weiter, und besonders keinen Schalter:
+die Seite kommt über `https://`, der Strom über `http://localhost`, und das ist
+keine gemischte Auslieferung, die Chromium blockiert — `localhost` gilt als
+vertrauenswürdiger Ursprung, egal über welches Protokoll. Nachgemessen ist es
+auch: die Brücke sieht die Verbindung mit `Origin: https://wochenwerk.lautstark.tech`
+hereinkommen.
+
+## Was hier noch nicht steht
 
 **Die Sätze als Dateien.** [speech.md](speech.md) sieht vor, dass der Laptop beim
 Planen jeden Satz rendert und der Wyse nur Dateien abspielt. Gebaut ist das
