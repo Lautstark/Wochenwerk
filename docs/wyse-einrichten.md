@@ -397,6 +397,37 @@ im Chromium-Dialog „Allow on every visit". Die Symbole hängen an derselben
 Erlaubnis und brauchen keine zweite, weil METACOM innerhalb des freigegebenen
 Ordners liegt.
 
+### METACOM auf das Gerät bringen
+
+Der Ordner gehört **neben** den Kalender, ins `Lautstark`-Fach — gesucht wird der
+Ordner, der `METACOM_Symbole` enthält, also `METACOM_9_Desktop` selbst.
+
+Nicht über die SMB-Freigabe kopieren. 68.000 kleine Dateien einzeln über SMB
+dauert Stunden; als ein Datenstrom über SSH sind es Minuten:
+
+```bash
+tar -C ~ -cf - METACOM_9_Desktop | ssh wochenwerk@<adresse> 'tar -C ~/kalender/Lautstark -xf -'
+```
+
+**Danach aufräumen, wenn die Quelle ein Mac war.** `bsdtar` schreibt für jede
+Datei eine `._`-Hülle mit den erweiterten Attributen mit; aus 68.072 Dateien
+werden so 136.559, und die Hüllen zählt der Symbol-Index mit:
+
+```
+ssh wochenwerk@<adresse> "find ~/kalender/Lautstark/METACOM_9_Desktop -name '._*' -delete"
+```
+
+Dann im Kalender **Einstellungen → Symbole → „Nochmal nachsehen"**. Das Indizieren
+von 68.000 Dateien dauert auf einem J4105 ein paar Minuten; danach steht dort
+„67952 Symbole". **Das Board zeigt sie erst nach einem Neuladen** — es hat seine
+Seite geladen, als es den Ordner noch nicht gab.
+
+Zuletzt **Darstellung** auf `PNG_ohne_Rahmen` stellen: METACOM führt dieselben
+Symbole vierfach, und der gerahmte Satz bringt einen schwarzen Rand und das
+aufgedruckte Wort mit — beides will ein Board für ein Kind nicht, das noch nicht
+liest. Die Vorgabe sortiert nur die Suche und schließt nichts aus; was schon in
+der Woche steht, behält sein Bild.
+
 ## Was hier noch nicht steht
 
 **Der Leser.** `tools/leser.py` ist die Brücke vom ACR122U in die Seite und
