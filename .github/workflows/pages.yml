@@ -53,6 +53,19 @@ jobs:
         # release moved no shared CSS. The next one will, and then the drift is
         # a product quietly drawn from an older stylesheet than its siblings.
         run: node node_modules/@lautstark/design/pins.js
+
+      - name: Whether the shared drawings are reaching the page
+        # pins.js above asks whether this product has the right version of
+        # @lautstark/design. This asks the question underneath it: whether it
+        # is using it. A product stylesheet loads after components.css, so a
+        # bare rule of the same name wins and the shared drawing never reaches
+        # the page - and it looks exactly like it worked, because the product
+        # goes on rendering the way it always did.
+        #
+        # Warning only while the four are being cleaned out. It becomes
+        # --strict once this repository reports none, which is the point of
+        # having it: the list is finite now and is meant to stay at zero.
+        run: node node_modules/@lautstark/design/shadows.js
       - name: Types
         run: npm run typecheck
       # `npm test` is tools/no-private.mjs and then vitest. The first is why a
