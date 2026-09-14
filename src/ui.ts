@@ -23,12 +23,11 @@ import type { Props } from "@lautstark/werkzeuge/dom";
 export function field(label: string, input: HTMLElement): HTMLLabelElement {
   return el("label", { class: "field-row" }, el("span", { class: "lbl", text: label }), input);
 }
-/* A box and its words on one line. `field` stacks a label above its control,
-   which is right for something to type in and wrong for something to tick: it
-   leaves the box adrift under a heading it belongs beside. */
-export function check(label: string, box: HTMLInputElement): HTMLLabelElement {
-  return el("label", { class: "check" }, box, el("span", { text: label }));
-}
+/* `check` stood here — a box and its words on one line, against `field`, which
+   stacks a label above its control. It had no callers: every place that ticks
+   something builds a `.choice` label instead, which is the same idea at the size
+   the rest of a dialog is written in. It went with the `.check` rules in
+   kalender.css, since it was the only thing that emitted the class. */
 export function input(type: string, props: Props = {}): HTMLInputElement {
   /* A checkbox is not a field: `.field` is full width, which turns a box into a
      stretched row with its label pushed to the far side. */

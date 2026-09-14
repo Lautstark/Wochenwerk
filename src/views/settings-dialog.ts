@@ -3,7 +3,7 @@ import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from "@lautstark
 import { listVoices } from "@lautstark/stimmquelle";
 import { standing } from "../announce.js";
 import { prepare } from "../speech.js";
-import { button, check, el, field, fill, input, pickFile, spacer } from "../ui.js";
+import { button, el, field, fill, input, pickFile, spacer } from "../ui.js";
 import { dayLabel, type Card, type Person } from "../model.js";
 import { clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
 import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";

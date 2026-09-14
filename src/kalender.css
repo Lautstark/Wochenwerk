@@ -16,6 +16,39 @@
    `.more > summary .section`/`.state`, `.speech-row .field`/`.btn` — and each
    carries its reason where it stands.
 
+   That intersection is now done by machine — `node
+   node_modules/@lautstark/design/shadows.js` — and it names five of those same
+   scoped selectors, which its own header says it should not: "Not `dialog.sheet`,
+   not `a.btn`, not `.speech-row .btn` — a product narrowing a shared name to one
+   place is adding to the drawing rather than replacing it." It reads only the
+   last compound of a selector, so `.more > summary .state` arrives at it as
+   `.state` and a rule that adds to the shared drawing is counted as one that
+   replaces it. The five markers below are those false positives, written down so
+   the count is zero and the next thing it reports is a real one. None of them is
+   an excuse: each was taken out and the elements read back with
+   getComputedStyle first, and every one of them moved something.
+
+   shadows .panel: scoped to `.sheet > .body > .panel:last-of-type`, and the
+     reason stands beside the rule. Measured without it, the last panel is 47px
+     instead of 46 — the hairline is back, over the one the sheet's foot draws.
+   shadows .section: scoped to `.more > summary .section`. components.css draws
+     this name only under `.panel > summary`, and a `.more` fold is not a
+     `.panel` — so nothing shared reaches it and this is the whole drawing, not a
+     second one. Without it the heading falls from --text to --text-dim.
+   shadows .state: scoped to `.more > summary .state`, for the same reason.
+     Without it the line reads at 13.5px instead of 12px and stops truncating:
+     with nine people in it, at 380px wide, the summary row wraps from 34px to
+     50px.
+   shadows .field: scoped to `.speech-row .field`.
+   shadows .btn: scoped to `.speech-row .btn`. The pair is what makes that row a
+     row — the field takes the space, the play button keeps its size — and
+     components.css has no opinion about either, since it draws the two controls
+     and not the row they share. This is the one pair that moves nothing today:
+     at 1280px and at 380px the geometry is identical without them, because
+     `min-width: auto` happens to hold the button at min-content. That is the
+     browser's accident and not a promise, and what it would cost is a control
+     that changes size under the pointer.
+
    The board does not and must not take any of this — it is a display with no
    chrome and keeps its own stylesheet. See ADR 002. */
 @import "@lautstark/design/tokens/wochenwerk.css";
@@ -145,8 +178,13 @@ a.btn { text-decoration: none; }
 .row-of { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .row-of > [hidden] { display: none; }
 .field-row { display: grid; gap: 6px; min-width: 8rem; flex: 1 1 8rem; }
-.check { display: flex; align-items: center; gap: 9px; font-size: 13px; cursor: pointer; }
-.check input { flex: 0 0 auto; margin: 0; }
+/* `.check` was drawn here — a box and its words on one line — and nothing wore
+   it. `check()` in ui.ts was the only thing that emitted the class and had no
+   callers left, so both are gone. Counted on the page rather than reasoned
+   about: with the settings dialog open and the Ablage panel unfolded, zero
+   elements. The name reached shadows.js because components.css carries
+   `.where-panel .check` — the ablage panel's own row, which that rule reaches
+   on its own and by the higher specificity would have reached anyway. */
 /* A field with the switch that replaces it underneath. Two labels, not one
    nested in the other: a checkbox inside the field's own <label> would give the
    box two names and the field none. Standing free the switches read as belonging

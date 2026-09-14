@@ -310,3 +310,57 @@ test("the Löschen panel, unfolded", async ({ page }) => {
   await expect(data.getByRole("button", { name: "Alle Daten löschen" })).toBeVisible();
   await expect(data).toHaveScreenshot("panel-loeschen.png");
 });
+
+/*
+ * The other dialog, and why two small pictures of it are here.
+ *
+ * Everything above is the settings dialog. The appointment dialog was in no
+ * shot at all — and it is where four of the five rules kalender.css still keeps
+ * on a shared name actually draw: `.more > summary .section` and `.state` are
+ * its people fold, `.speech-row .field` and `.btn` are its Ansage row. Taking
+ * those rules out and reading the elements back with getComputedStyle says they
+ * are load-bearing — the heading falls to --text-dim, the state stops
+ * truncating and the row it is in grows a line — and nothing in this repository
+ * would have said a word about any of it. A rule that is only ever checked by
+ * the person who last touched it is the state the shared `.voice*` names were
+ * in when they went dead.
+ *
+ * Elements and not the dialog, for a reason beyond the one above: a new
+ * appointment is dated today, and the Datum, Von and Bis fields are in every
+ * wider shot of it. A baseline with today's date in it is red tomorrow. Neither
+ * of these two elements contains a date, a count or anything else that moves —
+ * with an empty database the fold says „niemand" and the Ansage field is empty
+ * with its placeholder — which is why the shot is drawn this tightly rather
+ * than masked.
+ */
+async function openAppointment(page: Page): Promise<Locator> {
+  await page.goto("/kalender/");
+  await page.getByRole("button", { name: "＋ Termin" }).click();
+  const sheet = page.locator("dialog.sheet");
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+test("the people fold in an appointment, closed", async ({ page }) => {
+  const sheet = await openAppointment(page);
+  const fold = sheet.locator("details.more");
+  /* The two words this holds, asserted for HEADINGS' reason. „niemand" is what
+     an empty draft says, and it is the whole of what the `.state` rule is
+     drawing — so a failure should name it rather than hand over a picture of
+     one line of text. */
+  await expect(fold.locator("summary .section")).toHaveText("Personen");
+  await expect(fold.locator("summary .state")).toHaveText("niemand");
+  await expect(fold).toHaveScreenshot("termin-personen.png");
+});
+
+test("the Ansage row in an appointment", async ({ page }) => {
+  const sheet = await openAppointment(page);
+  const row = sheet.locator(".speech-row");
+  /* Empty, and saying what would be said instead — which for a draft with no
+     name yet is that nothing would be. The placeholder is the only text in this
+     shot and it is a function of the draft rather than of the day. */
+  await expect(row.locator(".field")).toHaveValue("");
+  await expect(row.locator(".field")).toHaveAttribute("placeholder", "Ohne Namen wird nichts gesagt");
+  await expect(row.locator(".btn")).toBeVisible();
+  await expect(row).toHaveScreenshot("termin-ansage.png");
+});
