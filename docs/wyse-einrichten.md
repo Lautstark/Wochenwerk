@@ -370,11 +370,32 @@ der Ordner die Wahrheit für beide Geräte, und was am Laptop geplant wird, steh
 an der Wand — das ist die Anordnung aus
 [ADR 002](decisions/002-browser-only-and-a-shared-folder.md).
 
-Ein offener Punkt dabei: ob Chromium die Ordnerfreigabe über einen Neustart
-hinweg behält oder sie einmal bestätigt haben will. `restore()` fragt nie von
-sich aus, aber `confirm()` existiert für den Fall, dass der Browser die Freigabe
-hat vergessen — und ein Klick, den niemand macht, ist an einer Wand ein
-Ausfall. Das ist am Gerät zu messen, bevor der Ordner der einzige Weg ist.
+### Die Ordnerfreigabe muss den Stromausfall überleben
+
+Sie tut es nicht von allein, und das ist die Falle, die an einer Wand am
+teuersten ist: **Chromium setzt den Zugriff auf gewählte Ordner zwischen
+Besuchen zurück.** Nach einem Neustart steht die Woche zwar da — sie liegt als
+Spiegel in der IndexedDB —, aber die Symbole sind wieder Wörter, weil die bei
+jedem Zeichnen frisch aus dem Ordner gelesen werden. Das Programm sagt es
+sauber an (*„Der Browser braucht die Erlaubnis für ‚Lautstark' erneut"*), nur
+ist an dieser Wand niemand, der klickt.
+
+Der Schalter, der es löst, steht schon in der `.xinitrc` oben:
+
+```
+--enable-features=FileSystemAccessPersistentPermissions
+```
+
+Mit ihm bietet Chromium im Freigabedialog eine dritte Antwort an — **„Allow on
+every visit"** statt nur „Allow this time". Einmal so bestätigt, kommt das Board
+auch nach einem Stromausfall mit Bildern hoch, ohne dass jemand etwas anklickt.
+
+Die Reihenfolge ist dabei nicht egal: Der Schalter wirkt nur auf Freigaben, die
+*nach* ihm erteilt werden. Wer ihn nachträglich einträgt, muss die Freigabe
+einmal neu geben — **Einstellungen → Wo alles liegt → „Erneut erlauben"**, dann
+im Chromium-Dialog „Allow on every visit". Die Symbole hängen an derselben
+Erlaubnis und brauchen keine zweite, weil METACOM innerhalb des freigegebenen
+Ordners liegt.
 
 ## Was hier noch nicht steht
 
