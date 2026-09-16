@@ -133,10 +133,14 @@ anmelden und die Adresse ablesen:
 hostname -I
 ```
 
-Und vom Mac aus mit dieser Adresse hinein:
+Und vom Mac aus hinein — **über den Namen, nicht über die Nummer**. Die
+Nummer kommt vom DHCP und wandert: sie stand hier einmal als
+`192.168.0.171` und war ein paar Wochen spaeter `192.168.0.96`, was jede
+gespeicherte Verbindung still scheitern laesst. Der `avahi-daemon` aus dem
+Abschnitt darueber ist genau dafuer da:
 
 ```bash
-ssh wochenwerk@192.168.0.171
+ssh wochenwerk@wochenwerk.local
 ```
 
 Wurde ohne Netzwerk-Spiegel installiert, fehlt dort noch der SSH-Server. Dann
@@ -364,11 +368,65 @@ einen USB-Stick, am Wyse **Sicherung einlesen**. Das Einlesen fügt hinzu und
 überschreibt nie ([db.ts](../src/db.ts)) — es ist also keine Entscheidung, die
 etwas kostet. Der Nachteil: es ist eine Kopie, kein Abgleich.
 
-**Danach:** den NAS-Ordner auf dem Wyse einhängen (`cifs-utils`, ein Eintrag in
-`/etc/fstab`) und in **Einstellungen → Wo alles liegt** darauf zeigen. Dann ist
-der Ordner die Wahrheit für beide Geräte, und was am Laptop geplant wird, steht
-an der Wand — das ist die Anordnung aus
-[ADR 002](decisions/002-browser-only-and-a-shared-folder.md).
+**Danach:** ein Ordner, in den beide Geraete schauen. Das ist die Anordnung aus
+[ADR 002](decisions/002-browser-only-and-a-shared-folder.md), und sie steht hier
+so, wie sie tatsaechlich gebaut wurde: **der Ordner liegt auf dem Wyse, und der
+Mac schreibt hinein.** Nicht umgekehrt — das Wandgeraet laeuft durch, der Laptop
+geht mit aus dem Haus, und die Wahrheit gehoert auf das Geraet, das da bleibt.
+
+Auf dem Wyse gibt Samba `~/kalender` frei:
+
+```
+[wochenwerk]
+   comment = Wochenwerk — der Kalender des Haushalts
+   path = /home/wochenwerk/kalender
+   browseable = yes
+   read only = no
+   valid users = wochenwerk
+   create mask = 0664
+   directory mask = 0775
+   veto files = /._*/.DS_Store/.smbdelete*/
+   delete veto files = yes
+```
+
+`veto files` ist kein Schoenheitsfehler: macOS legt neben jeder Datei ein `._`
+ab, und die Ablage liest den Ordner als Datensaetze. Ohne die Zeile zaehlt jeder
+Termin doppelt.
+
+Auf dem Wyse selbst zeigt **Einstellungen → Wo alles liegt** auf
+`~/kalender/Lautstark`. Die Tafel sieht dort alle 30 Sekunden nach
+([folder.ts](../src/folder.ts): `ablage.watch(30_000, …)`) und zeichnet sich
+ohnehin auf jeder Minutengrenze neu — eine Aenderung vom Mac steht also nach
+spaetestens einer halben Minute an der Wand, ohne dass jemand etwas anfasst.
+
+### Und die Mac-Seite, die genauso dazugehoert
+
+Dieser Abschnitt fehlte, und das hat einmal zwei Tage gekostet: der Wyse war
+fertig eingerichtet, der Mac schrieb weiter in einen eigenen lokalen Ordner, und
+**von aussen sah beides richtig aus**. Der Kalender sagte „Ordner gewaehlt", die
+Termine wurden gespeichert, nur las sie niemand. Am Mac gab es auch nichts zu
+tun, was sich von selbst gemeldet haette: seine Einstellung war gueltig, sie war
+nur aelter als das zweite Geraet.
+
+1. Im Finder ⌘K, `smb://wochenwerk@wochenwerk.local/wochenwerk`, und dabei
+   **„Passwort im Schluesselbund sichern"** ankreuzen.
+2. **Einstellungen → Wo alles liegt** → `/Volumes/wochenwerk/Lautstark`, und im
+   Browserdialog **„Bei jedem Besuch zulassen"**, nicht „Diesmal zulassen" —
+   dieselbe Falle wie im Abschnitt unten, aus demselben Grund.
+3. `/Volumes/wochenwerk` in **Systemeinstellungen → Allgemein → Anmeldeobjekte**,
+   damit die Freigabe nach einem Neustart von allein zurueckkommt.
+
+Schritt 3 ist nicht Bequemlichkeit. Fehlt die Freigabe beim Anmelden und wird
+spaeter von Hand eingehaengt, waehrend noch ein Rest des alten Mountpunkts
+herumliegt, nimmt macOS `/Volumes/wochenwerk-1` — und der Browser sucht weiter
+unter dem alten Pfad. Der Kalender meldet dann einen Ordner, den es nicht mehr
+gibt, und niemand verbindet das mit dem Neustart von gestern.
+
+Vor dem Umstellen einmal **Einstellungen → Sicherung als Datei**. Zeigt ein
+Geraet auf einen Ordner, in dem schon Datensaetze liegen, zieht es
+([db.ts](../src/db.ts): `adoptFolder()` → `pullFromFolder()`), statt zu
+druecken. Einlesen fuegt hinzu und ueberschreibt nie, also ist die Datei der
+Rueckweg, falls danach etwas fehlt.
 
 ### Die Ordnerfreigabe muss den Stromausfall überleben
 
