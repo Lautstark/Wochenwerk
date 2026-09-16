@@ -123,3 +123,8 @@ export function reorderable(node: HTMLElement, onMove: (from: number, to: number
 
   return node;
 }
+
+/** The same wiring as a Svelte action: `use:reorder={onMove}` on the grid. */
+export function reorder(node: HTMLElement, onMove: (from: number, to: number) => void): void {
+  reorderable(node, onMove);
+}

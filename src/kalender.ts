@@ -1,99 +1,15 @@
 import "./kalender.css";
-import { announcer } from "@lautstark/design/toast";
-import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "./model.js";
-import { el, fill, button } from "./ui.js";
+import { mount } from "svelte";
 import { pullFromFolder, settings } from "./db.js";
-import { load, shown, subscribe, type Week } from "./store.js";
+import { load } from "./store.svelte.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
-import { metacom, owed, preferRendering, restore } from "./symbols.js";
-import { weekGrid } from "./views/week-grid.js";
-import { blankAppointment, editAppointment } from "./views/appointment-dialog.js";
-import { openSettings } from "./views/settings-dialog.js";
+import { metacom, preferRendering, restore } from "./symbols.js";
+import Kalender from "./kalender/Kalender.svelte";
 
-/* The route, and only the route: what is on screen comes from the store, what is
-   drawn comes from the views, and what is kept comes from the database. */
+/* The boot, and only the boot: the page is kalender/Kalender.svelte, what it shows
+   comes from the store, and what is kept comes from the database. */
 
-const app = document.querySelector<HTMLElement>("#app")!;
-const line = el("p", { class: "line", attrs: { role: "status" } });
-const talk = announcer(line, { rest: 4000, onRest: node => { node.textContent = ""; } });
-const say = (text: string) => { talk.say(text); };
-
-const label = el("b");
-/* `.notice` is the outcome line — what happened after something was done, and it
-   holds until something replaces it. A week nobody has planned yet is not an
-   outcome; it is the empty state, and components.css has one of those with a
-   heading and a hint under it. The calendar was drawing the first as the second
-   while using `.empty` correctly in six other places. */
-const empty = el("p", { class: "empty" },
-  el("b", { text: "Noch nichts geplant" }),
-  el("small", { text: "Leg den ersten Termin an — oder klick in eine Spalte." }));
-/* ARASAAC's licence is a condition on showing its pictures, so the notice is asked
-   of the symbols this week draws — not of the collection the household happens to
-   be searching in. A week drawn from the household's own METACOM folder owes
-   nothing and leaves the line empty. */
-const credit = el("p", { class: "credit" });
-const drawn = (current: Week): SymbolRef[] => [
-  ...current.appointments.flatMap(appointment => appointment.symbols),
-  ...current.appointments.flatMap(item => drawnSymbols(item, current.cards)),
-];
-const grid = weekGrid(
-  appointment => editAppointment(appointment, true, () => void load()),
-  (date, start) => editAppointment(blankAppointment(date, start), false, () => void load()),
-);
-
-/* A phone has no room for seven columns, so it shows the day being looked at and
-   the arrows walk days instead of weeks — across a week boundary when they run
-   off the end. */
-const narrow = matchMedia("(max-width: 700px)");
-let day = (new Date().getDay() + 6) % 7;
-
-function apply() {
-  grid.show(narrow.matches ? [shown().dates[day]] : null);
-  grid.draw(shown());
-  label.textContent = narrow.matches
-    ? `${weekdays[day]} ${dayLabel(shown().dates[day])}`
-    : `${dayLabel(iso(shown().monday))} – ${dayLabel(iso(addDays(shown().monday, 6)))} ${shown().monday.getFullYear()}`;
-}
-async function step(by: number) {
-  if (by === 0) { day = (new Date().getDay() + 6) % 7; await load(0); return; }
-  if (!narrow.matches) return void load(shown().offset + by);
-  const next = day + by;
-  if (next < 0 || next > 6) { day = next < 0 ? 6 : 0; await load(shown().offset + by); return; }
-  day = next;
-  apply();
-}
-narrow.addEventListener("change", apply);
-
-/* Anlegen was a thing you had to already know: a click into a column, taught by
-   the empty state and only by it — so the lesson disappeared with the first
-   appointment, which is when somebody starts needing it. On a tablet there is no
-   `cursor: crosshair` to hint at it either. The click stays as the quicker way in;
-   this is the way in that is visible. Which day it opens is the day being looked
-   at: the shown one on a phone, otherwise today when today is in the week, and
-   the week's Monday when it is not — never a day off screen. */
-function dayInView(): string {
-  if (narrow.matches) return shown().dates[day]!;
-  const today = iso(new Date());
-  return shown().dates.includes(today) ? today : shown().dates[0]!;
-}
-fill(app, el("div", { class: "shell" },
-  el("header", { class: "topbar" },
-    el("div", { class: "topbar__nav" },
-      button("‹", "quiet icon", () => void step(-1)),
-      button("›", "quiet icon", () => void step(1)),
-      button("Heute", "quiet sm", () => void step(0)),
-      label),
-    el("div", { class: "topbar__nav" },
-      el("a", { class: "btn quiet sm", text: "Symbolansicht ↗", attrs: { href: import.meta.env.BASE_URL, target: "_blank", rel: "noopener" } }),
-      button("Einstellungen", "quiet sm", () => openSettings(say)),
-      button("＋ Termin", "primary sm", () => editAppointment(blankAppointment(dayInView()), false, () => void load())))),
-  empty, grid.node, el("footer", { class: "pagefoot" }, line, credit)));
-
-subscribe(current => {
-  empty.hidden = current.appointments.length > 0;
-  credit.textContent = owed(drawn(current)).join(" ");
-  apply();
-});
+mount(Kalender, { target: document.querySelector<HTMLElement>("#app")! });
 metacom.subscribe(() => void load());
 
 await restore().catch(() => false);

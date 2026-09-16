@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { piperVendor } from "@lautstark/stimmquelle/vite";
 import { resolve } from "node:path";
 
@@ -16,7 +17,7 @@ export default defineConfig({
      threaded ones are asked for on a cross-origin-isolated page, and a project
      site sends none of the headers that make one. `dir` matches what
      `piperRuntime` is given in src/speech.ts. */
-  plugins: [piperVendor({ dir: "wasm" })],
+  plugins: [svelte(), piperVendor({ dir: "wasm" })],
   server: { host: "127.0.0.1", port: 3000, strictPort: true },
   build: {
     rollupOptions: {

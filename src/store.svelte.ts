@@ -5,7 +5,13 @@ import { pictures } from "./symbols.js";
 /* One place holds what is on screen, and the views read it rather than each
    fetching for itself. They used to reach for module-level arrays and reassign
    them from wherever, which is why a change made in one dialog was invisible in
-   another until something happened to reload. */
+   another until something happened to reload.
+
+   A rune rather than a subscriber list: whatever reads `shown()` while it
+   draws is redrawn when `load()` replaces the week, and nothing has to sign
+   up for that. `$state.raw`, because the week is replaced whole and never
+   edited in place — and because a dialog copies an appointment out of it with
+   structuredClone(), which a deep proxy cannot be. */
 
 export interface Week {
   offset: number;
@@ -23,14 +29,9 @@ const empty: Week = {
   appointments: [], people: [], cards: new Map(), series: new Map(), pictures: new Map(),
 };
 
-let current: Week = empty;
-const listeners = new Set<(shown: Week) => void>();
+let current = $state.raw<Week>(empty);
 
-export const shown = () => current;
-export function subscribe(listener: (shown: Week) => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+export const shown = (): Week => current;
 
 /** Read the week at an offset from this one and tell everybody watching. */
 export async function load(offset = current.offset): Promise<Week> {
@@ -49,7 +50,6 @@ export async function load(offset = current.offset): Promise<Week> {
       ...cardList.map(card => card.symbol).filter(Boolean) as SymbolRef[],
     ]),
   };
-  listeners.forEach(listener => listener(current));
   return current;
 }
 

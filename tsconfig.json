@@ -15,6 +15,6 @@
      — a renamed export, a locator helper given the wrong shape — is otherwise
      found by whoever next runs Playwright, which for a visual baseline may be
      weeks after the change that broke it. */
-  "include": ["src/**/*.ts", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.svelte", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"],
   "exclude": ["node_modules"]
 }
