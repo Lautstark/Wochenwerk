@@ -514,6 +514,14 @@ function light(id?: string) {
   lit = id;
   for (const node of app.querySelectorAll(".card.saying")) node.classList.remove("saying");
   if (id) app.querySelector(`.card[data-id="${CSS.escape(id)}"]`)?.classList.add("saying");
+  /* The rest of the week steps back while one card is spoken about, and the
+     board says so rather than the stylesheet working it out with :has(). Two
+     reasons, and the second is the one that decided it: :has() appears nowhere
+     else in this product, and the board runs on a thin client whose browser is
+     whatever that machine was given — a selector that silently matches nothing
+     there would take the whole effect with it, on the one screen nobody is
+     watching a console on. A class is a fact the page states. */
+  app.classList.toggle("hushed", Boolean(id));
 }
 const trouble = (words?: string) => { setup.textContent = words ?? ""; };
 whenStuck(trouble);

@@ -456,19 +456,68 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    The ring is the day's own colour darkened, the way `.card.open` draws its
    dashed edge and the rail draws its marks: a neutral grey belonged to nothing on
    a board where every column is a colour, and it read as chrome laid over the
-   week rather than as part of it. Darkened rather than plain, because a light
-   card on a field of the same hue would have nothing to stand against.
+   week rather than as part of it.
 
-   It breathes, because a still outline on a board full of pictures is not what
-   pulls a two-year-old's eye — and it holds still for anyone who has asked the
-   system for less motion. */
-.card.saying { z-index: 10; outline: .3rem solid var(--ring); outline-offset: .2rem;
+   ## Why it is drawn inward, and why it stopped breathing
+
+   It was an outline outside the card, breathing between full and a third of its
+   opacity. It was reported as not carrying across a room, and the reason was in
+   the paragraph above it: the day's colour, darkened, standing on a field of
+   that same colour. Ton in Ton. Darkening buys a little of the brightness
+   difference back and not much, and an outline is a *line* — the first thing a
+   room takes away.
+
+   So it moved inside, where the card's own white paper is behind it. The colour
+   did not have to change at all; the same value that had almost nothing to
+   stand against outside has the strongest surface on the board behind it here.
+
+   Inward was not only better, it was required. The cards are stacked on a time
+   axis with five pixels between one appointment and the next, and `.card.current`
+   above already records what that gap is for. A ring drawn outward crosses it:
+   measured at a desktop width, two back-to-back hours are 57px tall with a 5px
+   gap, and the old outline reached .5rem past the card - it was welding the two
+   together, in a colour too close to the field for anyone to see it happening.
+   The rule that paragraph states holds here too: the frame is the card's own
+   surface and is drawn inward; the shadow is only light and may go outward.
+
+   Scaling the card was the other idea, and it is the same defect with numbers:
+   `scale(1.3)` on that 57px card measured a gap of MINUS four pixels. It was
+   dropped for that reason and not for taste.
+
+   The breathing is gone, and that is a gain rather than a loss. Motion is the
+   one cue that is switched off for everybody who asked the system for less of
+   it, and it was carrying this effect on its own: with the animation suppressed
+   the old design left a ring of the day's colour on a field of that colour, and
+   that is next to nothing. What is here now is still, and arrives whole for
+   everyone. */
+.card.saying { z-index: 10;
   --ring: color-mix(in oklab, var(--day) 58%, #1d232b);
-  animation: saying 1.15s ease-in-out infinite; }
-@keyframes saying {
-  50% { outline-color: color-mix(in oklab, var(--ring) 32%, transparent); outline-offset: .5rem; }
-}
-@media (prefers-reduced-motion: reduce) { .card.saying { animation: none; } }
+  box-shadow: inset 0 0 0 .34rem var(--ring), 0 .9rem 2.2rem rgba(0, 0, 0, .42); }
+/* While one card is spoken about, the rest of the week steps back. This is the
+   half that does the work: the others lose most of their opacity, and brightness
+   is the one difference that survives a room — colour goes first, then edges,
+   then size, and brightness is what is left at the far end of it.
+
+   Opacity and nothing else, on the cards and not on the columns. A filter over
+   five full columns is a composited layer per column on a machine screwed to a
+   wall, and the day's field has to keep its colour: the week is still being read
+   by the adults in the room while it talks.
+
+   `--hush` is the one number in this that is a judgement rather than a
+   measurement, and it is named so it can be argued with in one place. At .34
+   the spoken card is the only white surface left on the board, which is what
+   was asked for; further up and the effect goes, further down and the week
+   stops being readable over somebody's shoulder while it talks. Worth setting
+   against the real wall and the real distance rather than a laptop. */
+.hushed { --hush: .34; }
+.hushed .card:not(.saying) { opacity: var(--hush); }
+.card { transition: opacity .28s ease, box-shadow .28s ease; }
+/* Someone who asked for less motion gets the same board, arriving at once. The
+   design is a still one on purpose — what used to be here was a breathing
+   outline, and for exactly those people it stopped breathing and left a ring of
+   the day's own colour against a field of that colour, which is next to
+   nothing. Nothing here now depends on movement. */
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } }
 
 /* A choice nobody has made: a question mark, and under it the cards that would
    answer it. The mark carries the day's ink — one colour at two strengths against

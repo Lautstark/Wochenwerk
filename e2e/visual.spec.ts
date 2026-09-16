@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { at, cards, column, openBoard, timed, TUESDAY } from "./seed.js";
 
 /*
  * Pixel baselines for the settings dialog.
@@ -363,4 +364,42 @@ test("the Ansage row in an appointment", async ({ page }) => {
   await expect(row.locator(".field")).toHaveAttribute("placeholder", "Ohne Namen wird nichts gesagt");
   await expect(row.locator(".btn")).toBeVisible();
   await expect(row).toHaveScreenshot("termin-ansage.png");
+});
+
+/* The card the voice is on — the one surface in this suite that is not the
+   settings dialog, and it is here because of what its absence cost.
+   `.card.saying` was drawn in the day's own colour on a field of that colour
+   and nobody could see it from across a room. Nothing went red, because
+   nothing looked. A rule whose whole job is to be noticeable is exactly the
+   rule that has to be photographed.
+
+   One column rather than the week: the effect is the lit card against a
+   neighbour that has stepped back and the five pixels between them, and all
+   three are in here. The week around it would add six more columns of nothing
+   and one more thing to re-record every time any of them moves.
+
+   The moment and the week are both pinned by the seed, so no date in this shot
+   is a function of the day it runs on. */
+test("the card the voice is on", async ({ page }) => {
+  await at(page, "09:00");
+  await openBoard(page, {
+    appointments: [
+      timed(TUESDAY, "10:00", "11:00", "Schwimmen"),
+      timed(TUESDAY, "11:00", "12:00", "Essen"),
+      timed(TUESDAY, "13:00", "13:30", "Oma"),
+    ],
+  });
+  const di = column(page, "DI");
+  await expect(cards(di)).toHaveCount(3);
+
+  /* Set rather than spoken. The announcement is a voice, a clock and a card
+     reader away; what this shot is about is the two classes it ends up
+     applying, and driving the whole of it would make the picture depend on
+     three things that have their own tests. */
+  await page.evaluate(() => {
+    document.getElementById("app")?.classList.add("hushed");
+    document.querySelectorAll(".day .card")[1]?.classList.add("saying");
+  });
+  await expect(di.locator(".card.saying")).toBeVisible();
+  await expect(di).toHaveScreenshot("karte-spricht.png");
 });
