@@ -25,7 +25,7 @@ import { join, relative } from 'node:path';
 const root = new URL('..', import.meta.url).pathname;
 const listing = join(root, '.private-names');
 const SKIP = new Set(['node_modules', '.git', 'dist', '.claude', 'tools']);
-const READABLE = /\.(ts|tsx|js|mjs|json|md|css|html|txt|yml|yaml)$/;
+const READABLE = /\.(ts|tsx|svelte|js|mjs|json|md|css|html|txt|yml|yaml)$/;
 
 if (!existsSync(listing)) {
   console.log('no-private: no .private-names, nothing to check against.');

@@ -1,6 +1,6 @@
 # Wochenwerk
 
-Wochenwerk is a vanilla TypeScript prototype for a calendar-driven weekly board for young children. The calendar is authoritative; the child-facing board is its visual projection. Licensed METACOM symbols remain local and are never committed.
+Wochenwerk is a browser-only calendar-driven weekly board for young children: a TypeScript core with no DOM in it, and two pages drawn as Svelte 5 components on top ([ADR 003](docs/decisions/003-svelte-for-the-two-pages.md)). The calendar is authoritative; the child-facing board is its visual projection. Licensed METACOM symbols remain local and are never committed.
 
 - [Product](docs/product.md)
 - [UX](docs/ux.md)
@@ -63,7 +63,7 @@ npm run test:e2e         # Playwright: what the calendar and the board do, and t
 npm run test:e2e:update  # re-record the visual baselines, on purpose
 ```
 
-The e2e suite has two halves. `e2e/kalender.spec.ts` and `e2e/board.spec.ts` are the behaviour contract: what a parent does in the calendar and what a child sees and hears on the board, asserted by roles, labels and visible text and never by markup — an appointment lands in its day at the height of its hours, deleting asks first, the week walks forwards and back, a person is added and renamed, the announcement says *day → now → next*, a card at the slot answers a choice. They start from an invented week written into IndexedDB (`e2e/seed.ts`), a pinned clock, a stubbed voice and ARASAAC answered locally, so nothing leaves the machine. They exist because the rendering is about to be rebuilt, and a rebuild that changes nothing on screen is what they prove.
+The e2e suite has two halves. `e2e/kalender.spec.ts` and `e2e/board.spec.ts` are the behaviour contract: what a parent does in the calendar and what a child sees and hears on the board, asserted by roles, labels and visible text and never by markup — an appointment lands in its day at the height of its hours, deleting asks first, the week walks forwards and back, a person is added and renamed, the announcement says *day → now → next*, a card at the slot answers a choice. They start from an invented week written into IndexedDB (`e2e/seed.ts`), a pinned clock, a stubbed voice and ARASAAC answered locally, so nothing leaves the machine. They were written because the rendering was about to be rebuilt on Svelte, and on 2026-09-16 they proved that the rebuild changed nothing on screen.
 
 `e2e/visual.spec.ts` is the pixel half and small on purpose. It photographs the settings dialog on `/kalender/` folded, and the **Ablage**, **Sicherung** and **Löschen** panels unfolded, comparing each against a PNG committed under `e2e/visual.spec.ts-snapshots/`. It exists because CSS is moving out of this product and into [`@lautstark/design`](https://github.com/Lautstark/design), and a move that is supposed to change nothing is the one change no behavioural test can catch.
 
