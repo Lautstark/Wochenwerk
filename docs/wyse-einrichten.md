@@ -538,6 +538,90 @@ vertrauenswürdiger Ursprung, egal über welches Protokoll. Nachgemessen ist es
 auch: die Brücke sieht die Verbindung mit `Origin: https://wochenwerk.lautstark.tech`
 hereinkommen.
 
+## 11 — Wenn der Bildschirm schwarz bleibt
+
+Ein Kabelwechsel hat diese Wand einen halben Tag gekostet, und keine der
+naheliegenden Vermutungen stimmte. Die Reihenfolge, in der hier zu messen ist:
+
+### Sendet der Rechner überhaupt?
+
+```
+for c in /sys/class/drm/card*-*/status; do echo "$(dirname $c | xargs basename): $(cat $c)"; done
+xrandr | grep -E " connected|\*"
+```
+
+Ein Anschluss ohne Modus sendet nichts — und genau das passiert beim Umstecken:
+X weist dem *neuen* Anschluss nichts zu, wenn der alte verschwindet. `xrandr
+--output <name> --auto --primary` behebt es; beim Kaltstart macht X es von
+selbst. **Der Kernel nennt USB-C ebenfalls „DP"**, weil USB-C DisplayPort
+überträgt — die Buchse am Gerät sagt also nichts über den Namen im System.
+
+Und lies den Zustand nicht, während noch ein zweites Kabel steckt: Der Kernel
+hält den letzten Stand fest, bis wirklich alles abgezogen ist. Wir haben zwanzig
+Minuten lang einen „connected"-Eintrag für ein Kabel gelesen, das längst
+abgezogen war — weil ein anderes noch steckte.
+
+### Nimmt der Monitor den Modus an?
+
+Dieses Panel ist ein **100-Hz-Panel** (1920×1080 @ 100 Hz laut Datenblatt). Über
+einen aktiven Umsetzer von DisplayPort nach HDMI kam 60 Hz nicht durch, 100 Hz
+schon. Das Startskript setzt deshalb 100 Hz und fällt nur zurück, wenn es die
+nicht gibt.
+
+### Zeigt der Monitor den Eingang, auf dem etwas anliegt?
+
+**Das war hier der Fehler.** Der Monitor stand auf „Auto" und auf HDMI, und er
+schaltet nicht im Betrieb um — er tastet beim Einschalten ab und bleibt dann. Auf
+DisplayPort lag ein einwandfreies Signal an, das er schlicht nicht anzeigte.
+
+Beweisbar ist das mit dem Protokoll des Grafiktreibers:
+
+```
+sudo sh -c "echo 0x1e > /sys/module/drm/parameters/debug; dmesg -C"
+xrandr --output DP-1 --off; sleep 2; xrandr --output DP-1 --primary --mode 1920x1080 --rate 100
+sudo sh -c "dmesg > /tmp/drm.log; echo 0 > /sys/module/drm/parameters/debug"
+```
+
+Steht darin `Link Training passed at link rate = …, lane count = 4`, dann hat der
+Monitor über den AUX-Kanal *geantwortet* — die Strecke ist elektrisch in Ordnung,
+und es bleibt nur die Eingangswahl.
+
+**Umschalten ohne die Knöpfe hinter dem Rahmen:** Beide Kabel gleichzeitig
+anstecken. Der Monitor zeigt weiter HDMI, und über *dieses* Kabel lebt der
+Steuerkanal — viele Monitore beantworten DDC/CI nur über den aktiven Eingang.
+Dann:
+
+```
+ddcutil capabilities | grep -A4 "Feature: 60"   # welche Eingänge er kennt
+ddcutil getvcp 60                                # worauf er steht
+ddcutil setvcp 60 0x0f                           # 0x0f DisplayPort-1, 0x11 HDMI-1
+```
+
+Danach das HDMI-Kabel abziehen. **Diese Reihenfolge ist der ganze Trick:
+umschalten, solange der alte Weg noch trägt.**
+
+### Und der Ton wandert mit
+
+Ein anderer Anschluss ist ein anderes Audiogerät, und die Soundkarte führt den
+alten weiter: Nach dem Wechsel meldeten `pcm3p` *und* `pcm7p` denselben Monitor,
+weil die Kennung des alten Anschlusses hängengeblieben war. Welches Gerät wirklich
+spielt, ist zu messen — mit einem Ton, der durch PipeWire läuft, und einem Blick
+daneben:
+
+```
+pw-play /tmp/ton.wav &
+for p in 0 3 7 8; do echo "pcm${p}p: $(head -1 /proc/asound/card0/pcm${p}p/sub0/status)"; done
+```
+
+`speaker-test` ohne `-D` misst das **nicht**: es geht an ALSAs Vorgabe und damit
+an PipeWire vorbei. Wir haben damit dreimal dasselbe falsche Ergebnis erzeugt.
+
+Hier zeigt Profil 7 (`output:hdmi-stereo-extra1`) auf `pcm7p` und ist der
+richtige; Profil 4 zeigt auf den toten `pcm3p`. Was über den falschen zu hören
+ist, ist Übersprechen aus der Klinkenbuchse — leise genug, dass es wie ein
+Lautstärkeproblem aussieht, und laut genug, dass man es für den richtigen Weg
+hält.
+
 ## Was hier noch nicht steht
 
 **Die Sätze als Dateien.** [speech.md](speech.md) sieht vor, dass der Laptop beim
