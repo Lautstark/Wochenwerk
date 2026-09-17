@@ -353,7 +353,21 @@
      the `.lbl`, and a `<div>` in place of the `<label>` so nothing claims to
      label something it cannot. Nothing tests this panel — it needs two
      renderings in a connected METACOM folder — which is why the same conversion
-     in the appointment sheet's Wiederholen carries the e2e cases for both. */
+     in the appointment sheet's Wiederholen carries the e2e cases for both.
+
+     `field` since design v1.38.1, for the same reason and against the shared
+     component's own note, which says `.btn` is "right for a picker standing on
+     its own in a settings panel". This one is not standing on its own: it has a
+     `.lbl` asking „Darstellung" above it and a `.small.muted` explaining it
+     below, which is a form row wherever it is drawn. What settles it is what it
+     stands under. The four things directly above are real buttons — „Ordner
+     wählen", „ZIP einlesen", „Neu einlesen", „Ordner vergessen" — and a 293px
+     bold `.btn` under that row reads as a fifth command rather than as the
+     panel's one setting. `field` takes the 352px `.opt .field-row` caps it at,
+     in regular 15px on a field's fill, so the setting looks like an answer and
+     the commands stay the commands. Measured against injected markup in the
+     live panel, since the real row needs a folder this product cannot connect
+     headlessly. */
   let found = $derived.by(() => { void stamp; return renderings(); });
   const namedRendering = (segment: string | null) => segment === null ? "Keine Vorgabe"
     : `${segment} · ${found.find(entry => entry.segment === segment)?.count ?? 0} Symbole`;
@@ -402,7 +416,7 @@
     looked = null;
     await load();
     moved();
-  }} />{#if ready}<p class="small">{fromFolder ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.` : "Gezeichnet wird mit METACOM aus einem eigenen Ordner."}</p>{/if}{#if found.length >= 2}<div class="opt"><div class="field-row"><span class="lbl" id="renderingLabel">Darstellung</span><Dropdown start labelledBy="renderingLabel" label={namedRendering(preferredRendering())} build={add => { const live = preferredRendering(); add(namedRendering(null), chooseRendering(null), { checked: live === null }); for (const entry of found) add(namedRendering(entry.segment), chooseRendering(entry.segment), { checked: live === entry.segment }); }} /></div><p class="small muted">METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts.</p></div>{/if}</Panel>
+  }} />{#if ready}<p class="small">{fromFolder ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.` : "Gezeichnet wird mit METACOM aus einem eigenen Ordner."}</p>{/if}{#if found.length >= 2}<div class="opt"><div class="field-row"><span class="lbl" id="renderingLabel">Darstellung</span><Dropdown field start labelledBy="renderingLabel" label={namedRendering(preferredRendering())} build={add => { const live = preferredRendering(); add(namedRendering(null), chooseRendering(null), { checked: live === null }); for (const entry of found) add(namedRendering(entry.segment), chooseRendering(entry.segment), { checked: live === entry.segment }); }} /></div><p class="small muted">METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts.</p></div>{/if}</Panel>
 <Panel section="Stimme" state={!loaded ? "Wird geladen …" : chosen ? namedVoice || "gewählte Stimme fehlt" : "keine gewählt"} class="panel__body" bind:open={unfolded.stimme}><p class="small muted">Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte.</p>{#if refused}<p class="notice bad">Azure nimmt den Schlüssel nicht an ({refused}). Unten stehen nur die Stimmen, die keinen brauchen.</p>{/if}{#if chosen && !namedVoice}<p class="notice">Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert.</p>{/if}{#if loaded}{#if voices.length}<VoicePicker
   voices={() => voices} current={() => chosen}
   pick={id => { if (id && id !== chosen) void choose(id); }}
