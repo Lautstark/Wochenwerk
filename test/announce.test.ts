@@ -272,11 +272,21 @@ describe("what comes next", () => {
     expect(said(week(), at("08:35"), house())[2]).toBe("Dann kommt Kita.");
   });
 
-  it("does not name what is hours away, and says the time is free instead", () => {
+  it("does not name what is hours away, and does not claim there is nothing either", () => {
     /* Kita until two, supper at six. At nine in the morning "danach kommt
-       Abendessen" is a word with no time to hang it on. */
+       Abendessen" is a word with no time to hang it on — and "danach ist nichts
+       geplant" is a sentence about the whole afternoon made from a rule about the
+       next half hour, which was the thing that was wrong with it. */
     const week = [appointment("08:45", "14:00", { title: "Kita" }), appointment("18:00", "19:00", { title: "Abendessen" })];
-    expect(said(week, at("09:00"), house())[2]).toBe("Danach ist nichts geplant.");
+    expect(said(week, at("09:00"), house())).toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Kita."]);
+  });
+
+  it("stays quiet about a gap the household plans on the far side of", () => {
+    /* The day this was found on: Kita to two, waffles at quarter to three. The
+       board said the afternoon was empty while the waffle iron was on the plan. */
+    const week = [appointment("09:00", "14:00", { title: "Kita" }), appointment("14:45", "16:00", { title: "Waffeln backen" })];
+    expect(said(week, at("13:00"), house())).toEqual(["Es ist Dienstagmittag.", "Jetzt ist Kita."]);
+    expect(said(week, at("14:25"), house())[2]).toBe("Gleich kommt Waffeln backen.");
   });
 
   it("measures the wait from the end of what is running, not from now", () => {
@@ -287,8 +297,9 @@ describe("what comes next", () => {
   });
 
   it("leaves the empty stretch to the now sentence when nothing is running", () => {
-    /* Two sentences, not three: *Gerade ist nichts geplant* and *danach ist
-       nichts geplant* are one thing said twice. */
+    /* *Gerade ist nichts geplant* is the whole of what is true here: the supper
+       is hours off, and a second sentence about it would either name something
+       the child cannot place or deny that it exists. */
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("18:00", "19:00", { title: "Abendessen" })];
     expect(said(week, at("10:00"), house())).toEqual(["Es ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
   });

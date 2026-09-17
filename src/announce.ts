@@ -50,13 +50,12 @@ const FRAMES = {
      empty because nobody planned anything there, and saying that plainly beats
      *du hast frei*, which frames a child's afternoon as time off from something.
      It is a word from the planning side of the app, and it is the same word in
-     all four sentences so that it is learned once. */
+     every sentence about nothing happening, so that it is learned once. */
   nothing: "Gerade ist nichts geplant.",
   soon: "Gleich kommt",
   after: "Danach kommt",
   then: "Dann kommt",
   again: "Danach kommt wieder",
-  free: "Danach ist nichts geplant.",
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
   thenChoose: "Dann darfst du aussuchen.",
@@ -267,9 +266,10 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      about the whole of the rest of the day rather than about this minute, and a
      minute that is empty inside a day that is over is not news.
 
-     The sibling case drops the other one: where something is still coming but
-     hours off, the *now* sentence stays and *danach ist nichts geplant* goes. Both
-     times the sentence that survives is the one with something in it. */
+     Where something is still coming but hours off it is the *next* slot that goes
+     quiet instead — see `nextLine`. Either way the sentence that survives is the
+     one with something in it, and nothing on this board says the day is empty
+     while it is not. */
   const empty = !running.length && !timedOn(week, today).some(item => item.start! > now);
   /* Nothing is announced while we are already somewhere else. The day sentence is
      what says where we are, and *morgen fahren wir weg* on the first day of four
@@ -434,11 +434,16 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
      the child is waiting through is the whole busy stretch, and a meal a quarter
      of an hour after the second of them ends is *danach* for both children. */
   const wait = minute(next.start!) - (running.length ? minute(until) : minute(now));
-  if (!soon && wait > HORIZON) {
-    /* Nothing running and nothing near: the *now* sentence has already said there
-       is time to play, and saying it twice in two wordings is worse than once. */
-    return running.length ? [utter(fixed(FRAMES.free))] : [];
-  }
+  /* Nothing near, and the horizon says so by going quiet. It used to say *Danach
+     ist nichts geplant* while something was running, and that is a sentence about
+     the whole rest of the day made from a rule about the next half hour: waffles
+     at quarter to three, three quarters of an hour behind a Kita that ends at two,
+     had the board announce an afternoon with nothing in it. Not naming what is
+     hours off is the judgement this horizon carries; claiming there is nothing
+     there is a different claim, and it was the false one.
+     *Heute ist nichts mehr geplant* remains the sentence for a day that is over,
+     and it is reached above, where there is genuinely no `next`. */
+  if (!soon && wait > HORIZON) return [];
   if (undecided(next)) {
     const offered = namedOptions(next, household);
     /* Named, so there is something to be asked about: the question follows the
@@ -628,7 +633,7 @@ export function standing(): string[] {
   const line = (...parts: Part[]) => utter(...parts).text;
   return [
     ...DAYS.map(day => line(fixed(FRAMES.day), fixed(day))),
-    FRAMES.nothing, FRAMES.done, FRAMES.free, FRAMES.look,
+    FRAMES.nothing, FRAMES.done, FRAMES.look,
     FRAMES.away, FRAMES.awayTomorrow,
     FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
   ];

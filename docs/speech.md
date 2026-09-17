@@ -163,8 +163,7 @@ list, so it is only done where there is exactly one.
 | within ~20 minutes | *Gleich kommt Kita.* |
 | further off, but soon after what is running | *Danach kommt Kita.* |
 | further off, and nothing is running | *Dann kommt Kita.* |
-| nothing near, and something is running | *Danach ist nichts geplant.* |
-| nothing near, and nothing is running | nothing — the *now* sentence has said it |
+| nothing near | nothing — the next slot goes quiet, whatever is running |
 | next is an open choice | *Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
 | next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
@@ -172,10 +171,17 @@ list, so it is only done where there is exactly one.
 
 **And when the day itself is over, that is the only sentence.** *Gerade ist nichts
 geplant. Heute ist nichts mehr geplant.* is one fact in two wordings; the second
-says the first and more, so it stays alone. It is the mirror of the empty stretch
-four rows up: where something is still coming but hours off, the *now* sentence stays and
-*danach ist nichts geplant* goes. Both times what survives is the sentence with
-something in it.
+says the first and more, so it stays alone.
+
+**Nothing near is a silence and never a sentence.** There was a *Danach ist nichts
+geplant* here, said whenever something was running and the next thing lay past the
+horizon — and that is a claim about the whole rest of the day built out of a rule
+about the next half hour. Waffles at quarter to three, three quarters of an hour
+behind a Kita that ends at two, had the board announce an afternoon with nothing
+in it. Not naming what is hours off is the judgement the horizon carries and it
+stands; saying there is nothing there is a different claim, and it was false on
+any day with a gap in it. The only sentence about an empty rest of a day is *Heute
+ist nichts mehr geplant*, and it is said where that is true.
 
 **Away** — the fourth sentence, and the only one about a day that is not today.
 It is last, because the order *day → now → next* is what is learned here and a
@@ -457,9 +463,9 @@ repeat, not a queue.
 
 **The card is lit for exactly as long as the sentence about it.** Every sentence
 knows which appointment it is about, or that it is about none — the day sentence
-is about none, and so is *danach ist nichts geplant* — and the board follows that from
-one sentence to the next: nothing, then the running card, then the one that is
-coming. A card still lit under the following sentence would point at the wrong
+is about none, and so is *heute ist nichts mehr geplant* — and the board follows that
+from one sentence to the next: nothing, then the running card, then the one that
+is coming. A card still lit under the following sentence would point at the wrong
 thing, which is worse than pointing at nothing.
 
 That is also what makes two *now* sentences readable rather than confusing. Two
