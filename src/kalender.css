@@ -159,8 +159,11 @@ a.btn { text-decoration: none; }
   border-radius: 50%; background: var(--tone); color: #fff; font-size: 12px; font-weight: 800; }
 .face.sm { width: 18px; height: 18px; font-size: 8.5px; }
 .face img { width: 100%; height: 100%; object-fit: cover; }
-.small { font-size: 13.5px; }
-.muted { color: var(--text-dim); }
+/* `.small` and `.muted` were drawn here and are components.css's since 1.32.0,
+   character for character — `13.5px` and `var(--text-dim)`. This file is imported
+   after it, so the local pair won and the shared drawing never reached the page;
+   deleting them moves nothing and stops the next change to either from having to
+   be made twice. */
 .nfc { padding: 2px 7px; border-radius: var(--radius-pill); background: var(--surface-3);
   font: 500 11px var(--mono, ui-monospace, monospace); color: var(--text-dim); }
 
@@ -217,14 +220,15 @@ a.btn { text-decoration: none; }
 .search__row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .search__row .field-row:first-child { flex: 2 1 14rem; }
 
-/* Square, because what is being chosen is. bildhaft's picker, at this size. */
-.picker__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-.picker__grid--tight { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
-.picker__item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 6px;
-  border: none; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text);
-  font: inherit; cursor: pointer; transition: background .13s, box-shadow .13s; }
-.picker__item:hover { background: var(--surface-3); }
-.picker__item--active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+/* Square, because what is being chosen is. The grid, the tile, the hover and the
+   marking of the chosen one are components.css's since design 1.33.0 — they were
+   this file's and bildhaft's, character for character, and two products drawing
+   the same thing twice is what that release ended. What is left below is the five
+   rules that are wochenwerk's alone, and they narrow the shared names rather than
+   redraw them. The width is the exception: it is the one figure the two products
+   differ on, so components.css asks `--tile-min` for it and the tight variant is
+   that same rule with a smaller number instead of a second grid. */
+.picker__grid--tight { --tile-min: 56px; }
 /* A tile that can be dragged into another order says so by the hand over it. The
    `touch-action` is not a nicety: without it a finger dragging sideways is a
    scroll, the browser takes the gesture, and the drag never starts. */
@@ -234,7 +238,6 @@ a.btn { text-decoration: none; }
 .picker__item[data-move="on"] { cursor: grabbing; position: relative; z-index: 2;
   pointer-events: none; transition: none; box-shadow: 0 6px 16px rgba(0, 0, 0, .22); }
 .picker__item .thumb { width: 52px; height: 52px; }
-.picker__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker__grid--tight .picker__item .thumb { display: none; }
 /* Nothing picked yet, in the shape of the thing that is missing rather than as a
    sentence where the thing would be. Dashed because it is a slot and not a tile,
