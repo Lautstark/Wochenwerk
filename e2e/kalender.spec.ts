@@ -40,6 +40,37 @@ async function pickSymbol(sheet: Locator, word: string): Promise<void> {
   await sheet.getByRole("button", { name: word, exact: true }).click();
 }
 
+/**
+ * Answers „Wiederholen", which stopped being a `<select>` in this round.
+ *
+ * conventions.md §6.10: a `<select>`'s open list is drawn by the operating
+ * system and is the one control on a page that cannot follow the tokens, so it
+ * is not what this family means by a dropdown. `selectOption` is the price —
+ * it only works against a `<select>`, so the two cases that drove this control
+ * are rewritten rather than retargeted, and what they say is longer because
+ * what a person does is longer: press the thing that asks the question, then
+ * press the answer.
+ *
+ * The trigger is found by the question and not by the answer standing on it,
+ * which is the other half of the conversion. It was a `<label class="field-row">`
+ * around the button before, and a `<label>` does not name a `<button>` — so
+ * `getByLabel("Wiederholen")` would have found nothing here at all. It works
+ * because the shared Dropdown takes `aria-labelledby` and the row points it at
+ * the `.lbl` beside it.
+ *
+ * `menuitemradio` rather than `menuitem`, and that is a real assertion: menu.js
+ * gives an item that role only where the caller passed `checked`, which is what
+ * says these four are alternatives and which one is in force. A plain list of
+ * commands would pass a name match and announce four equal things.
+ */
+async function repeatEvery(sheet: Locator, answer: string): Promise<void> {
+  await sheet.getByLabel("Wiederholen").click();
+  await sheet.getByRole("menuitemradio", { name: answer }).click();
+  /* What `selectOption` gave for free: the trigger reads the answer back out of
+     the draft, so this says the press reached `s.repeat` and not only the menu. */
+  await expect(sheet.getByLabel("Wiederholen")).toHaveText(answer);
+}
+
 /** The name field stands where the heading would: it is the sheet's title, and
     it reads „Name" until something is typed. Found by that name rather than by
     placeholder, because the Ansage field below shows the same word as the one
@@ -193,6 +224,46 @@ test("→ on a chosen symbol carries it past its neighbour, and the focus goes w
   await expect(row).toHaveCount(2);
 });
 
+/**
+ * The other grid that answers ← and →, and the reason this case exists.
+ *
+ * conventions.md §6.4 names wochenwerk's arrow collision as the one thing its
+ * adoption of the shared search has to resolve: the results box gives its hits
+ * a roving tabindex and claims all four arrows, and it stands one element away
+ * from the row above, which has claimed ← and → for reordering since long
+ * before it. Both are grids of `.picker__item`s and neither is inside the
+ * other, which is what keeps them apart — but „neither is inside the other" is
+ * a fact about the markup, and the markup is what an adoption changes.
+ *
+ * So: two symbols already in the row, focus on a tile in the *search*, and the
+ * row must not move. Pressed twice, because ← and → are the two reorder.ts
+ * answers and a handler that saw only one of them would pass half a test.
+ */
+test("arrows in the search results do not reorder the chosen row", async ({ page }) => {
+  await openCalendar(page);
+  const sheet = await twoSymbols(page);
+  const row = chosen(sheet);
+  await sheet.getByRole("button", { name: "＋ Symbol" }).click();
+  await sheet.getByLabel("Symbol suchen").fill("Schwimmen");
+  const hit = sheet.getByRole("button", { name: "Schwimmen", exact: true });
+  await expect(hit).toBeVisible();
+  await hit.focus();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowLeft");
+  /* Untouched, and still two: an arrow that had reached reorder.ts would have
+     swapped them, and one that had reached the tile's own click would have
+     taken a symbol off. */
+  await expect(row.nth(0)).toHaveAccessibleName("Turnen");
+  await expect(row.nth(1)).toHaveAccessibleName("Judo");
+  await expect(row).toHaveCount(2);
+  /* And the other way round, on the same form: the row still reorders while a
+     search is open under it. */
+  await row.nth(0).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(row.nth(0)).toHaveAccessibleName("Judo");
+  await expect(row.nth(1)).toHaveAccessibleName("Turnen");
+});
+
 /** Drags one tile onto another the way a hand does: press, travel, let go.
     In steps, because a press is a click until it has passed reorder.ts's 6px of
     grip — the travelling is what turns it into a drag, and a single jump would
@@ -304,7 +375,7 @@ test("a weekly appointment repeats into the following weeks", async ({ page }) =
   const sheet = await newAppointment(page);
   await titleOf(sheet).fill("Kindergarten");
   await withTimes(sheet, "08:00", "12:00");
-  await sheet.getByLabel("Wiederholen").selectOption("wöchentlich");
+  await repeatEvery(sheet, "wöchentlich");
   await pickSymbol(sheet, "Kindergarten");
   await sheet.getByRole("button", { name: "Fertig" }).click();
   await expect(inWeek(page, "Kindergarten")).toHaveCount(1);
@@ -320,7 +391,7 @@ test("deleting one day of a series asks how far, and „nur diesen“ reaches on
   const sheet = await newAppointment(page);
   await titleOf(sheet).fill("Kindergarten");
   await withTimes(sheet, "08:00", "12:00");
-  await sheet.getByLabel("Wiederholen").selectOption("wöchentlich");
+  await repeatEvery(sheet, "wöchentlich");
   await pickSymbol(sheet, "Kindergarten");
   await sheet.getByRole("button", { name: "Fertig" }).click();
 

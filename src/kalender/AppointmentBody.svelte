@@ -5,18 +5,20 @@
   import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
   import { cardById, load, shown } from "../store.svelte.js";
   import { prepare } from "../speech.js";
-  import { pictureFor, pictures } from "../symbols.js";
+  import { pictureFor, pictures, providerInUse, refFor, sourceInUse } from "../symbols.js";
   import { confirmDialog } from "../views/dialog.js";
   import { moved, reorder } from "../views/reorder.js";
   import { askScope } from "./scope.svelte.js";
-  import type { Editing } from "./appointment.svelte.js";
+  import type { Editing, Repeat } from "./appointment.svelte.js";
   import type { Handle } from "@lautstark/design/svelte/sheet";
+  import type { AddItem } from "@lautstark/design/menu";
+  import Dropdown from "@lautstark/design/svelte/Dropdown";
   import Tile from "@lautstark/design/svelte/Tile";
   import TileGrid from "@lautstark/design/svelte/TileGrid";
+  import SymbolSearch from "@lautstark/bildquelle/svelte/SymbolSearch";
   import Face from "../pieces/Face.svelte";
   import Picture from "../pieces/Picture.svelte";
   import SpeechField from "../pieces/SpeechField.svelte";
-  import SymbolSearch from "../pieces/SymbolSearch.svelte";
   import CardEditor from "./CardEditor.svelte";
 
   let { s, handle }: { s: Editing; handle: Handle } = $props();
@@ -32,7 +34,25 @@
      the tile that moved is a different element and has to be found afresh.
      Declared once rather than inline, because an attachment re-runs when its
      expression changes and a fresh closure every redraw would wire the grid
-     again on top of itself. */
+     again on top of itself.
+
+     ## Two grids answering ← and →, and what keeps them apart
+     §6.4 names this as wochenwerk's one collision to resolve. Since the search
+     became @lautstark/bildquelle/svelte/SymbolSearch there are two grids of
+     `.picker__item`s on this form, one element apart, and both want the arrow
+     keys: this one carries a symbol past its neighbour, the results box walks
+     a roving tabindex across the hits.
+
+     They stay apart because neither handler is on an ancestor of the other's
+     tiles. `reorder` listens on *this* grid and the results box listens on
+     itself; they are siblings inside `.stack`, so a key pressed in one never
+     bubbles through the other and no stopPropagation is needed anywhere. Both
+     then narrow again on their own terms — reorder.ts asks for the nearest
+     `[data-move]`, which the search's tiles do not carry and neither does the
+     ＋ slot at the end of this row, and the results box asks whether what has
+     focus is one of the buttons it drew. Held by two e2e cases: → on a chosen
+     symbol still reorders, and → on a search result leaves this row's order
+     exactly where it was. */
   const ordering = (grid: HTMLElement) => reorder(grid, (from, to) => {
     draft.symbols = moved(draft.symbols, from, to);
     queueMicrotask(() => grid.querySelectorAll<HTMLElement>("[data-move]")[to]?.focus());
@@ -190,6 +210,64 @@
     };
   };
 
+  /* Wiederholen, which was a native `<select class="field">` until this round.
+     conventions.md §6.10: a `<select>` is not a dropdown — its open list is drawn
+     by the operating system and is the one thing on a page that cannot follow the
+     tokens, which stopped being survivable when the scheme became a choice. The
+     rule was written in three places, one of them the header of this product's
+     own `pieces/Dropdown.svelte`, and this control broke it.
+
+     Converting is not a markup swap. `bind:value` is gone, so each answer is its
+     own handler and the trigger reads the answer back out of `s.repeat` rather
+     than keeping a second copy of it; the answers are named once, here, because
+     the menu needs the word for the item and the trigger needs the same word for
+     what is chosen. `checked` is what makes them alternatives rather than four
+     equal commands — menu.js gives a checked item `role="menuitemradio"` and
+     `aria-checked`, which is the half of a `<select>`'s announcement a plain list
+     would have dropped. „einmalig" is left out once there is a batch, exactly as
+     the `<option>` list was filtered: a series cannot be told it happens once.
+
+     ## `.btn.dropdown` and not the `field` variant, which does not draw
+
+     §6.10 argues for `field` in exactly this position — a column of questions,
+     where a trigger as wide as its answer leaves four controls with no left
+     edge to follow down — and the trigger beside this one is a full-width date
+     field, so that argument is right about this row. It is not what shipped.
+     `.dropdown::after` is `flex: 0 0 auto`, which presumes a flex container;
+     `.btn` supplies `display: inline-flex` and `.field` supplies no display at
+     all. Measured on design v1.37.1 against `<button class="field dropdown">`:
+     the button computes `display: block` and `text-align: center` — the user
+     agent's own, because nothing overrides it the way `.btn` does — and the
+     chevron computes `display: inline`, where a width of 10px and a height of
+     7px do not apply, so it occupies nothing and nothing is drawn. A trigger
+     with no chevron and its answer centred like a button is worse than a
+     narrow one, so this takes the variant that works and the gap is reported
+     rather than patched from here: a `display` on `.field` is design's to add,
+     and a product rule putting one back would be the next product writing it
+     again. `start` because the list belongs under the left edge of a control
+     at the left of a form column, not under the right edge of the row. */
+  const REPEATS: ReadonlyArray<readonly [Repeat, string]> = [
+    ["none", "einmalig"], ["daily", "jeden Tag"], ["weekly", "wöchentlich"], ["yearly", "jedes Jahr"],
+  ];
+  let repeatSays = $derived(REPEATS.find(([value]) => value === s.repeat)?.[1] ?? "einmalig");
+  const offerRepeats = (add: AddItem) => {
+    for (const [value, label] of REPEATS) {
+      if (s.batch && value === "none") continue;
+      add(label, () => { s.repeat = value; }, { checked: s.repeat === value });
+    }
+  };
+
+  /* Whether the search is on screen at all, asked once because two things read
+     it. `busy` is §6.4's suppression and empties the component — its field, its
+     grid and its credit all take `hidden`, and nothing is unmounted, which is
+     what keeps the caret. What `busy` cannot do is take the wrapper out of this
+     column: it is still a grid item, and an empty grid item in a 12px `.stack`
+     is 12px of nothing between the chosen row and Ansage. Measured against the
+     `<select>` build: 24px where there were 12. So the wrapper is switched off
+     from here, which is the component's own division of labour — „where this
+     sits and how it is spaced belongs to the page". */
+  let searchOff = $derived(s.mode === "choice" || !s.searching);
+
   const togglePerson = (id: string) => {
     draft.people = draft.people.includes(id) ? draft.people.filter(other => other !== id) : [...draft.people, id];
   };
@@ -319,12 +397,19 @@
 
 <div class="stack">
   <div class="row-of row-of--top"><div class="field-col"><label class="field-row"><span class="lbl">Tag</span><input class="field" type="date" bind:value={s.date} /></label><label class="choice"><input type="checkbox" bind:checked={s.whole} /><span><span>Ganztägig</span></span></label></div><div class="field-col" hidden={s.whole}><label class="field-row"><span class="lbl">Von</span><input class="field" type="time" step={board.snap * 60} bind:value={s.from} /></label><label class="choice"><input type="checkbox" checked={atOpen} onchange={event => toggleOpen(event.currentTarget.checked)} /><span><span>ab dem Aufstehen</span><span class="muted"> {board.from}</span></span></label></div><div class="field-col" hidden={s.whole}><label class="field-row"><span class="lbl lbl--split"><span>Bis</span><span class="lbl__aside">{lasts}</span></span><input class="field" type="time" step={board.snap * 60} bind:value={s.to} /></label><label class="choice"><input type="checkbox" checked={atClose} onchange={event => toggleClose(event.currentTarget.checked)} /><span><span>bis zum Schlafengehen</span><span class="muted"> {board.to}</span></span></label></div><div class="field-col" hidden={!s.whole}><label class="field-row" hidden={spanHidden}><span class="lbl">Bis</span><input class="field" type="date" min={s.date} bind:value={s.spanTo} /></label><label class="choice"><input type="checkbox" bind:checked={s.notHome} /><span><span>Wir sind nicht zu Hause</span></span></label></div></div>
-  <div class="stack" hidden={!!s.stretch}><div class="row-of"><label class="field-row"><span class="lbl">Wiederholen</span><select class="field" bind:value={s.repeat}>{#each ([["none", "einmalig"], ["daily", "jeden Tag"], ["weekly", "wöchentlich"], ["yearly", "jedes Jahr"]] as const).filter(([value]) => !s.batch || value !== "none") as [value, label]}<option {value}>{label}</option>{/each}</select></label><label class="field-row" hidden={s.repeat === "none"}><span class="lbl">Bis</span><input class="field" type="date" bind:value={s.until} /></label></div><TileGrid class="picker__grid--tight" hidden={s.repeat !== "weekly"}>{#each weekdays as label, index}<Tile {label} toggle active={s.weekly.includes(index)} onclick={() => toggleDay(index)}><span></span></Tile>{/each}</TileGrid></div>
+  <!-- A <div> and not a <label>, and that is the conversion rather than a
+       detail of it: a <label> does not name a <button>, so the question has to
+       reach the trigger as `aria-labelledby`. The same defect was sitting
+       untested in this product's other Dropdown call site, in SettingsBody. -->
+  <div class="stack" hidden={!!s.stretch}><div class="row-of"><div class="field-row"><span class="lbl" id="repeatLabel">Wiederholen</span><Dropdown start labelledBy="repeatLabel" label={repeatSays} build={offerRepeats} /></div><label class="field-row" hidden={s.repeat === "none"}><span class="lbl">Bis</span><input class="field" type="date" bind:value={s.until} /></label></div><TileGrid class="picker__grid--tight" hidden={s.repeat !== "weekly"}>{#each weekdays as label, index}<Tile {label} toggle active={s.weekly.includes(index)} onclick={() => toggleDay(index)}><span></span></Tile>{/each}</TileGrid></div>
   <p class="small muted" hidden={!draft.series || !!s.stretch}>{seriesLine}</p>
   <div><span class="lbl">Am Board</span><div class="segmented"><button type="button" aria-pressed={s.mode === "symbols"} onclick={() => flip("symbols")}>steht fest</button><button type="button" aria-pressed={s.mode === "choice"} onclick={() => flip("choice")}>wird ausgesucht</button></div></div>
   <p class="notice bad" hidden={!short && !bare}>{wantMore}</p>
   <div class="chosen" hidden={s.mode === "choice"}><TileGrid {@attach ordering}>{#each draft.symbols as symbol, index (symbol.source + symbol.id)}<Tile label={symbol.label} toggle active={true} data-move="" onclick={() => { draft.symbols = draft.symbols.filter((_, at) => at !== index); }}><Picture {symbol} name={symbol.label} {known} /></Tile>{/each}<Tile label="Symbol" class="picker__item--add" onclick={() => { s.searching = true; queueMicrotask(() => search.focus()); }}><span class="picker__add">＋</span></Tile></TileGrid><p class="small muted" hidden={draft.symbols.length < 2}>Zieh sie in die Reihenfolge, in der sie am Board stehen — oder ← und →.</p></div>
-  <SymbolSearch bind:this={search} hidden={s.mode === "choice" || !s.searching} onpick={ref => { if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref]; search.clear(); }} />
+  <!-- `busy` and the class answer the same question; see `searchOff` above for
+       why it takes both. See CardEditor for why `onescape` is left unwired in
+       both of this product's two search fields. -->
+  <SymbolSearch bind:this={search} class="search{searchOff ? " search--off" : ""}" busy={searchOff} provider={providerInUse()} limit={18} words={{ field: "Symbol suchen", placeholder: "z. B. Spielplatz" }} onpick={candidate => { const ref = refFor(sourceInUse(), candidate); if (!draft.symbols.some(symbol => symbol.source === ref.source && symbol.id === ref.id)) draft.symbols = [...draft.symbols, ref]; search.clear(); }}>{#snippet caption(candidate)}<span class="small">{candidate.label}</span>{/snippet}</SymbolSearch>
   <div class="stack" hidden={s.mode !== "choice"}>{#if s.making}<CardEditor card={{ id: uuid(), name: "", updatedAt: 0 }} done={id => void madeCard(id)} />{:else}{#if draft.options.length}<TileGrid>{#each draft.options as id}<Tile label={cardById(id)?.name ?? "?"} toggle active={true} onclick={() => { draft.options = draft.options.filter(other => other !== id); }}><Picture symbol={cardById(id)?.symbol} name={cardById(id)?.name ?? "?"} /></Tile>{/each}</TileGrid>{/if}<p class="small muted">Karten mit NFC-Tag, die du hinlegst.</p><TileGrid>{#each [...shown().cards.values()].filter(card => !draft.options.includes(card.id)) as card}<Tile label={card.name} toggle active={false} onclick={() => { draft.options = [...draft.options, card.id]; }}><Picture symbol={card.symbol} name={card.name} /></Tile>{/each}</TileGrid><button class="btn sm" type="button" onclick={() => { s.making = true; }}>＋ Neue Karte</button>{/if}</div>
   <label class="field-row"><span class="lbl" hidden={saidByCards}>Ansage</span><SpeechField bind:this={speechField} bind:value={s.speech} bind:foldOpen={s.foldOpen} {instead} {shape} rowHidden={saidByCards} /></label>
   <details class="more"><summary><span class="section">Personen</span><span class="state">{peopleState}</span></summary><div class="stack"><TileGrid>{#each shown().people as person}<Tile label={person.name} toggle active={draft.people.includes(person.id)} onclick={() => togglePerson(person.id)}><Face {person} /></Tile>{/each}</TileGrid><label class="choice" hidden={!draft.people.length}><input type="checkbox" bind:checked={s.showPeople} /><span>Am Board zeigen</span></label></div></details>
