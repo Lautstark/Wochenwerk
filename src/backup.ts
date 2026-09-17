@@ -35,6 +35,21 @@ export const backup = new Sicherung({
   looksEmpty: (produced) => (produced as { termine?: unknown[] }).termine?.length === 0,
 });
 
+/**
+ * Whether this browser can hold a folder at all.
+ *
+ * `@lautstark/sicherung/svelte/BackupPanel` draws nothing where it cannot —
+ * Safari, Firefox and every browser on Android have no `showDirectoryPicker`,
+ * and a tablet must not be shown a backup story it cannot have. The settings
+ * sheet needs the same answer for the hairline it draws *between* that panel
+ * and its own download button: a rule under nothing is a rule over nothing.
+ *
+ * The same shape as `folder.ts`'s `supported`, and for the same reason — the
+ * static is the package's answer and asking it twice in two spellings is how
+ * two surfaces come to disagree.
+ */
+export const keepsFolders = Sicherung.supported;
+
 /* Debounced by the package, so this is every write and not every keystroke. The
    two funnels in db.ts are what call `touched`, which is why this line does not
    have to know which of them ran. */

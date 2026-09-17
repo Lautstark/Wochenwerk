@@ -50,6 +50,16 @@ Three things were kept on purpose:
   place by `pieces/Vanilla.svelte`, a `display: contents` host. Nothing in the
   shared packages had to change for this product to move.
 
+  **No longer true as of 2026-09-17.** All four ship Svelte twins now and this
+  product draws them — `AblagePanel`, `BackupPanel`, `MetacomPanel`,
+  `VoicePicker`, and `AzurePanel` in place of the Sprachdienst markup this
+  product had drawn itself. The host is gone with them, and so are the two
+  `$effect`s and the `onDestroy` that signed the vanilla panels up and
+  disposed them: each component subscribes and unsubscribes itself. The four
+  panel baselines passed at a tolerance of zero across the swap, which is what
+  says the twins really are their originals' equals. See the last bullet under
+  Consequences, which is where this was expected.
+
 Not chosen, and why:
 
 - **Vanilla, but one idiom** (bildhaft's `{node, render(state)}` factories).
