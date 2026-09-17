@@ -1,5 +1,5 @@
 import { attributionsFor, foldGerman, getProvider, metacom, PROVIDER_IDS,
-  type Candidate, type ProviderId, type ProviderStatus } from "@lautstark/bildquelle";
+  type Candidate, type ProviderId, type ProviderStatus, type SymbolProvider } from "@lautstark/bildquelle";
 import type { SymbolRef } from "./model.js";
 
 /* Symbols are read, never served. METACOM comes out of the household's own licensed
@@ -45,7 +45,16 @@ export const preferredRendering = () => metacom.preferredRendering;
    household that has to pick before it can search. */
 export const sourceInUse = (): ProviderId => (metacom.isReady() ? "metacom" : "arasaac");
 
-export const search = (source: ProviderId, query: string): Promise<Candidate[]> => getProvider(source).search(query);
+/* The source itself, which is what @lautstark/bildquelle/svelte/SymbolSearch asks
+   for: it searches, draws the pictures and derives the attribution from the thing
+   it is searching, so the one fact it needs from this calendar is which source
+   that is. `search()` stood here beside it — one line over `getProvider(…).search`
+   with one caller, the old hand-drawn picker — and went with that file.
+
+   Read at the moment the picker is drawn rather than kept: the only way the
+   answer changes is a METACOM folder being connected, which happens in the
+   Einstellungen sheet, and no picker is on screen while that one is open. */
+export const providerInUse = (): SymbolProvider => getProvider(sourceInUse());
 export const refFor = (source: ProviderId, candidate: Candidate): SymbolRef => ({ source, id: candidate.id, label: candidate.label });
 export const owed = (refs: SymbolRef[]) => attributionsFor(refs.map(ref => ref.source));
 

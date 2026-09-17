@@ -230,9 +230,25 @@ a.btn { text-decoration: none; }
 .opt { display: grid; gap: 6px; margin-top: 14px; }
 .opt .field-row { flex: 0 1 auto; max-width: 22rem; }
 .opt p { margin: 0; }
+/* Where @lautstark/bildquelle/svelte/SymbolSearch stands, and the only thing
+   this product says about it: the component draws a field, a grid and the
+   attribution line and carries no class of its own, because where it sits and
+   how it is spaced belongs to the page. §6.4.
+
+   `.search__row` and the `flex: 2 1 14rem` that widened the one field in it
+   went with the hand-drawn picker. They existed to lay out a row that had
+   exactly one thing in it — a label and a field the component now draws
+   itself — so what is left is the 10px between the three blocks.
+
+   And the off state, which the appointment sheet needs and the card editor does
+   not. §6.4's `busy` empties the component and leaves the wrapper standing,
+   which is right — an unmounted field loses the caret — but a standing wrapper
+   is still an item of the sheet's 12px `.stack`, so the emptied block reads as
+   12px of nothing between the chosen row and Ansage. `hidden` on the wrapper is
+   what the hand-drawn picker had and is not reachable through a component whose
+   handles on it are `id` and `class`, so this is that rule under a name. */
 .search { display: grid; gap: 10px; }
-.search__row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
-.search__row .field-row:first-child { flex: 2 1 14rem; }
+.search--off { display: none; }
 
 /* Square, because what is being chosen is. The grid, the tile, the hover and the
    marking of the chosen one are components.css's since design 1.33.0 — they were
@@ -253,6 +269,14 @@ a.btn { text-decoration: none; }
   pointer-events: none; transition: none; box-shadow: 0 6px 16px rgba(0, 0, 0, .22); }
 .picker__item .thumb { width: 52px; height: 52px; }
 .picker__grid--tight .picker__item .thumb { display: none; }
+/* The same 52px for a search result, which is not a `.thumb`. components.css
+   deliberately leaves the tile's picture unsized — three products draw three
+   sizes — and the shared search emits a bare `<img>` where this product's own
+   tiles wrap one in `Picture`. Two selectors for one figure rather than one
+   selector over both, because they are two different elements: `>` so this
+   reaches only what the component drew and never an `<img>` inside a `.thumb`,
+   which is already sized by the rule above and fills it. */
+.picker__item > img { width: 52px; height: 52px; flex: none; object-fit: contain; }
 /* Nothing picked yet, in the shape of the thing that is missing rather than as a
    sentence where the thing would be. Dashed because it is a slot and not a tile,
    and it points the caret at the search rather than explaining where it is. */
