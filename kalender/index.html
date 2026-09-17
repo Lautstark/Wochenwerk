@@ -15,7 +15,14 @@
     </script>
   </head>
   <body>
-    <main id="app"></main>
+    <!-- A div, and it was `<main>` until the page grew a foot. A `<footer>`
+         inside `<main>` is not `contentinfo` — the landmark is exactly what
+         `@lautstark/design/svelte/Footer` is for — so the mount point stopped
+         being the landmark and `Kalender.svelte` names the one element that
+         really is the page's work: the week. mitreden mounts into a div for the
+         same arrangement. The board next door keeps its `<main id="app">`,
+         because everything on that page is the board. -->
+    <div id="app"></div>
     <script type="module" src="/src/kalender.ts"></script>
   </body>
 </html>

@@ -502,3 +502,201 @@ test("emptying the calendar counts what goes, and keeps the people", async ({ pa
   await expect(inWeek(page, "Turnen")).toHaveCount(0);
   await expect(page.getByText("Noch nichts geplant")).toBeVisible();
 });
+
+/* ## The foot of the page, and the three pages it opens
+ *
+ * New surfaces, and until now uncovered because there was nothing to cover:
+ * wochenwerk had no footer, no Impressum and no Datenschutz, and it is the last
+ * of the four products to get them. So these assertions are about the two
+ * things nobody else can check for this product — that the obligations are
+ * reachable and named the way the law names them, and that every path the
+ * privacy notice claims is a path this repository actually has.
+ *
+ * The shell is `@lautstark/design/svelte/Footer` and `.../Legal`; what those
+ * draw belongs to that package's suite. What is here is the product's words,
+ * the product's order, and the two behaviours §6.12 makes the component
+ * responsible for and which a consumer can silently lose.
+ */
+
+/** The page's own footer, which is the one `contentinfo` landmark on it. */
+const foot = (page: Page) => page.getByRole("contentinfo");
+
+/**
+ * Opens one of the three pages and hands back the dialog.
+ *
+ * Two names, because they are two different things. The footer says „Über
+ * Wochenwerk"; the page it opens is headed „Was ist Wochenwerk?", and that
+ * heading is the dialog's accessible name — one dialog whose name follows the
+ * page showing in it, which is §6.12's thunk and the thing worth asserting.
+ */
+async function openLegal(page: Page, link: string, named = link): Promise<Locator> {
+  await foot(page).getByRole("button", { name: link }).click();
+  const sheet = page.getByRole("dialog", { name: named });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+test("the foot of the page carries the three pages a German site has to carry", async ({ page }) => {
+  await openCalendar(page);
+  /* One landmark, not two. The status line under the week was a `<footer>`
+     until this round and is a `<div>` now: two `<footer>`s that are both
+     children of `.shell` would be two `contentinfo`s on one page. */
+  await expect(page.getByRole("contentinfo")).toHaveCount(1);
+  /* Buttons, because what the first three open is a dialog in this page rather
+     than another document. The fourth is the only anchor. */
+  for (const name of ["Über Wochenwerk", "Impressum", "Datenschutz"]) {
+    await expect(foot(page).getByRole("button", { name })).toBeVisible();
+  }
+  await expect(foot(page).getByRole("link", { name: "Quellcode" }))
+    .toHaveAttribute("href", "https://github.com/Lautstark/Wochenwerk");
+  /* The status line is still a live region and still under the week, which is
+     what it was and what the footer must not have absorbed. */
+  await expect(page.locator(".pagefoot .line")).toHaveAttribute("role", "status");
+});
+
+test("what ARASAAC's licence is owed stands in the footer, and only while its symbols are drawn", async ({ page }) => {
+  /* The attribution moved out of the status row into the shared footer's
+     `credit` — §6.12, where it is described as exactly this: one line that
+     follows the source in force, empty when none is, and drawn as a paragraph
+     only then. It is a licence condition rather than a courtesy, so which of
+     the two states it is in is worth an assertion in both directions.
+   *
+   * It follows the symbols the *week* draws and not the collection somebody
+   * happens to be searching in, which is why the empty week has no line and a
+   * week with one ARASAAC symbol in it does. */
+  await openCalendar(page);
+  await expect(foot(page).locator(".footer__credit")).toHaveCount(0);
+
+  await openCalendar(page, { appointments: [timed(WEEK[1], "10:00", "11:00", "Turnen")] });
+  await expect(inWeek(page, "Turnen")).toBeVisible();
+  await expect(foot(page).locator(".footer__credit")).toContainText("ARASAAC");
+});
+
+test("the Impressum names who publishes this, by the word § 5 DDG uses", async ({ page }) => {
+  await openCalendar(page);
+  /* Called „Impressum" in the footer and „Impressum" in the heading. § 5 DDG
+     asks that the page be easy to recognise as the page it is, and that is the
+     word the law names — so this assertion is the obligation rather than a
+     spelling preference. */
+  const sheet = await openLegal(page, "Impressum");
+  await expect(sheet.getByRole("heading", { name: "Angaben gemäß § 5 DDG" })).toBeVisible();
+  await expect(sheet).toContainText("Stefanie Grewenig");
+  await expect(sheet).toContainText("21149 Hamburg");
+  await expect(sheet.getByRole("link", { name: "steffi@lautstark.tech" }))
+    .toHaveAttribute("href", "mailto:steffi@lautstark.tech");
+});
+
+test("the Datenschutz names every path out of this browser, and no path this product has not", async ({ page }) => {
+  await openCalendar(page);
+  const sheet = await openLegal(page, "Datenschutz");
+  /* One heading per way out, and the list is the one src/ actually has:
+     GitHub Pages serves the page, bildquelle asks ARASAAC, stimmquelle fetches
+     a piper model from Hugging Face, the browser's own voices may speak over
+     the network, and Azure is asked only with a key somebody typed. */
+  for (const heading of [
+    "Hosting und Server-Logs",
+    "Suche bei ARASAAC",
+    "Stimmen von Hugging Face",
+    "Stimmen deines Geräts",
+    "Azure Speech, nur mit eigenem Schlüssel",
+  ]) {
+    await expect(sheet.getByRole("heading", { name: heading })).toBeVisible();
+  }
+  /* And the two the siblings carry that this product must never claim, because
+     it has neither. vorlaut fetches onnxruntime from jsDelivr; wochenwerk
+     bundles it (`piperVendor` in vite.config.ts). bildhaft and mitreden fetch a
+     ready-made Sammlung from lautstark.tech behind `?sammlung=`; there is no
+     such link here and no such fetch. A privacy notice that names a transfer
+     which does not happen is as wrong as one that hides one. */
+  await expect(sheet).not.toContainText("jsDelivr");
+  await expect(sheet).not.toContainText("?sammlung=");
+  /* The cookie is this product's alone, and it is disclosed with what it holds
+     and what turns it on — a person cannot consent to what they were not told. */
+  await expect(sheet).toContainText("lautstark-ordner");
+});
+
+test("the legal pages are du throughout, the privacy notice included", async ({ page }) => {
+  await openCalendar(page);
+  /* The house rule, and the one a copied paragraph is most likely to break:
+     three of the four products' notices were written together, and a sentence
+     lifted out of a Sie-form template reads as correct on its own. Asserted
+     over all three pages at once, and over the prose as a reader sees it. */
+  for (const [link, named] of [["Über Wochenwerk", "Was ist Wochenwerk?"],
+    ["Impressum", "Impressum"], ["Datenschutz", "Datenschutz"]]) {
+    const sheet = await openLegal(page, link!, named);
+    const words = (await sheet.innerText()).replace(/\s+/g, " ");
+    expect(words, `„${named}“ is written in du`)
+      .not.toMatch(/\b(Sie|Ihnen|Ihre[nmrs]?|Ihr)\b/);
+    await sheet.getByRole("button", { name: "Schließen" }).click();
+    await expect(sheet).toBeHidden();
+  }
+});
+
+test("one dialog with three pages in it, and the two not showing stay in the document", async ({ page }) => {
+  await openCalendar(page);
+  /* §6.12: every section is drawn and the ones not showing are `hidden`. Three
+     separate dialogs would be three chances for one of them to be reachable and
+     the others not, which is the failure both legal pages exist against — and
+     it is the sheet's accessible name that has to follow the page rather than
+     the sheet being rebuilt. */
+  const sheet = await openLegal(page, "Datenschutz");
+  await expect(sheet.locator("#privacyPage")).toBeVisible();
+  await expect(sheet.locator("#impressumPage")).toBeHidden();
+  await expect(sheet.locator("#aboutPage")).toBeHidden();
+  /* Still in the document, hidden rather than unmounted. */
+  await expect(sheet.locator("#impressumPage")).toHaveCount(1);
+  await expect(sheet.locator("#aboutPage")).toHaveCount(1);
+});
+
+test("a legal page opens from the top, however far the last reader scrolled", async ({ page }) => {
+  await openCalendar(page);
+  /* The only behaviour in either shared component that is not markup. The sheet
+     keeps its scroll position, and the privacy notice is long enough that
+     reopening it half way down reads as a page starting in the middle of a
+     sentence. */
+  const sheet = await openLegal(page, "Datenschutz");
+  /* The body, which is the element the component resets and therefore the one
+     that has to be the scroller. kalender.css makes it one for this dialog and
+     says why; a `<dialog>` scrolls itself in the user agent's stylesheet, and
+     the reset would land on an element whose scrollTop is always zero.
+
+     Held by the dialog's id rather than through `sheet`, because `sheet` is
+     named after the page showing in it — which is the point of the component
+     and would make this locator stop resolving the moment a second page
+     opens. */
+  const body = page.locator("#legal > .body");
+  await body.evaluate(node => { node.scrollTop = 400; });
+  expect(await body.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await sheet.getByRole("button", { name: "Schließen" }).click();
+  await expect(sheet).toBeHidden();
+  await openLegal(page, "Impressum");
+  expect(await body.evaluate(node => node.scrollTop)).toBe(0);
+});
+
+test("the calendar tells the browser chrome which scheme is in force, and the board does not", async ({ page }) => {
+  /* The defect adopting @lautstark/design/svelte/ThemePicker came with, and the
+     narrow one: the boot snippet was always in kalender/index.html, but nothing
+     called `initTheme`, so nothing subscribed to the operating system changing
+     its mind and the chrome paint never ran. There was no `theme-color` meta on
+     either page.
+   *
+   * Asserted as the resolved `--bg` rather than as a colour written here: the
+   * meta is set from the token, so a moved accent moves this with it. */
+  await openCalendar(page);
+  const painted = () => page.locator('meta[name="theme-color"]').getAttribute("content");
+  const bg = () => page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--bg").trim());
+  expect(await painted()).toBe(await bg());
+
+  const sheet = await openSettings(page);
+  const look = await panel(sheet, "Aussehen");
+  await look.getByRole("group", { name: "Aussehen" }).getByRole("button", { name: "Dunkel" }).click();
+  expect(await painted()).toBe(await bg());
+
+  /* And the board next door must not have gained one. It is a display on a wall
+     and style.css commits it to dark; its index.html carries no boot snippet for
+     the same reason and says so in a comment. */
+  await page.goto("/");
+  await expect(page.locator("#app")).toBeVisible();
+  await expect(page.locator('meta[name="theme-color"]')).toHaveCount(0);
+});

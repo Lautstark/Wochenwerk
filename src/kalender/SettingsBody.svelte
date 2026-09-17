@@ -4,7 +4,7 @@
      `name=` is the platform's own accordion. conventions.md §3.5, and the markup
      is @lautstark/design/svelte/Panel's — §6.2. */
   import { onDestroy } from "svelte";
-  import { applyTheme, readTheme, saveTheme, THEMES, type Theme } from "@lautstark/design/theme";
+  import { readTheme, type Theme } from "@lautstark/design/theme";
   import { listVoices } from "@lautstark/stimmquelle";
   import { wherePanel } from "@lautstark/sicherung/ablage-panel";
   import { backupPanel } from "@lautstark/sicherung/backup-panel";
@@ -26,6 +26,7 @@
   import type { SettingsState } from "./settings.svelte.js";
   import Vanilla from "@lautstark/design/svelte/Vanilla";
   import Panel from "@lautstark/design/svelte/Panel";
+  import ThemePicker from "@lautstark/design/svelte/ThemePicker";
   import Row from "../pieces/Row.svelte";
   import Overflow from "../pieces/Overflow.svelte";
   import Dropdown from "../pieces/Dropdown.svelte";
@@ -73,7 +74,8 @@
 
   /* localStorage, like the three siblings: the scheme has to be readable before
      the first paint, and a database read is a frame too late. kalender/index.html
-     reads this same key inline. */
+     reads this same key inline, and src/kalender.ts hands the same key to
+     `initTheme` — which is the half no picker inside a sheet can do. */
   const THEME_KEY = "wochenwerk.theme";
   const THEME_WORDS: Record<Theme, string> = { system: "Wie das Gerät", light: "Hell", dark: "Dunkel" };
 
@@ -402,5 +404,5 @@
 <Panel section="Sprachdienst" state={!azureLoaded ? "Wird geladen …" : azure ? `Schlüssel ••••${azure.key.slice(-4)}` : "Kein Schlüssel"} class="panel__body" bind:open={unfolded.sprachdienst}><p class="small muted" role="status">{probe}</p><p class="small muted">Kostenpflichtig, braucht ein Konto bei Microsoft. Der Schlüssel bleibt in diesem Browser und geht direkt zu Microsoft.</p><p class="small muted">Ein Schlüssel für den ganzen Kalender.</p><div class="row-of"><label class="field-row"><span class="lbl">Schlüssel</span><input class="field" type="password" autocomplete="off" placeholder={azure ? `••••${azure.key.slice(-4)}` : ""} bind:value={key} /></label><label class="field-row"><span class="lbl">Region</span><input class="field" type="text" list="azure-regionen" spellcheck="false" bind:value={region} /></label></div><datalist id="azure-regionen">{#each AZURE_REGIONS as name}<option value={name}></option>{/each}</datalist><p class="small muted">Steht im Azure-Portal bei deiner Speech-Ressource.</p><div class="acts"><button class="btn sm primary" type="button" disabled={checking} onclick={() => void keep()}>{checking ? "Wird geprüft …" : "Speichern"}</button>{#if azure}<button class="btn sm destructive" type="button" onclick={() => void forgetKey()}>Schlüssel entfernen</button>{/if}</div></Panel>
 <Panel section="Karten" state={`${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`} class="panel__body" bind:open={unfolded.karten}>{#if editingCard}<CardEditor card={editingCard} done={async () => { editingCard = null; await load(); moved(); }} />{:else}<p class="small muted">Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst.</p><div class="rows">{#each cardList as card}<Row title={card.name}>{#snippet lead()}<Picture symbol={card.symbol} name={card.name} />{/snippet}{#snippet state()}{#if card.nfc}<code class="nfc">{card.nfc}</code>{:else}<span class="row__state small muted">keine Nummer</span>{/if}{/snippet}{#snippet actions()}<Overflow build={add => { add("Bearbeiten", () => { editingCard = card; }); add("Entfernen", () => void eraseCard(card), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !cardList.length}<p class="empty">noch keine</p>{/if}<button class="btn sm" type="button" onclick={() => { editingCard = { id: uuid(), name: "", updatedAt: 0 }; }}>＋ Neue Karte</button>{/if}</Panel>
 <Panel section="Personen" state={`${people.length} ${people.length === 1 ? "Person" : "Personen"}`} class="panel__body" bind:open={unfolded.personen}>{#if editingPerson}<PersonEditor person={editingPerson} done={async () => { editingPerson = null; await load(); moved(); }} />{:else}<div class="rows">{#each people as person}<Row title={person.name} state={person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag"}>{#snippet lead()}<Face {person} />{/snippet}{#snippet actions()}<Overflow build={add => { add("Bearbeiten", () => { editingPerson = person; }); add("Entfernen", () => void erasePerson(person), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !people.length}<p class="empty">noch niemand</p>{/if}<button class="btn sm" type="button" onclick={() => { editingPerson = { id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 }; }}>＋ Neue Person</button>{/if}</Panel>
-<Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><div class="segmented" role="group" aria-label="Aussehen">{#each THEMES as option}<button type="button" aria-pressed={option === theme} onclick={() => { saveTheme(THEME_KEY, option); applyTheme(option); theme = option; }}>{THEME_WORDS[option]}</button>{/each}</div><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>
+<Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>
 <Panel section="Löschen" state="" class="panel__body" bind:open={unfolded.loeschen}><p class="small muted">Den Kalender leeren und von vorn planen. Karten und Personen bleiben.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void wipe(false)}>Alle Termine löschen</button></div><hr class="hair" /><p class="small muted">Alles, was Wochenwerk kennt. Danach ist es wie frisch installiert.</p><div class="acts"><button class="btn sm destructive" type="button" onclick={() => void wipe(true)}>Alle Daten löschen</button></div></Panel>

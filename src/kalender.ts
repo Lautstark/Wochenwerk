@@ -1,4 +1,5 @@
 import "./kalender.css";
+import { initTheme } from "@lautstark/design/theme";
 import { mount } from "svelte";
 import { pullFromFolder, settings } from "./db.js";
 import { load } from "./store.svelte.js";
@@ -8,6 +9,23 @@ import Kalender from "./kalender/Kalender.svelte";
 
 /* The boot, and only the boot: the page is kalender/Kalender.svelte, what it shows
    comes from the store, and what is kept comes from the database. */
+
+/* The half of the scheme that a picker inside a settings sheet cannot do, and
+   which nothing here was doing.
+ *
+ * kalender/index.html already carries the stored-choice read inline, ahead of the
+ * bundle, so the tokens are right on the first paint — that half was never
+ * missing. What was missing is this call: it subscribes to the operating system
+ * changing its mind while „Wie das Gerät" is in force, and it writes the
+ * `theme-color` meta the browser chrome reads, which this page had none of. Both
+ * are entry-point work; `@lautstark/design/svelte/ThemePicker` says so in as many
+ * words, and the calendar's Aussehen panel is that picker now.
+ *
+ * The calendar entry only. `src/main.ts` next door must not gain this: the board
+ * is a display on a wall, style.css commits it to dark, and a chrome colour
+ * following a laptop's preference is not a thing a wall has. Its own index.html
+ * has no boot snippet for the same reason and carries a comment saying so. */
+initTheme("wochenwerk.theme");
 
 mount(Kalender, { target: document.querySelector<HTMLElement>("#app")! });
 metacom.subscribe(() => void load());
