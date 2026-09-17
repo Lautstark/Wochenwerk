@@ -303,11 +303,43 @@ a.btn { text-decoration: none; }
    this dialog moved; at (0,2,0) they tie and win on order, since the @import
    above puts components.css first. */
 .panel > .panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
-/* A line that has not been given anything to say takes no row. The Azure panel
-   holds its status <p> for the life of the dialog so a reader is not moved by
-   its arrival; empty, it was spending a gap and two margins — 37px of nothing
-   between the heading and the panel's first word. */
-.panel > .panel__body > p:empty { display: none; }
+
+/*
+ * The Sprachdienst panel, which is `@lautstark/stimmquelle/svelte/AzurePanel`
+ * since 2026-09-17 and no longer this product's markup.
+ *
+ * §6.9 is explicit about why there is anything to write here at all: the panel
+ * emits only names components.css draws — `.field`, `.btn`, `.acts` — and
+ * every element a product's suite or stylesheet reaches by name takes an *id*
+ * instead, because the moment a package starts emitting a product's hook
+ * classes the invariant those names live under inverts. So these four rules
+ * are the product's half of that bargain, and between them they are what
+ * `.small.muted`, `.lbl` and the panel body's own 10px grid were doing in the
+ * markup this replaced.
+ *
+ * Block flow rather than `display: contents`, which was the first attempt and
+ * is wrong here for a reason worth writing down: `contents` would hand the
+ * panel's nine children straight to `.panel__body`'s grid and every one of
+ * them would take the same 10px row, so a label would stand as far from its
+ * own field as a paragraph does from the next. A label belongs closer — 7px,
+ * which is `.lbl`'s own margin.
+ *
+ * The two fields stack where this product had them side by side in a
+ * `.row-of`. That row is not reproducible without a wrapper element the shared
+ * panel deliberately does not emit, and inventing one back would be a fifth
+ * arrangement of a panel three products are meant to share. Recorded rather
+ * than worked around.
+ */
+#sprachdienst > * { margin: 0 0 10px; }
+#sprachdienst > :last-child { margin-bottom: 0; }
+#sprachdienst > label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--text-dim); }
+#sprachdienst > p { font-size: 13.5px; color: var(--text-dim); }
+/* A line that has not been given anything to say takes no row. The panel holds
+   its status <p> for the life of the dialog so a reader is not moved by its
+   arrival; empty, it was spending a gap and two margins — 37px of nothing
+   between the heading and the panel's first word. The component keeps that <p>
+   genuinely childless when it is silent, which is what makes `:empty` match. */
+#azure-probe:empty { display: none; }
 
 /* What scrolls in the legal dialog, and it has to be the body.
  *

@@ -3,13 +3,8 @@
      list of answers rather than a scroll through everything anybody has opened.
      `name=` is the platform's own accordion. conventions.md §3.5, and the markup
      is @lautstark/design/svelte/Panel's — §6.2. */
-  import { onDestroy } from "svelte";
   import { readTheme, type Theme } from "@lautstark/design/theme";
   import { listVoices } from "@lautstark/stimmquelle";
-  import { wherePanel } from "@lautstark/sicherung/ablage-panel";
-  import { backupPanel } from "@lautstark/sicherung/backup-panel";
-  import { metacomPanel } from "@lautstark/bildquelle/metacom-panel";
-  import { voicePicker } from "@lautstark/stimmquelle/voice-picker";
   import { downloadJson } from "@lautstark/werkzeuge/download";
   import type { AblageStatus } from "@lautstark/sicherung/ablage";
   import { standing } from "../announce.js";
@@ -21,12 +16,31 @@
   import { caveats, labelOf, nameOf, offered, type Voice } from "../voices.js";
   import { load, shown } from "../store.svelte.js";
   import { ablage as ablageStore, folders, HOME, isStore, metacomInFolder, stopTelling, tellOthers } from "../folder.js";
-  import { backup } from "../backup.js";
+  import { backup, keepsFolders } from "../backup.js";
   import { confirmDialog, openDialog } from "../views/dialog.js";
   import type { SettingsState } from "./settings.svelte.js";
-  import Vanilla from "@lautstark/design/svelte/Vanilla";
   import Panel from "@lautstark/design/svelte/Panel";
   import ThemePicker from "@lautstark/design/svelte/ThemePicker";
+  /* The five provider panels, declared. Until 2026-09-17 each of these was a
+     plain DOM node from the package's vanilla twin, hosted through
+     `@lautstark/design/svelte/Vanilla` — a wrapper, an `$effect` to sign the
+     panel up for what it had to be told about, and an `onDestroy` to dispose
+     it, three times over. The components subscribe and unsubscribe themselves,
+     so all of that is gone with the host; conventions.md §6.5 to §6.9.
+
+     No cast on any of the five, and that is the whole of what round 3a was
+     withdrawn for: the components used to be typed against their own package's
+     `src/`, `tsc` brands a class's declaration `#private;`, and so the
+     `Ablage`, `Sicherung` and `MetacomProvider` this product holds — all built
+     from the published entries — were nominally distinct from the ones the
+     props asked for. They import `../dist` now, and the objects go straight
+     in. */
+  import AblagePanel from "@lautstark/sicherung/svelte/AblagePanel";
+  import BackupPanel from "@lautstark/sicherung/svelte/BackupPanel";
+  import MetacomPanel from "@lautstark/bildquelle/svelte/MetacomPanel";
+  import VoicePicker from "@lautstark/stimmquelle/svelte/VoicePicker";
+  import AzurePanel, { type AzureAccess, type AzureAnswer, type AzureWords }
+    from "@lautstark/stimmquelle/svelte/AzurePanel";
   import Row from "../pieces/Row.svelte";
   import Overflow from "../pieces/Overflow.svelte";
   import Dropdown from "../pieces/Dropdown.svelte";
@@ -59,19 +73,6 @@
     karten: false, personen: false, aussehen: false, loeschen: false,
   });
 
-  /**
-   * Azure's own region names. A datalist suggests rather than restricts, so a
-   * region newer than this file still works by typing it — and the region is what
-   * a rejected key usually turns out to be.
-   */
-  const AZURE_REGIONS = [
-    "westeurope", "northeurope", "germanywestcentral", "switzerlandnorth",
-    "francecentral", "uksouth", "swedencentral", "norwayeast", "eastus", "eastus2",
-    "westus", "westus2", "westus3", "centralus", "southcentralus", "canadacentral",
-    "brazilsouth", "australiaeast", "southeastasia", "eastasia", "japaneast",
-    "japanwest", "koreacentral", "centralindia", "southafricanorth", "uaenorth",
-  ];
-
   /* localStorage, like the three siblings: the scheme has to be readable before
      the first paint, and a database read is a frame too late. kalender/index.html
      reads this same key inline, and src/kalender.ts hands the same key to
@@ -79,17 +80,28 @@
   const THEME_KEY = "wochenwerk.theme";
   const THEME_WORDS: Record<Theme, string> = { system: "Wie das Gerät", light: "Hell", dark: "Dunkel" };
 
-  type Azure = { key: string; region: string };
-  type Answer = { ok: true; count: number } | { ok: false; code: "unreachable" | "refused" | "failed"; words: string };
-
   /**
    * Whether Azure answers for this key and this region. „Gespeichert" describes
    * the database; the person who typed a key wants to know whether Microsoft
    * answers, and each way it does not points somewhere different.
+   *
+   * Injected into `AzurePanel` rather than owned by it — §6.9. The panel decides
+   * *when* to ask (on arrival, and again before a save is written) and puts the
+   * answer into words; which regex means „refused" stays here, beside the
+   * `listVoices` call that produces the error, and this is the product's only
+   * one.
+   *
+   * Typed against the panel's own `AzureAccess` and `AzureAnswer`, which is why
+   * the key is optional: a product whose key lives on a machine it cannot read
+   * back sends none. This one always can, so an absent key is nothing to ask
+   * Microsoft about and is answered here rather than turned into a catalogue
+   * call without one — `listVoices` with no key answers happily about the
+   * shipped voices, which would be a „works" for a key that was never sent.
    */
-  async function probeAzure(azure: Azure): Promise<Answer> {
+  async function probeAzure({ key, region }: AzureAccess): Promise<AzureAnswer> {
+    if (!key) return { ok: false, code: "refused", words: "kein Schlüssel" };
     try {
-      return { ok: true, count: (await listVoices({ lang: "de", azure })).length };
+      return { ok: true, count: (await listVoices({ lang: "de", azure: { key, region } })).length };
     } catch (error) {
       const words = error instanceof Error ? error.message : String(error);
       const code = error instanceof TypeError ? "unreachable"
@@ -97,6 +109,31 @@
       return { ok: false, code, words };
     }
   }
+
+  /**
+   * Every sentence the Azure panel says, and all of them this product's.
+   *
+   * §6.0: a shared component carries no German. These are the words the
+   * hand-drawn panel said, moved rather than rewritten — `refusedOnSave` is the
+   * longer one, because a save is the moment the key and the region are being
+   * paired and the wrong pairing answers exactly the same 401 as a wrong key.
+   */
+  const AZURE_WORDS: AzureWords = {
+    key: "Schlüssel",
+    region: "Region",
+    regionHint: "Steht im Azure-Portal bei deiner Speech-Ressource.",
+    save: "Speichern",
+    saving: "Wird geprüft …",
+    forget: "Schlüssel entfernen",
+    asking: "Frage Azure …",
+    typeFirst: "Erst einen Schlüssel eintippen.",
+    answers: many => `${many} ${many === 1 ? "Stimme" : "Stimmen"} verfügbar`,
+    saved: many => `Azure Speech freigeschaltet — ${many} Stimmen stehen zur Wahl.`,
+    unreachable: "Die Region antwortet nicht — stimmt der Regionsname?",
+    refused: "Azure nimmt den Schlüssel nicht an.",
+    refusedOnSave: "Azure hat den Schlüssel abgelehnt. Meistens ist es die Region: sie muss die der Speech-Ressource sein, nicht die deines Kontos.",
+    failed: words => `Azure hat nicht geantwortet (${words}).`,
+  };
 
   /* The package answers with a shape and never with words; these are ours. */
   const ablageStatus = (): AblageStatus => ablageStore.status;
@@ -136,6 +173,10 @@
      list is asked for a second time without the key. */
   let refused = $state("");
   let told = $state(false);
+  /* What the two shared panels tell their headings. Both answer '' where there
+     is no folder — deliberately, because neither has anything to name — and the
+     fallback beside each is this product's, saying what is true in the blank
+     case: kept by hand, and drawn from ARASAAC. */
   let keepingState = $state("");
   let symbolsState = $state("");
   /* The name of the folder METACOM was found in, and what a fruitless look
@@ -147,12 +188,13 @@
      over this one. */
   let editingCard = $state<Card | null>(null);
   let editingPerson = $state<Person | null>(null);
-  let azure = $state<Azure | undefined>(undefined);
+  /* What is stored, and only so that the heading can say so without unfolding:
+     the field, the region, the probe line and which of the two buttons is
+     offered are all `AzurePanel`'s now. The key is held here because the
+     placeholder is the four characters it ends in — never the value, which is
+     the whole of that design. */
+  let azure = $state<{ key: string; region: string } | undefined>(undefined);
   let azureLoaded = $state(false);
-  let probe = $state("");
-  let key = $state("");
-  let region = $state("westeurope");
-  let checking = $state(false);
   let theme = $state<Theme>(readTheme(THEME_KEY));
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -162,59 +204,21 @@
     moved();
   };
 
-  /* The three shared panels and the picker, built once and disposed with the
-     sheet: each subscribes to something, and one built inside a render would
-     subscribe again on every repaint — the leak three of the four products
-     shipped, which is why the shared ones hand back a `dispose` at all. */
-  const store = wherePanel({
-    store: ablageStore,
-    adopt: adoptFolder,
-    changed: () => void load().then(moved),
-    say,
-    share: {
-      reads: () => told,
-      write: async (on: boolean) => {
-        told = on;
-        await saveSettings({ tellOthers: on });
-        if (on) tellOthers(folderName(ablageStatus()));
-        else stopTelling();
-      },
+  /* What the Ablage panel offers besides the folder, and the only part of it
+     this product owns: whether the household lets the other Lautstark
+     programmes on this device see where the folder is. `reads` is a thunk the
+     panel calls while it draws, so it is `told` that repaints the switch —
+     which is why there is no `$effect` signing the panel up for anything any
+     more. */
+  const share = {
+    reads: () => told,
+    write: async (on: boolean) => {
+      told = on;
+      await saveSettings({ tellOthers: on });
+      if (on) tellOthers(folderName(ablageStatus()));
+      else stopTelling();
     },
-  });
-  const keepingPanel = backupPanel({
-    backup, say,
-    /* The module answers '' where there is no folder — deliberately, because it
-       has nothing to name. The fallback is the product's and says what is true in
-       both of the blank cases: no folder chosen, and no picker in this browser. */
-    headline: text => { keepingState = text || "Nur von Hand"; },
-  });
-  const symbolsPanel = metacomPanel({
-    metacom,
-    headline: text => { symbolsState = text || "Von ARASAAC"; },
-    after: async action => {
-      /* Both of this panel's own scraps of memory are answers to „is METACOM
-         sitting in the Ablage?", and any act on the shared block has just made
-         them stale. `fromFolder` survives „Neu einlesen" alone. */
-      if (action !== "reread") fromFolder = null;
-      looked = null;
-      await load();
-      moved();
-    },
-    say,
-  });
-  const picker = voicePicker({
-    voices: () => voices,
-    current: () => chosen,
-    pick: id => { if (id && id !== chosen) void choose(id); },
-    hear: async (voice, onProgress) => {
-      try { await hearSample(voice.id, onProgress); }
-      catch (error) { say(`${labelOf(voice, voices)} konnte nicht sprechen: ${(error as Error)?.message ?? "unbekannter Fehler"}`); }
-    },
-    notes: voice => caveats(voice as Voice),
-  });
-  onDestroy(() => { keepingPanel?.dispose(); symbolsPanel.dispose(); picker.dispose(); });
-  $effect(() => { void voices; void chosen; void loaded; picker.refresh(); });
-  $effect(() => { void stamp; void told; store.refresh(); });
+  };
 
   /* Choosing writes. There is no pending state and no Save: the panel's heading
      is what stands in the settings record, the way every other panel's is. */
@@ -246,62 +250,35 @@
     loaded = true;
   }
 
-  const wording = (answer: Answer) => answer.ok
-    ? `${answer.count} ${answer.count === 1 ? "Stimme" : "Stimmen"} verfügbar`
-    : answer.code === "unreachable" ? "Die Region antwortet nicht — stimmt der Regionsname?"
-      : answer.code === "refused" ? "Azure nimmt den Schlüssel nicht an."
-        : "Die Abfrage ist fehlgeschlagen — später noch einmal versuchen.";
-
-  /* Drawn on opening and after a save or a forget, and deliberately not on every
-     act: this panel holds a field somebody is typing into. `known` is the answer a
-     save has just had; Azure would say the same thing twice. */
-  async function drawSpeech(known?: Answer) {
+  /* What is stored, for the heading and for the placeholder. Nothing else is
+     read here any more: the panel empties its own field on every draw, seeds
+     its own region field from `region`, and asks Azure itself. */
+  async function readAzure() {
     azure = (await settings()).azure;
     azureLoaded = true;
-    key = "";
-    region = azure?.region ?? "westeurope";
-    if (!azure) { probe = ""; return; }
-    if (known) { probe = wording(known); return; }
-    probe = "Frage Azure …";
-    probe = wording(await probeAzure(azure));
   }
 
-  /* Checked before it is stored, so a typo is a sentence now rather than a silent
-     appointment later. */
-  async function keep() {
-    /* An untouched field must not mean „kein Schlüssel": a save that only moves
-       the region keeps the key it already has. Removing it is its own button. */
-    const typed = key.trim() || (await settings()).azure?.key;
-    if (!typed) return say("Erst einen Schlüssel eintippen.");
-    const where = region.trim() || "westeurope";
-    checking = true;
-    try {
-      const answer = await probeAzure({ key: typed, region: where });
-      if (!answer.ok) {
-        /* A key belongs to one region, and the wrong pairing answers exactly the
-           same 401 as a wrong key — saying which is more use than repeating Azure. */
-        const why = answer.code === "refused"
-          ? "Azure hat den Schlüssel abgelehnt. Meistens ist es die Region: sie muss die der Speech-Ressource sein, nicht die deines Kontos."
-          : answer.code === "unreachable" ? "Die Region antwortet nicht — stimmt der Regionsname?"
-            : `Azure hat nicht geantwortet (${answer.words}).`;
-        probe = why;
-        return say(`Hat nicht geklappt: ${why}`);
-      }
-      await saveAzure({ key: typed, region: where });
-      say(`Azure Speech freigeschaltet — ${answer.count} Stimmen stehen zur Wahl.`);
-      await drawSpeech(answer);
-      /* And the list of voices, which is the whole reason somebody typed a key. */
-      await readVoices();
-    } catch (error) {
-      say(`Hat nicht geklappt: ${(error as Error)?.message ?? "unbekannter Fehler"}`);
-    } finally {
-      checking = false;
-    }
+  /**
+   * Write the key the panel has already had Azure agree to.
+   *
+   * `key` is absent where the field was untouched *and* the panel had nothing
+   * stored to fall back on — which cannot happen in this product, because
+   * `stored` below reads the database. It is resolved rather than asserted: a
+   * `saveAzure(undefined)` here would switch Azure off in the middle of a save,
+   * and removing the key is the other button's job.
+   */
+  async function keepAzure({ key, region }: AzureAccess) {
+    const secret = key || (await settings()).azure?.key;
+    if (!secret) return say("Erst einen Schlüssel eintippen.");
+    await saveAzure({ key: secret, region });
+    await readAzure();
+    /* And the list of voices, which is the whole reason somebody typed a key. */
+    await readVoices();
   }
-  async function forgetKey() {
+  async function forgetAzure() {
     await saveAzure(undefined);
     say("Azure Speech wieder abgeschaltet.");
-    await drawSpeech();
+    await readAzure();
     await readVoices();
   }
 
@@ -381,14 +358,17 @@
   let people = $derived(shown().people);
   let namedVoice = $derived(nameOf(voices, chosen));
 
-  void drawSpeech();
+  void readAzure();
   void readVoices();
   void readTelling();
   void sourceInUse;
 </script>
 
-<Panel section="Ablage" state={whereSays(where)} class="panel__body" bind:open={unfolded.ablage}><Vanilla node={store.node} /></Panel>
-<Panel section="Sicherung" state={keepingState || "Nur von Hand"} class="panel__body" bind:open={unfolded.sicherung}>{#if keepingPanel}<Vanilla node={keepingPanel.node} /><hr class="hair" />{/if}<p class="small muted">Eine Momentaufnahme. Sie altert — übersteht aber einen Fehler, den der Ordner sofort mitmacht.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void run(async () => {
+<Panel section="Ablage" state={whereSays(where)} class="panel__body" bind:open={unfolded.ablage}><AblagePanel
+  store={ablageStore} adopt={adoptFolder} changed={() => void load().then(moved)} {say} {share} /></Panel>
+<Panel section="Sicherung" state={keepingState || "Nur von Hand"} class="panel__body" bind:open={unfolded.sicherung}>{#if keepsFolders}<BackupPanel
+  {backup} {say}
+  headline={text => { keepingState = text || "Nur von Hand"; }} /><hr class="hair" />{/if}<p class="small muted">Eine Momentaufnahme. Sie altert — übersteht aber einen Fehler, den der Ordner sofort mitmacht.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void run(async () => {
       const made = await exportAll();
       const day = new Date().toISOString().slice(0, 10);
       downloadJson(made, `wochenwerk-sicherung-${day}.json`);
@@ -399,9 +379,34 @@
       await load();
       say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
     }, ""))}>Sicherung einlesen</button></div><p class="small muted">Einlesen fügt hinzu und überschreibt nie.</p></Panel>
-<Panel section="Symbole" state={symbolsState || "Von ARASAAC"} class="panel__body" bind:open={unfolded.symbole}>{#if !ready}<p class="small">{connected ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage." : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung."}</p>{/if}{#if !ready && connected}<pre class="tree">{[folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"].join("\n")}</pre><p class="small muted">Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz.</p>{/if}{#if looked}<p class="notice bad">{looked.length ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.` : "Der Ordner ist noch leer."}</p>{/if}{#if connected && !ready}<div class="acts"><button class="btn sm primary" type="button" onclick={() => void lookForMetacom()}>Nochmal nachsehen</button></div>{/if}<Vanilla node={symbolsPanel.node} />{#if ready}<p class="small">{fromFolder ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.` : "Gezeichnet wird mit METACOM aus einem eigenen Ordner."}</p>{/if}{#if found.length >= 2}<div class="opt"><label class="field-row"><span class="lbl">Darstellung</span><Dropdown label={namedRendering(preferredRendering())} build={add => { const live = preferredRendering(); add(namedRendering(null), chooseRendering(null), { checked: live === null }); for (const entry of found) add(namedRendering(entry.segment), chooseRendering(entry.segment), { checked: live === entry.segment }); }} /></label><p class="small muted">METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts.</p></div>{/if}</Panel>
-<Panel section="Stimme" state={!loaded ? "Wird geladen …" : chosen ? namedVoice || "gewählte Stimme fehlt" : "keine gewählt"} class="panel__body" bind:open={unfolded.stimme}><p class="small muted">Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte.</p>{#if refused}<p class="notice bad">Azure nimmt den Schlüssel nicht an ({refused}). Unten stehen nur die Stimmen, die keinen brauchen.</p>{/if}{#if chosen && !namedVoice}<p class="notice">Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert.</p>{/if}{#if loaded}{#if voices.length}<Vanilla node={picker.node} />{:else}<p class="empty">keine Stimme verfügbar</p>{/if}{/if}</Panel>
-<Panel section="Sprachdienst" state={!azureLoaded ? "Wird geladen …" : azure ? `Schlüssel ••••${azure.key.slice(-4)}` : "Kein Schlüssel"} class="panel__body" bind:open={unfolded.sprachdienst}><p class="small muted" role="status">{probe}</p><p class="small muted">Kostenpflichtig, braucht ein Konto bei Microsoft. Der Schlüssel bleibt in diesem Browser und geht direkt zu Microsoft.</p><p class="small muted">Ein Schlüssel für den ganzen Kalender.</p><div class="row-of"><label class="field-row"><span class="lbl">Schlüssel</span><input class="field" type="password" autocomplete="off" placeholder={azure ? `••••${azure.key.slice(-4)}` : ""} bind:value={key} /></label><label class="field-row"><span class="lbl">Region</span><input class="field" type="text" list="azure-regionen" spellcheck="false" bind:value={region} /></label></div><datalist id="azure-regionen">{#each AZURE_REGIONS as name}<option value={name}></option>{/each}</datalist><p class="small muted">Steht im Azure-Portal bei deiner Speech-Ressource.</p><div class="acts"><button class="btn sm primary" type="button" disabled={checking} onclick={() => void keep()}>{checking ? "Wird geprüft …" : "Speichern"}</button>{#if azure}<button class="btn sm destructive" type="button" onclick={() => void forgetKey()}>Schlüssel entfernen</button>{/if}</div></Panel>
+<Panel section="Symbole" state={symbolsState || "Von ARASAAC"} class="panel__body" bind:open={unfolded.symbole}>{#if !ready}<p class="small">{connected ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage." : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung."}</p>{/if}{#if !ready && connected}<pre class="tree">{[folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"].join("\n")}</pre><p class="small muted">Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz.</p>{/if}{#if looked}<p class="notice bad">{looked.length ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.` : "Der Ordner ist noch leer."}</p>{/if}{#if connected && !ready}<div class="acts"><button class="btn sm primary" type="button" onclick={() => void lookForMetacom()}>Nochmal nachsehen</button></div>{/if}<MetacomPanel
+  {metacom} {say}
+  headline={text => { symbolsState = text || "Von ARASAAC"; }}
+  after={async action => {
+    /* Both of this panel's own scraps of memory are answers to „is METACOM
+       sitting in the Ablage?", and any act on the shared block has just made
+       them stale. `fromFolder` survives „Neu einlesen" alone. */
+    if (action !== "reread") fromFolder = null;
+    looked = null;
+    await load();
+    moved();
+  }} />{#if ready}<p class="small">{fromFolder ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.` : "Gezeichnet wird mit METACOM aus einem eigenen Ordner."}</p>{/if}{#if found.length >= 2}<div class="opt"><label class="field-row"><span class="lbl">Darstellung</span><Dropdown label={namedRendering(preferredRendering())} build={add => { const live = preferredRendering(); add(namedRendering(null), chooseRendering(null), { checked: live === null }); for (const entry of found) add(namedRendering(entry.segment), chooseRendering(entry.segment), { checked: live === entry.segment }); }} /></label><p class="small muted">METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts.</p></div>{/if}</Panel>
+<Panel section="Stimme" state={!loaded ? "Wird geladen …" : chosen ? namedVoice || "gewählte Stimme fehlt" : "keine gewählt"} class="panel__body" bind:open={unfolded.stimme}><p class="small muted">Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte.</p>{#if refused}<p class="notice bad">Azure nimmt den Schlüssel nicht an ({refused}). Unten stehen nur die Stimmen, die keinen brauchen.</p>{/if}{#if chosen && !namedVoice}<p class="notice">Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert.</p>{/if}{#if loaded}{#if voices.length}<VoicePicker
+  voices={() => voices} current={() => chosen}
+  pick={id => { if (id && id !== chosen) void choose(id); }}
+  hear={async (voice, onProgress) => {
+    try { await hearSample(voice.id, onProgress); }
+    catch (error) { say(`${labelOf(voice, voices)} konnte nicht sprechen: ${(error as Error)?.message ?? "unbekannter Fehler"}`); }
+  }}
+  notes={voice => caveats(voice as Voice)} />{:else}<p class="empty">keine Stimme verfügbar</p>{/if}{/if}</Panel>
+<Panel section="Sprachdienst" state={!azureLoaded ? "Wird geladen …" : azure ? `Schlüssel ••••${azure.key.slice(-4)}` : "Kein Schlüssel"} class="panel__body" bind:open={unfolded.sprachdienst}><AzurePanel
+  id="sprachdienst" probeId="azure-probe" fieldId="azure-key" regionId="azure-region"
+  hintId="azure-hint" saveId="azure-save" forgetId="azure-forget"
+  hasKey={!!azure} placeholder={azure ? `••••${azure.key.slice(-4)}` : ""} region={azure?.region}
+  stored={async () => (await settings()).azure?.key}
+  probe={probeAzure} save={keepAzure} forget={forgetAzure}
+  words={AZURE_WORDS} announce={say}
+  >{#snippet children()}<p>Kostenpflichtig, braucht ein Konto bei Microsoft. Der Schlüssel bleibt in diesem Browser und geht direkt zu Microsoft.</p><p>Ein Schlüssel für den ganzen Kalender.</p>{/snippet}</AzurePanel></Panel>
 <Panel section="Karten" state={`${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`} class="panel__body" bind:open={unfolded.karten}>{#if editingCard}<CardEditor card={editingCard} done={async () => { editingCard = null; await load(); moved(); }} />{:else}<p class="small muted">Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst.</p><div class="rows">{#each cardList as card}<Row title={card.name}>{#snippet lead()}<Picture symbol={card.symbol} name={card.name} />{/snippet}{#snippet state()}{#if card.nfc}<code class="nfc">{card.nfc}</code>{:else}<span class="row__state small muted">keine Nummer</span>{/if}{/snippet}{#snippet actions()}<Overflow build={add => { add("Bearbeiten", () => { editingCard = card; }); add("Entfernen", () => void eraseCard(card), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !cardList.length}<p class="empty">noch keine</p>{/if}<button class="btn sm" type="button" onclick={() => { editingCard = { id: uuid(), name: "", updatedAt: 0 }; }}>＋ Neue Karte</button>{/if}</Panel>
 <Panel section="Personen" state={`${people.length} ${people.length === 1 ? "Person" : "Personen"}`} class="panel__body" bind:open={unfolded.personen}>{#if editingPerson}<PersonEditor person={editingPerson} done={async () => { editingPerson = null; await load(); moved(); }} />{:else}<div class="rows">{#each people as person}<Row title={person.name} state={person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag"}>{#snippet lead()}<Face {person} />{/snippet}{#snippet actions()}<Overflow build={add => { add("Bearbeiten", () => { editingPerson = person; }); add("Entfernen", () => void erasePerson(person), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !people.length}<p class="empty">noch niemand</p>{/if}<button class="btn sm" type="button" onclick={() => { editingPerson = { id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 }; }}>＋ Neue Person</button>{/if}</Panel>
 <Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>
