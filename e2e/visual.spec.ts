@@ -57,7 +57,12 @@ const state = (page: Page, heading: string) => panel(page, heading).locator("sum
 async function openSettings(page: Page): Promise<Locator> {
   await page.goto("/kalender/");
   await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
-  const sheet = page.locator("dialog.sheet");
+  /* By name rather than by `dialog.sheet`, which stopped being one element when
+     the page grew a footer: `@lautstark/design/svelte/Legal` is one dialog with
+     every page in it and it stands in the document closed, so the class matches
+     twice. A closed <dialog> is `display: none` and therefore not a role match,
+     and the name is what tells the two apart while both are open. */
+  const sheet = page.getByRole("dialog", { name: "Einstellungen" });
   await expect(sheet).toBeVisible();
   await expect(page.getByText("Wird geladen …")).toHaveCount(0);
   return sheet;
@@ -337,7 +342,10 @@ test("the Löschen panel, unfolded", async ({ page }) => {
 async function openAppointment(page: Page): Promise<Locator> {
   await page.goto("/kalender/");
   await page.getByRole("button", { name: "＋ Termin" }).click();
-  const sheet = page.locator("dialog.sheet");
+  /* See openSettings: `dialog.sheet` matches the legal dialog too now. A draft
+     has no title to be named by, so this is the role alone — which is enough,
+     because the legal dialog is closed and a closed <dialog> is not a match. */
+  const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
   return sheet;
 }
@@ -402,4 +410,52 @@ test("the card the voice is on", async ({ page }) => {
   });
   await expect(di.locator(".card.saying")).toBeVisible();
   await expect(di).toHaveScreenshot("karte-spricht.png");
+});
+
+/*
+ * The foot of the page, and the one legal page that fits in a shot.
+ *
+ * Both are new surfaces and both are drawn by @lautstark/design — `.footer`,
+ * `.footer a` and `.linklike` for the first, the sheet's own head, body and ✕
+ * for the second — so a regression in either is a regression in four products
+ * at once, which is the same argument `.metacom-panel` is in this file for.
+ *
+ * What makes them deterministic is what makes everything above deterministic:
+ * an empty database. The footer's `credit` follows the symbols the *week*
+ * draws, so with nothing planned it is empty and no attribution paragraph is
+ * drawn at all — which is §6.12's `{#if}` and the state worth holding, because
+ * an empty paragraph above the links would be a row of air. And nothing in
+ * either shot is a function of the day it runs on: „Stand: September 2026" is
+ * a written date on a page that is not photographed here, and the Impressum
+ * has no date in it at all.
+ */
+
+test("the foot of the page", async ({ page }) => {
+  await page.goto("/kalender/");
+  const foot = page.getByRole("contentinfo");
+  await expect(foot).toBeVisible();
+  /* Asserted rather than left to the pixels, for HEADINGS' reason: a failure
+     should say which link went missing rather than hand over a picture of four
+     words. The order is the product's and is part of what this holds. */
+  await expect(foot.getByRole("button")).toHaveText(["Über Wochenwerk", "Impressum", "Datenschutz"]);
+  await expect(foot.getByRole("link")).toHaveText(["Quellcode"]);
+  /* No attribution line with an empty week. See above — the absence is a
+     consequence of the rule rather than a setting. */
+  await expect(foot.locator(".footer__credit")).toHaveCount(0);
+  await expect(foot).toHaveScreenshot("seitenfuss.png");
+});
+
+test("the Impressum, whole", async ({ page }) => {
+  await page.goto("/kalender/");
+  await page.getByRole("contentinfo").getByRole("button", { name: "Impressum" }).click();
+  const sheet = page.getByRole("dialog", { name: "Impressum" });
+  await expect(sheet).toBeVisible();
+  /* The shortest of the three and the only one that fits in a viewport, which
+     is why it is the one photographed: a shot of a page that scrolls is a shot
+     of wherever it happened to be. Two things asserted as words first — the
+     heading § 5 DDG names, and that the whole page really is in frame rather
+     than cut off at the fold. */
+  await expect(sheet.getByRole("heading", { name: "Angaben gemäß § 5 DDG" })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Streitbeilegung" })).toBeInViewport();
+  await expect(sheet).toHaveScreenshot("impressum.png");
 });

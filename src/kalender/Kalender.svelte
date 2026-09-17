@@ -2,6 +2,8 @@
   /* The route, and only the route: what is on screen comes from the store, what is
      drawn comes from the views, and what is kept comes from the database. */
   import { announcer } from "@lautstark/design/toast";
+  import Footer from "@lautstark/design/svelte/Footer";
+  import Legal from "./Legal.svelte";
   import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "../model.js";
   import { load, shown, type Week } from "../store.svelte.js";
   import { owed } from "../symbols.js";
@@ -58,6 +60,11 @@
     return current.dates.includes(today) ? today : current.dates[0]!;
   }
   const reload = () => void load();
+
+  /* Which legal page is open, or nothing. Held here rather than in a module,
+     because the footer that opens it and the dialog that draws it are both in
+     this file and nothing else on the page asks. */
+  let legal = $state<string | null>(null);
 </script>
 
 <div class="shell">
@@ -65,13 +72,61 @@
     <div class="topbar__nav"><button class="btn quiet icon" type="button" onclick={() => void step(-1)}>‹</button><button class="btn quiet icon" type="button" onclick={() => void step(1)}>›</button><button class="btn quiet sm" type="button" onclick={() => void step(0)}>Heute</button><b>{label}</b></div>
     <div class="topbar__nav"><a class="btn quiet sm" href={import.meta.env.BASE_URL} target="_blank" rel="noopener">Symbolansicht ↗</a><button class="btn quiet sm" type="button" onclick={() => openSettings(say)}>Einstellungen</button><button class="btn primary sm" type="button" onclick={() => editAppointment(blankAppointment(dayInView()), false, reload)}>＋ Termin</button></div>
   </header>
-  <!-- `.notice` is the outcome line — what happened after something was done, and it
-       holds until something replaces it. A week nobody has planned yet is not an
-       outcome; it is the empty state, and components.css has one of those with a
-       heading and a hint under it. -->
-  <p class="empty" hidden={current.appointments.length > 0}><b>Noch nichts geplant</b><small>Leg den ersten Termin an — oder klick in eine Spalte.</small></p>
-  <WeekGrid visible={narrow ? [current.dates[day]!] : null}
-    onopen={appointment => editAppointment(appointment, true, reload)}
-    oncreate={(date, start) => editAppointment(blankAppointment(date, start), false, reload)} />
-  <footer class="pagefoot"><p bind:this={line} class="line" role="status"></p><p class="credit">{credit}</p></footer>
+  <!-- The page's work, and the only element on it that is. The mount point used
+       to be the `<main>` and everything was inside it, including what is now the
+       footer; a `<footer>` inside `<main>` is not `contentinfo`, and the landmark
+       is what the shared footer is. So `main` narrowed to the thing a reader
+       would skip to, which is the week and the line that stands in for it while
+       there is none. -->
+  <main class="work">
+    <!-- `.notice` is the outcome line — what happened after something was done, and it
+         holds until something replaces it. A week nobody has planned yet is not an
+         outcome; it is the empty state, and components.css has one of those with a
+         heading and a hint under it. -->
+    <p class="empty" hidden={current.appointments.length > 0}><b>Noch nichts geplant</b><small>Leg den ersten Termin an — oder klick in eine Spalte.</small></p>
+    <WeekGrid visible={narrow ? [current.dates[day]!] : null}
+      onopen={appointment => editAppointment(appointment, true, reload)}
+      oncreate={(date, start) => editAppointment(blankAppointment(date, start), false, reload)} />
+  </main>
+  <!--
+    The status line, and it is no longer a `<footer>`.
+
+    It was one, and it held two things that turned out to be two different kinds
+    of statement. `.line` is what the page says out loud after something was
+    done — §3.8 — and it is a live region that has to stay in the document
+    whether or not it has anything to say. That is not footer content, and it
+    must not be set in the footer's 11.5px faint centred type.
+
+    The attribution is the other half, and it *is* footer content: it is a
+    licence condition that follows the symbols this week draws, which is
+    §6.12's `credit` prop in as many words. So it moves down into the shared
+    footer and this row keeps the one sentence that is a status.
+
+    A `<div>` rather than a `<footer>` because there is a real `<footer>` under
+    it now. Both are children of `.shell`, which is not sectioning content, so
+    two of them would be two `contentinfo` landmarks on one page.
+  -->
+  <div class="pagefoot"><p bind:this={line} class="line" role="status"></p></div>
+  <!--
+    The foot of the page. `@lautstark/design/svelte/Footer` — §6.12: the shell is
+    shared and every word in it is this product's, arriving as children in this
+    product's order.
+
+    The links are not wrapped, which is the component's rule and the reason it
+    has none of its own: `text-align: center` and the word space between them do
+    the work. Three buttons, because what they open is a dialog in this page and
+    not another document, and a link that goes nowhere offers a new tab and a
+    copied address that lead somewhere else. The fourth is a real anchor, and it
+    is the only one.
+  -->
+  <Footer {credit}>
+    <button class="linklike" type="button" onclick={() => { legal = "about"; }}>Über Wochenwerk</button>
+    <!-- Both of these have to be reachable from every screen and to be called
+         exactly this. „Kontakt", or a paragraph inside the about page, would
+         not count as either. -->
+    <button class="linklike" type="button" onclick={() => { legal = "impressum"; }}>Impressum</button>
+    <button class="linklike" type="button" onclick={() => { legal = "privacy"; }}>Datenschutz</button>
+    <a href="https://github.com/Lautstark/Wochenwerk" target="_blank" rel="noreferrer noopener">Quellcode</a>
+  </Footer>
 </div>
+<Legal bind:page={legal} />

@@ -74,17 +74,31 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
    `--sheet-w-wide` stays at 1060px for the one surface that is a grid of
    cards. */
 
+/* Four rows since the page grew a foot: the top bar, the week, the status line,
+   and `@lautstark/design/svelte/Footer`. `main` is the second of them and holds
+   what used to be two rows — the empty state and the grid — so the row that
+   takes what is left is the landmark rather than the grid inside it. */
 .shell { --gutter: 3.6rem; height: 100%; max-width: 1700px; margin: 0 auto; padding: 14px 18px 8px;
-  display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; min-height: 0; }
+  display: grid; grid-template-rows: auto 1fr auto auto; gap: 10px; min-height: 0; }
+/* The two it holds, in the two rows they used to have, with the same gap.
+   A flex column rather than `grid-template-rows: auto 1fr`, and the difference
+   is not a preference: the empty state is `hidden` as soon as a week has
+   something in it, `[hidden]` is `display: none`, and a hidden grid item is not
+   placed — so the week would slide up into the `auto` track and the row that
+   grows would be the one with nothing in it. Flex has no tracks to slide
+   between; the week is the item that grows and says so itself. */
+.work { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.work > .cal { flex: 1 1 auto; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .topbar__nav { display: flex; align-items: center; gap: 8px; }
 .topbar__nav b { font-size: 16px; margin-left: 6px; }
 a.btn { text-decoration: none; }
 .line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
-/* The status line and what ARASAAC's licence is owed share the last row: two
-   quiet sentences under the week, so neither takes a row of the grid from it. */
+/* The status line's own row, under the week. It used to share this row with what
+   ARASAAC's licence is owed; that line is the shared footer's `credit` now —
+   conventions.md §6.12 — and `.credit` went with it, so this holds one sentence
+   and stays a row of its own rather than becoming one. */
 .pagefoot { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.credit { margin: 0; font-size: 12px; color: var(--text-dim); opacity: .8; text-align: right; }
 [hidden] { display: none !important; }
 
 /* ------------------------------------------------------------------ the week */
@@ -294,6 +308,45 @@ a.btn { text-decoration: none; }
    its arrival; empty, it was spending a gap and two margins — 37px of nothing
    between the heading and the panel's first word. */
 .panel > .panel__body > p:empty { display: none; }
+
+/* What scrolls in the legal dialog, and it has to be the body.
+ *
+ * `@lautstark/design/svelte/Legal` puts the page back to the top every time one
+ * opens — §6.12, and the only behaviour in that component that is not markup —
+ * by setting `scrollTop` on the sheet's `.body`. That works where the body is
+ * the scroller, which is what bildhaft and vorlaut-editor both arrange with
+ * `.sheet > .body { overflow-y: auto }`. This product never did: a `<dialog>`
+ * is `overflow: auto` in the user agent's own stylesheet, so the dialog scrolls
+ * and the body is its full height — measured here at 1996px of body inside an
+ * 860px dialog — and the reset lands on an element whose scrollTop is always
+ * zero. Adopting a behaviour and quietly not getting it is worse than not
+ * adopting it, because nothing says so.
+ *
+ * Scoped to this one dialog by its id rather than fixed for every sheet in the
+ * product. The general version is `.sheet { display: flex }`, which is a bare
+ * rule on a name components.css owns — a shadow, with everything that costs —
+ * and it would move the scrolling of eight other sheets, two of them
+ * photographed, to settle one new one. The id is the seam the shared component
+ * gives a product for exactly this. `min-height: 0` because a flex item's
+ * automatic minimum is its content, and without it the body never shrinks
+ * enough to have anything to scroll.
+ *
+ * And `[open]`, which is not tidiness. The user agent hides a closed `<dialog>`
+ * with `dialog:not([open]) { display: none }`, and an id beats that: a bare
+ * `#legal { display: flex }` puts the whole legal dialog on the page, closed,
+ * under the week. It also makes it a second thing answering to the `dialog`
+ * role, which is how this was caught — every sheet locator in the suite
+ * resolved to two elements at once. */
+#legal[open] { display: flex; flex-direction: column; }
+#legal > .body { overflow-y: auto; min-height: 0; }
+
+/* The one line in the Datenschutz that is not a statement about data: when it
+   was last read through. Faint, because a date under a page is not part of what
+   the page says. `#legal` is the dialog's id and a prop on the shared component,
+   for the reason vorlaut's is — an id is what a suite and a stylesheet can both
+   reach without either of them owning a class name. */
+#legal .stand { color: var(--text-faint); }
+
 /* components.css closes the column with a line under the last panel, and the
    sheet's foot draws its own above the buttons. One of them is enough. */
 .sheet > .body > .panel:last-of-type { border-bottom: none; }

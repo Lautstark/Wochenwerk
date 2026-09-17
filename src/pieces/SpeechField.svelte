@@ -10,9 +10,22 @@
    * Hearing it is the reason this is a component and not two lines in a dialog —
    * choosing a word for a two-year-old without hearing it is choosing blind, and
    * the same trap was already there for the voice itself.
+   *
+   * The play button is `@lautstark/stimmquelle/svelte/PlayButton` since the
+   * adoption — conventions.md §6.10, and `src/pieces/PlayButton.svelte` is gone.
+   * It went to stimmquelle rather than to design because it reports a *reason
+   * string* and exists to preview speech, which is a speech contract. What it
+   * takes from here is the speech call: `preview` is the board's own path, with
+   * the board's own interruption rule, and neither is a fact about a button.
+   *
+   * The measured decision came with it and is the component's now: busy is the
+   * pill dimming and the glyph never changes, because a ▶ swapped for a … inside
+   * a pill resizes it and a control that jumps under the pointer reads as a
+   * different control.
    */
+  import PlayButton from "@lautstark/stimmquelle/svelte/PlayButton";
   import { couldSay, fromPeople, type Shape } from "../announce.js";
-  import PlayButton from "./PlayButton.svelte";
+  import { preview } from "../speech.js";
 
   let { value = $bindable(""), instead, shape = () => ({}), list = true, rowHidden = false, foldOpen = $bindable(false) }: {
     value?: string; instead: () => string; shape?: () => Shape; list?: boolean;
@@ -51,4 +64,4 @@
   export const sentences = () => (list ? couldSay(fromPeople(shape()) ? "" : word(), shape()) : []).map(line => line.text);
 </script>
 
-<div class="speech"><div class="speech-row" hidden={rowHidden}><input class="field" type="text" autocomplete="off" bind:value disabled={own} {placeholder} {title} /><PlayButton label="Ansage anhören" text={hearWord} trouble={words => { why = words; }} /></div><p class="hint" role="status">{why}</p><details class="sentences__fold" hidden={!possible.length} bind:open={foldOpen}><summary>{summary}</summary><div class="sentences">{#each possible as line}<div class="sentence"><PlayButton label="Satz anhören" text={() => line.text} trouble={words => { why = words; }} /><span class="sentence__text">{line.text}</span><span class="sentence__when">{line.when}</span></div>{/each}</div></details></div>
+<div class="speech"><div class="speech-row" hidden={rowHidden}><input class="field" type="text" autocomplete="off" bind:value disabled={own} {placeholder} {title} /><PlayButton label="Ansage anhören" text={hearWord} hear={preview} nothing="Erst einen Namen eintippen." trouble={words => { why = words; }} /></div><p class="hint" role="status">{why}</p><details class="sentences__fold" hidden={!possible.length} bind:open={foldOpen}><summary>{summary}</summary><div class="sentences">{#each possible as line}<div class="sentence"><PlayButton label="Satz anhören" text={() => line.text} hear={preview} nothing="Erst einen Namen eintippen." trouble={words => { why = words; }} /><span class="sentence__text">{line.text}</span><span class="sentence__when">{line.when}</span></div>{/each}</div></details></div>
