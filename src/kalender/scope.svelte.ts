@@ -1,4 +1,5 @@
-import { openSheet } from "./sheet.svelte.js";
+import { openSheet } from "@lautstark/design/svelte/sheet";
+import { CLOSE } from "../views/dialog.js";
 import ScopeBody from "./ScopeBody.svelte";
 import ScopeFoot from "./ScopeFoot.svelte";
 
@@ -35,6 +36,6 @@ export function askScope(verb: "ändern" | "löschen", counts: { from: number; a
       verb, kind, counts, note, picked: "one",
       answer: (scope: Scope | null) => { if (!settled) { settled = true; resolve(scope); } },
     });
-    openSheet({ title: `${WORDS[kind].what} ${verb}`, state: s, body: ScopeBody, foot: ScopeFoot, onClose: () => s.answer(null) });
+    openSheet({ title: `${WORDS[kind].what} ${verb}`, closeLabel: CLOSE, state: s, body: ScopeBody, foot: ScopeFoot, onClose: () => s.answer(null) });
   });
 }

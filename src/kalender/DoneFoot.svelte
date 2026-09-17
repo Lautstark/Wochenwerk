@@ -1,7 +1,7 @@
 <script lang="ts">
   /* A sheet with nothing to confirm: the one button says it is done, and the
      spacer keeps it at the far end, where every other sheet's primary stands. */
-  import type { Handle } from "./sheet.svelte.js";
+  import type { Handle } from "@lautstark/design/svelte/sheet";
   let { handle, label = "Fertig" }: { s: unknown; handle: Handle; label?: string } = $props();
 </script>
 

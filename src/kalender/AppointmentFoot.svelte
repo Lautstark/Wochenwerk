@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Editing } from "./appointment.svelte.js";
-  import type { Handle } from "./sheet.svelte.js";
+  import type { Handle } from "@lautstark/design/svelte/sheet";
   let { s, handle }: { s: Editing; handle: Handle } = $props();
 </script>
 

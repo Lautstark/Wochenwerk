@@ -2,7 +2,8 @@ import { allDay, clock, minute, titleOf, type Appointment, type Series, type Sym
 import { uuid } from "../db.js";
 import { shown } from "../store.svelte.js";
 import { birthdayOf, birthdaySheet } from "./birthday.svelte.js";
-import { openSheet } from "./sheet.svelte.js";
+import { openSheet } from "@lautstark/design/svelte/sheet";
+import { CLOSE } from "../views/dialog.js";
 import type { Kind } from "./scope.svelte.js";
 import AppointmentHead from "./AppointmentHead.svelte";
 import AppointmentBody from "./AppointmentBody.svelte";
@@ -82,8 +83,14 @@ export function editAppointment(appointment: Appointment, existing: boolean, don
     save: async () => {}, erase: async () => {},
   });
 
+  /* A thunk, because this sheet is named after what is in it and the name is
+     typed while it stands open. `Sheet` re-reads it, so the accessible name
+     follows the draft — which is what it has always done, but by the frame's own
+     mechanism instead of by the head reaching in and rewriting the attribute.
+     Five e2e cases find this dialog by its current name. conventions.md §6.1. */
   openSheet({
-    title: titleOf(draft, shown().cards, shown().people) || "Neuer Termin", panels: true,
+    title: () => titleOf(s.draft, shown().cards, shown().people) || "Neuer Termin",
+    closeLabel: CLOSE, panels: true,
     state: s, head: AppointmentHead, body: AppointmentBody, foot: AppointmentFoot,
   });
 }
