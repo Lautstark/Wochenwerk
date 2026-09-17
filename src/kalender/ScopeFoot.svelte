@@ -1,6 +1,6 @@
 <script lang="ts">
   import { WORDS, type ScopeState } from "./scope.svelte.js";
-  import type { Handle } from "./sheet.svelte.js";
+  import type { Handle } from "@lautstark/design/svelte/sheet";
   let { s, handle }: { s: ScopeState; handle: Handle } = $props();
   /* How many the answer standing there would take. „Nur diesen" is one by
      definition; the other two are counted before the sheet opens. */

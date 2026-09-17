@@ -1,6 +1,7 @@
 import { bornOn, type Appointment, type Person } from "../model.js";
 import { couldSay } from "../announce.js";
-import { openSheet } from "./sheet.svelte.js";
+import { openSheet } from "@lautstark/design/svelte/sheet";
+import { CLOSE } from "../views/dialog.js";
 import BirthdayBody from "./BirthdayBody.svelte";
 import DoneFoot from "./DoneFoot.svelte";
 
@@ -24,7 +25,7 @@ export function birthdaySheet(appointment: Appointment, born: Person[]): void {
     birthday: { names: born.map(person => person.name), age: years.size === 1 ? [...years][0] : undefined },
     date: appointment.date,
   });
-  openSheet({ title: `${names} Geburtstag`, state: { said }, body: BirthdayBody, foot: DoneFoot });
+  openSheet({ title: `${names} Geburtstag`, closeLabel: CLOSE, state: { said }, body: BirthdayBody, foot: DoneFoot });
 }
 
 /** The people this appointment is the birthday of, or none — which is most of them. */

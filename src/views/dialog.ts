@@ -22,8 +22,16 @@
 import { confirmDialog as ask, openDialog as open } from "@lautstark/design/dialog";
 import type { ConfirmOptions, DialogOptions, OpenDialog } from "@lautstark/design/dialog";
 
-/** The corner ✕. Never the same word as a button in the foot. */
-const CLOSE = "Schließen";
+/**
+ * The corner ✕. Never the same word as a button in the foot.
+ *
+ * Exported because the sheets are no longer opened through this file. They go
+ * through `@lautstark/design/svelte/sheet`, whose `closeLabel` is required and
+ * falls back to nothing — so four call sites ask for the word. Naming it once
+ * is the whole of what this wrapper is for, and a constant four modules read is
+ * still once: there is nowhere for a second answer to appear.
+ */
+export const CLOSE = "Schließen";
 const CANCEL = "Abbrechen";
 
 export type { OpenDialog };

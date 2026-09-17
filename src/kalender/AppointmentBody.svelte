@@ -10,7 +10,7 @@
   import { moved, reorder } from "../views/reorder.js";
   import { askScope } from "./scope.svelte.js";
   import type { Editing } from "./appointment.svelte.js";
-  import type { Handle } from "./sheet.svelte.js";
+  import type { Handle } from "@lautstark/design/svelte/sheet";
   import Tile from "@lautstark/design/svelte/Tile";
   import TileGrid from "@lautstark/design/svelte/TileGrid";
   import Face from "../pieces/Face.svelte";

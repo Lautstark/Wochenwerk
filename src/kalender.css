@@ -276,12 +276,24 @@ a.btn { text-decoration: none; }
 .slot__filled { display: inline-flex; align-items: center; gap: 9px; padding: 8px 12px 8px 8px;
   border-radius: var(--radius-sm); background: var(--surface-2); }
 .slot__filled .thumb { width: 52px; height: 52px; }
-.panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
+/* The settings panels' bodies. `@lautstark/design/svelte/Panel` emits
+   `class="body panel__body"` — the shared name, which components.css draws, plus
+   this product's own, which arranges what is inside it. §6.2 keeps the second
+   one because the outliers are not carrying padding, they are carrying layout:
+   the grid and its 10px gap are this column's only vertical separation.
+
+   Both rules gain `.panel >` and neither is a narrowing for its own sake. They
+   now have to outrank `.panel > .body { padding: 10px 16px 22px }`, which is the
+   shared padding and 10px taller at the top and 6px at the bottom than what nine
+   panels here have always drawn. At (0,1,0) they lost to it and every panel in
+   this dialog moved; at (0,2,0) they tie and win on order, since the @import
+   above puts components.css first. */
+.panel > .panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
 /* A line that has not been given anything to say takes no row. The Azure panel
    holds its status <p> for the life of the dialog so a reader is not moved by
    its arrival; empty, it was spending a gap and two margins — 37px of nothing
    between the heading and the panel's first word. */
-.panel__body > p:empty { display: none; }
+.panel > .panel__body > p:empty { display: none; }
 /* components.css closes the column with a line under the last panel, and the
    sheet's foot draws its own above the buttons. One of them is enough. */
 .sheet > .body > .panel:last-of-type { border-bottom: none; }
