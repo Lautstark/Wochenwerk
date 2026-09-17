@@ -227,25 +227,37 @@
      would have dropped. „einmalig" is left out once there is a batch, exactly as
      the `<option>` list was filtered: a series cannot be told it happens once.
 
-     ## `.btn.dropdown` and not the `field` variant, which does not draw
+     ## `field`, which draws since design v1.38.1
 
      §6.10 argues for `field` in exactly this position — a column of questions,
      where a trigger as wide as its answer leaves four controls with no left
      edge to follow down — and the trigger beside this one is a full-width date
-     field, so that argument is right about this row. It is not what shipped.
-     `.dropdown::after` is `flex: 0 0 auto`, which presumes a flex container;
-     `.btn` supplies `display: inline-flex` and `.field` supplies no display at
-     all. Measured on design v1.37.1 against `<button class="field dropdown">`:
-     the button computes `display: block` and `text-align: center` — the user
-     agent's own, because nothing overrides it the way `.btn` does — and the
-     chevron computes `display: inline`, where a width of 10px and a height of
-     7px do not apply, so it occupies nothing and nothing is drawn. A trigger
-     with no chevron and its answer centred like a button is worse than a
-     narrow one, so this takes the variant that works and the gap is reported
-     rather than patched from here: a `display` on `.field` is design's to add,
-     and a product rule putting one back would be the next product writing it
-     again. `start` because the list belongs under the left edge of a control
-     at the left of a form column, not under the right edge of the row. */
+     field, so that argument is right about this row. It shipped as `.btn`
+     anyway, because `field` did not draw: `.dropdown::after` is `flex: none`
+     and presumes a flex container, `.btn` supplied `display: inline-flex` and
+     `.field` supplied no display at all, so the chevron computed
+     `display: inline` where its 10×7 does not apply and the answer took the
+     user agent's `text-align: center`. This declined to write the missing rule
+     from here — a `display` on `.field` is design's to add, and a product rule
+     putting one back would be the next product writing it again. vorlaut had
+     been carrying that rule in its own `ui.css` with the same reasoning, which
+     is what made it a shared one rather than two private workarounds; it is
+     `.field.dropdown` in `components.css` since v1.38.1 and both copies can go.
+
+     So this row was measured again rather than left alone, and `field` wins on
+     the numbers §6.10 is about. Both draw the chevron now (10×7, `display:
+     block`). What separates them is the left edge and the width: `.btn` is as
+     wide as the word on it — 108px on „einmalig", 133px on „wöchentlich" —
+     where `field` takes the column, 422px beside the „Bis" date field and the
+     same 422px as „Tag" above it, or the full 854px of the segmented control
+     and the Ansage row when „Bis" is hidden. Every control in this sheet starts
+     at x=213; the `.btn` pill was the only one that stopped early, and it
+     stopped in bold 14px on a visible border while the fields around it are
+     regular 15px on none, so it read as a command in a column of answers. The
+     row grows 3px taller (66 → 69) and nothing else moves.
+
+     `start` because the list belongs under the left edge of a control at the
+     left of a form column, not under the right edge of the row. */
   const REPEATS: ReadonlyArray<readonly [Repeat, string]> = [
     ["none", "einmalig"], ["daily", "jeden Tag"], ["weekly", "wöchentlich"], ["yearly", "jedes Jahr"],
   ];
@@ -401,7 +413,7 @@
        detail of it: a <label> does not name a <button>, so the question has to
        reach the trigger as `aria-labelledby`. The same defect was sitting
        untested in this product's other Dropdown call site, in SettingsBody. -->
-  <div class="stack" hidden={!!s.stretch}><div class="row-of"><div class="field-row"><span class="lbl" id="repeatLabel">Wiederholen</span><Dropdown start labelledBy="repeatLabel" label={repeatSays} build={offerRepeats} /></div><label class="field-row" hidden={s.repeat === "none"}><span class="lbl">Bis</span><input class="field" type="date" bind:value={s.until} /></label></div><TileGrid class="picker__grid--tight" hidden={s.repeat !== "weekly"}>{#each weekdays as label, index}<Tile {label} toggle active={s.weekly.includes(index)} onclick={() => toggleDay(index)}><span></span></Tile>{/each}</TileGrid></div>
+  <div class="stack" hidden={!!s.stretch}><div class="row-of"><div class="field-row"><span class="lbl" id="repeatLabel">Wiederholen</span><Dropdown field start labelledBy="repeatLabel" label={repeatSays} build={offerRepeats} /></div><label class="field-row" hidden={s.repeat === "none"}><span class="lbl">Bis</span><input class="field" type="date" bind:value={s.until} /></label></div><TileGrid class="picker__grid--tight" hidden={s.repeat !== "weekly"}>{#each weekdays as label, index}<Tile {label} toggle active={s.weekly.includes(index)} onclick={() => toggleDay(index)}><span></span></Tile>{/each}</TileGrid></div>
   <p class="small muted" hidden={!draft.series || !!s.stretch}>{seriesLine}</p>
   <div><span class="lbl">Am Board</span><div class="segmented"><button type="button" aria-pressed={s.mode === "symbols"} onclick={() => flip("symbols")}>steht fest</button><button type="button" aria-pressed={s.mode === "choice"} onclick={() => flip("choice")}>wird ausgesucht</button></div></div>
   <p class="notice bad" hidden={!short && !bare}>{wantMore}</p>
