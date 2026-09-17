@@ -267,9 +267,21 @@ describe("what comes next", () => {
   const week = () => [appointment("08:00", "08:30", { title: "Frühstück" }), appointment("09:00", "12:00", { title: "Kita" })];
 
   it("is gleich within twenty minutes, danach behind something running, dann in a gap", () => {
-    expect(said(week(), at("08:45"), house())[2]).toBe("Gleich kommt Kita.");
+    /* Two of the three fall in a gap, and there the sentence about the gap is
+       gone: what is said is the thing that is coming — see the test below. */
+    expect(said(week(), at("08:45"), house())).toEqual(["Es ist Dienstagmorgen.", "Gleich kommt Kita."]);
     expect(said(week(), at("08:10"), house())[2]).toBe("Danach kommt Kita.");
-    expect(said(week(), at("08:35"), house())[2]).toBe("Dann kommt Kita.");
+    expect(said(week(), at("08:35"), house())).toEqual(["Es ist Dienstagmorgen.", "Dann kommt Kita."]);
+  });
+
+  it("drops the empty minute wherever the next sentence names something", () => {
+    /* *Gerade ist nichts geplant. Gleich kommt Kita.* is the board talking past
+       itself: the second sentence says the first and names the thing as well,
+       and what the child is standing in is the wait for Kita. It is the rule the
+       end of the day has always followed — *Heute ist nichts mehr geplant* takes
+       the empty minute's place there — and it holds one row earlier too. */
+    expect(said(week(), at("08:45"), house())).not.toContain("Gerade ist nichts geplant.");
+    expect(said(week(), at("08:35"), house())).not.toContain("Gerade ist nichts geplant.");
   });
 
   it("does not name what is hours away, and does not claim there is nothing either", () => {
@@ -286,7 +298,7 @@ describe("what comes next", () => {
        board said the afternoon was empty while the waffle iron was on the plan. */
     const week = [appointment("09:00", "14:00", { title: "Kita" }), appointment("14:45", "16:00", { title: "Waffeln backen" })];
     expect(said(week, at("13:00"), house())).toEqual(["Es ist Dienstagmittag.", "Jetzt ist Kita."]);
-    expect(said(week, at("14:25"), house())[2]).toBe("Gleich kommt Waffeln backen.");
+    expect(said(week, at("14:25"), house())).toEqual(["Es ist Dienstagmittag.", "Gleich kommt Waffeln backen."]);
   });
 
   it("measures the wait from the end of what is running, not from now", () => {
@@ -315,10 +327,12 @@ describe("what comes next", () => {
     const cards = house([card("s", "Schwimmbad"), card("p", "Spielplatz")]);
     const choice = appointment("13:15", "14:00", { options: ["s", "p"], symbols: [], title: undefined });
     const behind = [appointment("12:00", "13:00", { title: "Mittagessen" }), choice];
-    expect(said(behind, at("13:00"), cards)[2]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    /* Only *danach* has something running in front of it; the other three fall in
+       a gap, and the gap sentence yields to the one naming the cards. */
+    expect(said(behind, at("13:00"), cards)[1]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
     expect(said(behind, at("12:30"), cards)[2]).toBe("Danach darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
-    expect(said([choice], at("13:00"), cards)[2]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
-    expect(said([choice], at("12:50"), cards)[2]).toBe("Dann darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    expect(said([choice], at("13:00"), cards)[1]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    expect(said([choice], at("12:50"), cards)[1]).toBe("Dann darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
   });
 
   it("says only that there is something to choose where the cards cannot all be named", () => {
@@ -381,7 +395,7 @@ describe("a choice", () => {
     const cards = [card("s", "Schwimmbad"), card("p", "Spielplatz")];
     const decided = offered(["s", "p"], { chosen: "s" });
     expect(said(decided, at("14:30"), house(cards))[1]).toBe("Jetzt ist Schwimmbad. Das hast du ausgesucht.");
-    expect(said(decided, at("13:50"), house(cards))[2]).toBe("Gleich kommt Schwimmbad. Das hast du ausgesucht.");
+    expect(said(decided, at("13:50"), house(cards))[1]).toBe("Gleich kommt Schwimmbad. Das hast du ausgesucht.");
   });
 
 });

@@ -150,11 +150,23 @@ along, and honest about being less than the whole of it.
 | it ends within one grid step | *Frühstück ist gleich fertig.* |
 | two run beside each other | *Emma, jetzt ist Kindergarten. Mia, jetzt ist Turnen.* |
 | more than two do | the innermost of them, and no name |
-| nothing is running | *Gerade ist nichts geplant.* |
+| nothing is running, and nothing is named next | *Gerade ist nichts geplant.* |
+| nothing is running, and something is named next | nothing — the next sentence has said it |
 
 Addressing one child by name is the difference between an announcement and
 being meant, and it is free: `people` is already on the record. Two names is a
 list, so it is only done where there is exactly one.
+
+**The empty minute yields to whatever is named next.** *Gerade ist nichts geplant.
+Gleich kommt Waffeln backen.* is the board talking past itself: the second
+sentence says everything the first one does and names the thing as well, and what
+the child is standing in is the wait for waffles rather than an empty minute. The
+end of the day has always worked this way — *Heute ist nichts mehr geplant* takes
+the empty minute's place there — and that was this rule written down for one case.
+What is left for *Gerade ist nichts geplant* is the stretch where nothing was
+named: an hour with the next thing still beyond the horizon, where it is the whole
+of what there is to say. A running appointment never yields; that sentence is
+about something.
 
 **Next** — and this is where a choice appears.
 
@@ -171,7 +183,8 @@ list, so it is only done where there is exactly one.
 
 **And when the day itself is over, that is the only sentence.** *Gerade ist nichts
 geplant. Heute ist nichts mehr geplant.* is one fact in two wordings; the second
-says the first and more, so it stays alone.
+says the first and more, so it stays alone — the same yielding as one table up,
+and the day's end is where it was first noticed.
 
 **Nothing near is a silence and never a sentence.** There was a *Danach ist nichts
 geplant* here, said whenever something was running and the next thing lay past the

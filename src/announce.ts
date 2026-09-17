@@ -260,17 +260,23 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
   const open = running.find(undecided);
   if (open) return [choosing(open, household)];
 
-  /* Nothing running and nothing left: *Heute ist nichts mehr geplant* already says
-     both of those, and *Gerade ist nichts geplant* in front of it is the same fact
-     in a second wording. The one that stays is the one that carries more — it is
-     about the whole of the rest of the day rather than about this minute, and a
-     minute that is empty inside a day that is over is not news.
+  /* What comes next is worked out before the empty minute is reported, because it
+     is what decides whether that minute is worth a sentence at all.
 
-     Where something is still coming but hours off it is the *next* slot that goes
-     quiet instead — see `nextLine`. Either way the sentence that survives is the
-     one with something in it, and nothing on this board says the day is empty
-     while it is not. */
-  const empty = !running.length && !timedOn(week, today).some(item => item.start! > now);
+     *Gerade ist nichts geplant. Gleich kommt Waffeln backen.* is the board talking
+     past itself: the second sentence says everything the first one does and names
+     the thing as well, and what the child is standing in is the wait for waffles,
+     not an empty minute. The same held at the end of the day, where *Heute ist
+     nichts mehr geplant* has always taken the empty minute's place — that was one
+     case of this rule written on its own, and it is this rule now.
+
+     So where nothing is running, the *now* slot yields to whatever the *next* slot
+     found. What is left for it is the stretch nothing was found for: an hour with
+     the next thing still beyond the horizon, where *Gerade ist nichts geplant* is
+     the whole of what there is to say. A running appointment is never dropped —
+     that sentence is about something. */
+  const coming = nextLine(week, at, now, running, household);
+  const yields = !running.length && coming.length > 0;
   /* Nothing is announced while we are already somewhere else. The day sentence is
      what says where we are, and *morgen fahren wir weg* on the first day of four
      at a grandmother's is about the second day of the stretch we are standing
@@ -278,8 +284,8 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
      because everything else in the announcement is right. */
   const elsewhere = week.some(item => item.date === today && notAtHome(item));
   return [dayLine(week, at, now, household),
-    ...(empty ? [] : nowLine(running, now, household, together)),
-    ...nextLine(week, at, now, running, household),
+    ...(yields ? [] : nowLine(running, now, household, together)),
+    ...coming,
     ...awayLine(elsewhere ? undefined : awayFrom, today)];
 }
 
