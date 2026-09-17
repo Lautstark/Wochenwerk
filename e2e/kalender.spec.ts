@@ -134,6 +134,90 @@ test("without a picture the sheet refuses to save, and says why", async ({ page 
   await expect(sheet.getByRole("button", { name: "Fertig" })).toBeEnabled();
 });
 
+/* ## The order the symbols stand in
+ *
+ * The row of chosen symbols is a row, and which symbol stands first is what the
+ * board draws first — so putting them in an order is a thing the sheet does and
+ * not a decoration. It can be done by dragging a tile or by pressing ← and →
+ * on one, and neither is arithmetic: `moved()` has its own unit test, and what
+ * is left over is exactly the part that lives in the DOM. It is wired from
+ * AppointmentBody through `<TileGrid>`'s spread as a Svelte attachment, which
+ * means a change to the design component, to that spread, or to how Svelte
+ * carries attachments can take the whole feature away without a single other
+ * test noticing.
+ */
+
+/** The chosen symbols in the order they stand in.
+ *
+ * `[data-move]` is the one selector in this file that is not a role or a name,
+ * and it is not a class name in disguise: it is the contract itself. reorder.ts
+ * finds the movable tiles by that attribute and counts positions among them, so
+ * a row that has lost it has lost the feature — which is the thing being asked
+ * about here. Role and name would find the same buttons, but the empty slot at
+ * the end is a button too, and the order they come back in is the whole
+ * question. */
+const chosen = (sheet: Locator) => sheet.locator("[data-move]");
+
+/** A sheet with two symbols already in it, standing in the order they were picked. */
+async function twoSymbols(page: Page): Promise<Locator> {
+  const sheet = await newAppointment(page);
+  await pickSymbol(sheet, "Turnen");
+  await pickSymbol(sheet, "Judo");
+  const row = chosen(sheet);
+  await expect(row).toHaveCount(2);
+  await expect(row.nth(0)).toHaveAccessibleName("Turnen");
+  await expect(row.nth(1)).toHaveAccessibleName("Judo");
+  return sheet;
+}
+
+test("→ on a chosen symbol carries it past its neighbour, and the focus goes with it", async ({ page }) => {
+  await openCalendar(page);
+  const sheet = await twoSymbols(page);
+  /* The sheet says both ways are there as soon as there are two to order. */
+  await expect(sheet.getByText("Zieh sie in die Reihenfolge, in der sie am Board stehen — oder ← und →.")).toBeVisible();
+  const row = chosen(sheet);
+  await row.nth(0).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(row.nth(0)).toHaveAccessibleName("Judo");
+  await expect(row.nth(1)).toHaveAccessibleName("Turnen");
+  /* The row is drawn again around the new order, so the tile that moved is a
+     different element than the one that was pressed. Whoever pressed the key is
+     still on the symbol they moved, or a second press would move a third thing. */
+  await expect(row.nth(1)).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(row.nth(0)).toHaveAccessibleName("Turnen");
+  await expect(row.nth(1)).toHaveAccessibleName("Judo");
+  /* Nothing walks off the end: ← on the first symbol leaves the row alone. */
+  await page.keyboard.press("ArrowLeft");
+  await expect(row.nth(0)).toHaveAccessibleName("Turnen");
+  await expect(row).toHaveCount(2);
+});
+
+/** Drags one tile onto another the way a hand does: press, travel, let go.
+    In steps, because a press is a click until it has passed reorder.ts's 6px of
+    grip — the travelling is what turns it into a drag, and a single jump would
+    be one pointermove where a hand makes many. */
+async function dragOnto(page: Page, tile: Locator, onto: Locator): Promise<void> {
+  const held = await box(tile), target = await box(onto);
+  await page.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+  await page.mouse.up();
+}
+
+test("a chosen symbol dragged past its neighbour swaps with it, and is not taken off", async ({ page }) => {
+  await openCalendar(page);
+  const sheet = await twoSymbols(page);
+  const row = chosen(sheet);
+  await dragOnto(page, row.nth(0), row.nth(1));
+  await expect(row.nth(0)).toHaveAccessibleName("Judo");
+  await expect(row.nth(1)).toHaveAccessibleName("Turnen");
+  /* A tile is also the button that takes its symbol off again, and a drag ends
+     over one with the pointer going up — which is a click as far as the browser
+     is concerned. Both symbols are still here, so that click was swallowed. */
+  await expect(row).toHaveCount(2);
+});
+
 test("editing changes what the week shows", async ({ page }) => {
   await openCalendar(page, { appointments: [timed(WEEK[3], "10:00", "11:00", "Turnen")] });
   await inWeek(page, "Turnen").click();
