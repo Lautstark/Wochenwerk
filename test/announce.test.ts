@@ -266,12 +266,11 @@ describe("what comes next", () => {
      that is running stays inside the horizon and the next thing is worth naming. */
   const week = () => [appointment("08:00", "08:30", { title: "Frühstück" }), appointment("09:00", "12:00", { title: "Kita" })];
 
-  it("is gleich within twenty minutes, danach behind something running, dann in a gap", () => {
-    /* Two of the three fall in a gap, and there the sentence about the gap is
-       gone: what is said is the thing that is coming — see the test below. */
+  it("is gleich within twenty minutes, and danach behind something running", () => {
+    /* Two frames, not three. In a gap it is *gleich* or it is not said — see the
+       band below — so *danach* always has the thing it follows. */
     expect(said(week(), at("08:45"), house())).toEqual(["Es ist Dienstagmorgen.", "Gleich kommt Kita."]);
     expect(said(week(), at("08:10"), house())[2]).toBe("Danach kommt Kita.");
-    expect(said(week(), at("08:35"), house())).toEqual(["Es ist Dienstagmorgen.", "Dann kommt Kita."]);
   });
 
   it("drops the empty minute wherever the next sentence names something", () => {
@@ -281,7 +280,16 @@ describe("what comes next", () => {
        end of the day has always followed — *Heute ist nichts mehr geplant* takes
        the empty minute's place there — and it holds one row earlier too. */
     expect(said(week(), at("08:45"), house())).not.toContain("Gerade ist nichts geplant.");
-    expect(said(week(), at("08:35"), house())).not.toContain("Gerade ist nichts geplant.");
+  });
+
+  it("has one threshold in a gap, not two with a band between them", () => {
+    /* `soon` and the horizon ask about the same number once nothing is running,
+       and the ten minutes between them were said as *Dann kommt Kita* — a word
+       leaning on the *Gerade ist nichts geplant* that now yields to it, so it
+       stood alone referring to nothing. Either it is close enough to promise or
+       there is nothing to say yet. */
+    expect(said(week(), at("08:35"), house())).toEqual(["Es ist Dienstagmorgen.", "Gerade ist nichts geplant."]);
+    expect(said(week(), at("08:40"), house())).toEqual(["Es ist Dienstagmorgen.", "Gleich kommt Kita."]);
   });
 
   it("does not name what is hours away, and does not claim there is nothing either", () => {
@@ -323,16 +331,17 @@ describe("what comes next", () => {
     expect(said(week, at("12:30"), house([card("s", "Schwimmbad")]))[2]).toBe("Danach darfst du aussuchen: Schwimmbad. Was möchtest du tun?");
   });
 
-  it("names the cards in all three frames a choice can be ahead in", () => {
+  it("names the cards in both frames a choice can be ahead in", () => {
     const cards = house([card("s", "Schwimmbad"), card("p", "Spielplatz")]);
     const choice = appointment("13:15", "14:00", { options: ["s", "p"], symbols: [], title: undefined });
     const behind = [appointment("12:00", "13:00", { title: "Mittagessen" }), choice];
-    /* Only *danach* has something running in front of it; the other three fall in
-       a gap, and the gap sentence yields to the one naming the cards. */
+    /* Only *danach* has something running in front of it; in a gap the sentence
+       about the gap yields to the one naming the cards. */
     expect(said(behind, at("13:00"), cards)[1]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
     expect(said(behind, at("12:30"), cards)[2]).toBe("Danach darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
     expect(said([choice], at("13:00"), cards)[1]).toBe("Gleich darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
-    expect(said([choice], at("12:50"), cards)[1]).toBe("Dann darfst du aussuchen: Schwimmbad oder Spielplatz. Was möchtest du tun?");
+    /* Twenty-five minutes out, in a gap: nothing is promised yet. */
+    expect(said([choice], at("12:50"), cards)).toEqual(["Es ist Dienstagmittag.", "Gerade ist nichts geplant."]);
   });
 
   it("says only that there is something to choose where the cards cannot all be named", () => {
@@ -552,7 +561,7 @@ describe("what a word can turn up in", () => {
     /* Every line is about the word. "Heute kommt nichts mehr" is not — it
        belongs to no appointment and is prepared with the voice, not with this. */
     expect(said.every(line => line.includes("Turnen"))).toBe(true);
-    expect(said).toHaveLength(5);
+    expect(said).toHaveLength(4);
   });
 
   it("addresses the one person it concerns", () => {
@@ -570,7 +579,7 @@ describe("what a word can turn up in", () => {
     /* And ahead of it the cards are named too, and asked about in the same words. */
     expect(said).toContain("Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?");
     expect(said.some(line => line.includes("Nachmittagszeit"))).toBe(false);
-    expect(said).toHaveLength(4);
+    expect(said).toHaveLength(3);
   });
 
   it("says what was picked, not what the parents filed it under", () => {
@@ -588,7 +597,7 @@ describe("what a word can turn up in", () => {
        "Jetzt ist Nachmittagszeit" — which is the word the parents filed it under. */
     const said = couldSay("Nachmittagszeit", { offering: [] }).map(line => line.text);
     expect(said.some(line => line.includes("Nachmittagszeit"))).toBe(false);
-    expect(said).toHaveLength(4);
+    expect(said).toHaveLength(3);
   });
 
   it("is about what was picked, once something picked", () => {

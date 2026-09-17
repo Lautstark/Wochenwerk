@@ -174,7 +174,6 @@ about something.
 | --- | --- |
 | within ~20 minutes | *Gleich kommt Kita.* |
 | further off, but soon after what is running | *Danach kommt Kita.* |
-| further off, and nothing is running | *Dann kommt Kita.* |
 | nothing near | nothing — the next slot goes quiet, whatever is running |
 | next is an open choice | *Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
 | next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
@@ -185,6 +184,18 @@ about something.
 geplant. Heute ist nichts mehr geplant.* is one fact in two wordings; the second
 says the first and more, so it stays alone — the same yielding as one table up,
 and the day's end is where it was first noticed.
+
+**In a gap there is one threshold, not two.** The horizon measures the wait from
+the end of what is running — but in a gap nothing is running, and that wait is the
+very number *gleich* is asking about. Two thresholds over one number left a band
+of ten minutes in which the thing was named and was not yet *gleich*, and the
+board said *Dann kommt Kita* there. That word was the gap's form of *danach*, and
+it leaned on the *Gerade ist nichts geplant* standing in front of it — which is
+exactly the sentence that now yields to it, leaving *dann* referring to nothing.
+So in a gap it is one question: is the wait short enough to promise, or is there
+nothing to say yet. *Dann kommt* is gone, and with it *Dann darfst du aussuchen* —
+two clips fewer to record, and one word fewer for a child to tell apart from
+*gleich*.
 
 **Nothing near is a silence and never a sentence.** There was a *Danach ist nichts
 geplant* here, said whenever something was running and the next thing lay past the

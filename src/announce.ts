@@ -54,19 +54,16 @@ const FRAMES = {
   nothing: "Gerade ist nichts geplant.",
   soon: "Gleich kommt",
   after: "Danach kommt",
-  then: "Dann kommt",
   again: "Danach kommt wieder",
   soonChoose: "Gleich darfst du aussuchen.",
   afterChoose: "Danach darfst du aussuchen.",
-  thenChoose: "Dann darfst du aussuchen.",
-  /* The same three, opened so the cards can follow. A choice ahead is worth
+  /* The same two, opened so the cards can follow. A choice ahead is worth
      waiting for because of what is in it, and *Danach darfst du aussuchen* on its
      own is an announcement about a slot: the child is told there will be a
      decision and not what it is between. Named here as it is named when the
      choice is open, and asked in the same words. */
   soonChooseFrom: "Gleich darfst du aussuchen:",
   afterChooseFrom: "Danach darfst du aussuchen:",
-  thenChooseFrom: "Dann darfst du aussuchen:",
   /* Said at the slot, the moment a card answers the question — the one thing that
      happens at this board and used to happen silently, while the card that
      answers nothing has been spoken to all along. It names the card back, because
@@ -427,8 +424,6 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
   }
   const next = timedOn(week, iso(at)).find(item => item.start! > now);
   if (!next) return [restOfIt()];
-  /* *Danach* presumes something to be after. Where nothing is running there is
-     nothing for it to follow, so the same appointment is *dann*. */
   const soon = minute(next.start!) - minute(now) <= SOON;
   /* *Gleich* is wall time and the wait is not. What a child is waiting through is
      the gap after whatever is happening now, so it is measured from the end of a
@@ -439,17 +434,27 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
      Where two things run beside each other it is the later of the two ends: what
      the child is waiting through is the whole busy stretch, and a meal a quarter
      of an hour after the second of them ends is *danach* for both children. */
-  const wait = minute(next.start!) - (running.length ? minute(until) : minute(now));
-  /* Nothing near, and the horizon says so by going quiet. It used to say *Danach
-     ist nichts geplant* while something was running, and that is a sentence about
-     the whole rest of the day made from a rule about the next half hour: waffles
-     at quarter to three, three quarters of an hour behind a Kita that ends at two,
-     had the board announce an afternoon with nothing in it. Not naming what is
-     hours off is the judgement this horizon carries; claiming there is nothing
-     there is a different claim, and it was the false one.
-     *Heute ist nichts mehr geplant* remains the sentence for a day that is over,
-     and it is reached above, where there is genuinely no `next`. */
-  if (!soon && wait > HORIZON) return [];
+  const wait = minute(next.start!) - minute(until);
+
+  /* Nothing near, and the horizon says so by going quiet.
+
+     It used to say *Danach ist nichts geplant* instead, whenever something was
+     running — a sentence about the whole rest of the day made from a rule about
+     the next half hour. Waffles at quarter to three, three quarters of an hour
+     behind a Kita that ends at two, had the board announce an afternoon with
+     nothing in it. Not naming what is hours off is the judgement this horizon
+     carries; claiming there is nothing there is a different claim, and it was the
+     false one. *Heute ist nichts mehr geplant* is the sentence for a day that is
+     genuinely over, and it is reached above, where there is no `next` at all.
+
+     And in a gap there is no *after* for the horizon to measure from: `until` is
+     this minute, so `wait` is the very number `soon` is asking about. Two
+     thresholds over one number left a ten-minute band where the thing was named
+     but was not yet *gleich* — which is the whole of what *Dann kommt* ever was,
+     and it leaned on a *Gerade ist nichts geplant* in front of it that now yields
+     to it, leaving it referring to nothing. One threshold there: either the wait
+     is short enough to promise, or there is nothing to say yet. */
+  if (!soon && (!running.length || wait > HORIZON)) return [];
   if (undecided(next)) {
     const offered = namedOptions(next, household);
     /* Named, so there is something to be asked about: the question follows the
@@ -457,13 +462,15 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
        named the sentence stops after saying a choice is coming — asking what the
        child wants, between nothing said, is a question with no answer in it. */
     return [about(next, offered
-      ? utter(fixed(soon ? FRAMES.soonChooseFrom : running.length ? FRAMES.afterChooseFrom : FRAMES.thenChooseFrom),
+      ? utter(fixed(soon ? FRAMES.soonChooseFrom : FRAMES.afterChooseFrom),
           ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking))
-      : utter(fixed(soon ? FRAMES.soonChoose : running.length ? FRAMES.afterChoose : FRAMES.thenChoose)))];
+      : utter(fixed(soon ? FRAMES.soonChoose : FRAMES.afterChoose)))];
   }
   const said = spokenName(next, household.cards);
   if (!said) return [];
-  const when = soon ? FRAMES.soon : running.length ? FRAMES.after : FRAMES.then;
+  /* Not *soon* means something is running — the line above has sent every gap
+     home — so *danach* always has the thing it follows. */
+  const when = soon ? FRAMES.soon : FRAMES.after;
   return [about(next, utter(fixed(when), own(said), ...(next.chosen ? [fixed(FRAMES.decided)] : [])))];
 }
 
@@ -584,7 +591,7 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
        word: none yet, or one missing, and the sentence points at the table
        instead of reading out a list with a hole in it. */
     const named = offered.length > 0 && offered.length === shape.offering.length && offered.length <= 3;
-    /* Ahead of it the cards are named too, in the same three frames. */
+    /* Ahead of it the cards are named too, in the same two frames. */
     const ahead = (opening: string, bare: string) =>
       named ? line(fixed(opening), ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking)) : bare;
     return [
@@ -592,7 +599,6 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
         when: "wenn die Wahl offen ist" },
       { text: ahead(FRAMES.afterChooseFrom, FRAMES.afterChoose), when: "davor, wenn etwas läuft" },
       { text: ahead(FRAMES.soonChooseFrom, FRAMES.soonChoose), when: "bis 20 Minuten davor" },
-      { text: ahead(FRAMES.thenChooseFrom, FRAMES.thenChoose), when: "in einer Lücke davor" },
     ];
   }
 
@@ -622,7 +628,6 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
     { text: who ? line(who, fixed(FRAMES.comma), w, fixed(FRAMES.ending)) : line(w, fixed(FRAMES.ending)), when: "in der letzten Viertelstunde" },
     { text: line(fixed(FRAMES.soon), w, ...tail), when: "bis 20 Minuten vorher" },
     { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft" },
-    { text: line(fixed(FRAMES.then), w, ...tail), when: "in einer Lücke davor" },
   );
   /* Only a card can be the answer to a question: an appointment's own word is
      never laid at the slot, so it is never said back. */
@@ -641,6 +646,6 @@ export function standing(): string[] {
     ...DAYS.map(day => line(fixed(FRAMES.day), fixed(day))),
     FRAMES.nothing, FRAMES.done, FRAMES.look,
     FRAMES.away, FRAMES.awayTomorrow,
-    FRAMES.soonChoose, FRAMES.afterChoose, FRAMES.thenChoose,
+    FRAMES.soonChoose, FRAMES.afterChoose,
   ];
 }
