@@ -23,7 +23,7 @@
   import { backup } from "../backup.js";
   import { confirmDialog, openDialog } from "../views/dialog.js";
   import type { SettingsState } from "./settings.svelte.js";
-  import Vanilla from "../pieces/Vanilla.svelte";
+  import Vanilla from "@lautstark/design/svelte/Vanilla";
   import Row from "../pieces/Row.svelte";
   import Overflow from "../pieces/Overflow.svelte";
   import Dropdown from "../pieces/Dropdown.svelte";

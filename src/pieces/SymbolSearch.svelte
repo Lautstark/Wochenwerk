@@ -9,8 +9,9 @@
      in Einstellungen → Symbole, by connecting a folder or not. */
   import { owed, pictures, refFor, search, sourceInUse } from "../symbols.js";
   import type { SymbolRef } from "../model.js";
+  import Tile from "@lautstark/design/svelte/Tile";
+  import TileGrid from "@lautstark/design/svelte/TileGrid";
   import Picture from "./Picture.svelte";
-  import PickerItem from "./PickerItem.svelte";
 
   let { onpick, hidden = false }: { onpick: (ref: SymbolRef) => void; hidden?: boolean } = $props();
   let query = $state("");
@@ -37,4 +38,4 @@
   export const focus = () => field.focus();
 </script>
 
-<div class="search" {hidden}><div class="search__row"><label class="field-row"><span class="lbl">Symbol suchen</span><input bind:this={field} class="field" type="search" placeholder="z. B. Spielplatz" autocomplete="off" bind:value={query} oninput={run} /></label></div><div class="picker__grid">{#each found as ref}<PickerItem label={ref.label} active={false} onclick={() => onpick(ref)}><Picture symbol={ref} name={ref.label} {known} /></PickerItem>{/each}</div><p class="small muted">{credit}</p></div>
+<div class="search" {hidden}><div class="search__row"><label class="field-row"><span class="lbl">Symbol suchen</span><input bind:this={field} class="field" type="search" placeholder="z. B. Spielplatz" autocomplete="off" bind:value={query} oninput={run} /></label></div><TileGrid>{#each found as ref}<Tile label={ref.label} toggle active={false} onclick={() => onpick(ref)}><Picture symbol={ref} name={ref.label} {known} /></Tile>{/each}</TileGrid><p class="small muted">{credit}</p></div>
