@@ -334,10 +334,12 @@ test("the Löschen panel, unfolded", async ({ page }) => {
  * Elements and not the dialog, for a reason beyond the one above: a new
  * appointment is dated today, and the Datum, Von and Bis fields are in every
  * wider shot of it. A baseline with today's date in it is red tomorrow. Neither
- * of these two elements contains a date, a count or anything else that moves —
- * with an empty database the fold says „niemand" and the Ansage field is empty
- * with its placeholder — which is why the shot is drawn this tightly rather
- * than masked.
+ * of the first two elements contains a date, a count or anything else that
+ * moves — with an empty database the fold says „niemand" and the Ansage field
+ * is empty with its placeholder — which is why the shot is drawn this tightly
+ * rather than masked. The Wiederholen row after them does carry one, and
+ * answers it the other way this suite knows: the clock is pinned, so the date
+ * in it is a fact of the seed rather than of the morning the suite ran.
  */
 async function openAppointment(page: Page): Promise<Locator> {
   await page.goto("/kalender/");
@@ -372,6 +374,141 @@ test("the Ansage row in an appointment", async ({ page }) => {
   await expect(row.locator(".field")).toHaveAttribute("placeholder", "Ohne Namen wird nichts gesagt");
   await expect(row.locator(".btn")).toBeVisible();
   await expect(row).toHaveScreenshot("termin-ansage.png");
+});
+
+/*
+ * „Wiederholen" — the other row of this dialog, and the one this suite could
+ * not see at all.
+ *
+ * What that cost was measured on 2026-09-17. Both of this product's
+ * @lautstark/design/svelte/Dropdown call sites went from `.btn.dropdown` to
+ * `.field.dropdown`, and this one is the larger half of that change: a trigger
+ * that had been as wide as the word on it — 108px on „einmalig", bold 14px on a
+ * visible pill, the one control in a column of answers that stopped early —
+ * became the full 854px of that column in regular 15px on a field's fill, and
+ * the row grew 3px taller. Every baseline in this directory came back
+ * byte-identical. A control was redrawn, and the suite whose whole job is to
+ * notice that said nothing, because no picture had ever contained it: the two
+ * shots of this dialog are the people fold and the Ansage row, and this row
+ * stands above both of them in the sheet and inside neither photograph.
+ *
+ * The inner `.stack` and not the sheet, for the section's reason above and one
+ * of its own: this block is the whole of the question — the trigger, the end of
+ * the rule beside it, the weekdays under it — and it is the element the product
+ * hides as a unit, so a shot of it goes red for a change to this row and for
+ * nothing else.
+ *
+ * Two of them, because the row has two shapes and the second is not the first
+ * with something added: „einmalig" is one trigger across the whole column, and
+ * „wöchentlich" is two controls sharing it with a grid of seven under them. A
+ * baseline of either says nothing about the other, and §6.10's argument for
+ * `field` — that a column of questions wants one left edge to follow down — is
+ * at its plainest in the second, where the two controls of one row share its
+ * width instead of a pill stopping after its word beside a full-width date.
+ *
+ * The date in the second shot is the one thing here that would rot, and it is
+ * answered the way this file answers everything: named rather than covered. The
+ * rule's „Bis" is the draft's own day plus 55, so the clock is pinned to the
+ * seeded Tuesday the way the board shot below pins it, and 2026-10-26 becomes a
+ * fact of the seed rather than of the morning the suite ran. Which weekday
+ * stands chosen is the same story told shorter — the tile in force is the
+ * draft's day, and the pin is what makes it DI.
+ *
+ * It is the field's *value* that is asserted and not the words standing in it,
+ * and the two baselines are why. A `<input type="date">` is written out in the
+ * browser's own UI language rather than the page's, which `use.locale` does not
+ * reach — so this field reads „26.10.2026" on a German macOS and „10/26/2026"
+ * on the Linux runner. One value, two pictures, and each platform compares
+ * against its own; the config's note about pinning the locale is about what the
+ * product formats, and this is the corner the browser formats instead.
+ *
+ * ## The other call site, which stays uncovered
+ *
+ * „Darstellung" in SettingsBody is the same component in the same round, and it
+ * gets no baseline here. It is drawn only where the METACOM folder holds two
+ * fassungen, and a folder means a real `FileSystemDirectoryHandle` — which a
+ * headless Chromium will not grant and no fixture can forge. `panel-symbole`
+ * above is that panel with no folder, and the row is not in it. Its own comment
+ * in SettingsBody says the `field` conversion was measured against markup
+ * injected into the live panel by hand, and that remains the only way anybody
+ * sees it. Saying so is the whole of what this suite can do about it.
+ */
+
+/** The block „Wiederholen" is in. By the label the trigger is named from, not
+    by where it sits: `.stack` is four different things in this dialog, and the
+    outer one is the whole form. */
+const repeating = (sheet: Locator) => sheet.locator(".stack:has(> .row-of #repeatLabel)");
+
+test("the Wiederholen row in an appointment, einmalig", async ({ page }) => {
+  await at(page, "09:00");
+  const sheet = await openAppointment(page);
+  const repeat = repeating(sheet);
+  /* By the question rather than by the answer standing on it — which is what
+     the `aria-labelledby` half of the conversion bought, and what the wrapping
+     `<label>` it replaced could never have given. e2e/kalender.spec.ts drives
+     the same control the same way and says the longer version of why. */
+  const trigger = sheet.getByLabel("Wiederholen");
+  await expect(trigger).toHaveText("einmalig");
+  /* The figure the conversion is about, asserted as a number as well as
+     photographed. A failure reading 108 where it wanted 854 names the
+     regression; the pixel diff of it is a row that got shorter for reasons
+     somebody then has to work out. */
+  expect((await trigger.boundingBox())!.width, "the trigger takes the whole column").toBe(854);
+  /* Nothing repeats, so there is no rule to end and no day to pick. Both are
+     `hidden` rather than unmounted — kalender.css's `[hidden]` is what takes
+     them out of the column — so both are asked rather than assumed. */
+  await expect(repeat.getByLabel("Bis")).toBeHidden();
+  await expect(repeat.locator(".picker__grid")).toBeHidden();
+  /* Nothing to settle before the shutter, unlike the shot below: a fresh draft
+     opens with its name field focused, and the press that opened the sheet left
+     the pointer behind it. */
+  await expect(repeat).toHaveScreenshot("termin-wiederholen-einmalig.png");
+});
+
+test("the Wiederholen row in an appointment, wöchentlich", async ({ page }) => {
+  await at(page, "09:00");
+  const sheet = await openAppointment(page);
+  const repeat = repeating(sheet);
+  const trigger = sheet.getByLabel("Wiederholen");
+  /* Pressed rather than set: the menu is the control, and what it leaves
+     behind — the answer on the trigger, the second field, the grid — is the
+     picture. `menuitemradio` is the role menu.js gives a `checked` item. */
+  await trigger.click();
+  await sheet.getByRole("menuitemradio", { name: "wöchentlich" }).click();
+  await expect(trigger).toHaveText("wöchentlich");
+  const until = repeat.getByLabel("Bis");
+  /* Half the column each, which is the whole of §6.10's argument drawn: two
+     controls of one row sharing its width, where the pill used to stop after
+     its word beside a full-width date field. */
+  expect((await trigger.boundingBox())!.width, "the trigger, beside the end date").toBe(422);
+  expect((await until.boundingBox())!.width, "the end of the rule").toBe(422);
+  /* The only date this suite photographs, and it is pinned rather than masked:
+     the draft's day plus 55, and the draft's day is the seeded Tuesday. */
+  await expect(until).toHaveValue("2026-10-26");
+  /* Seven, and the draft's own weekday already in force. Asserted as words for
+     HEADINGS' reason: DI moving to MI is a bug about which day a rule starts
+     on, and it should say that rather than be two tiles' worth of pixels. */
+  await expect(repeat.locator(".picker__item")).toHaveText(["MO", "DI", "MI", "DO", "FR", "SA", "SO"]);
+  await expect(repeat.locator('.picker__item[aria-pressed="true"]')).toHaveText("DI");
+  /* The pointer, off the tiles. It is where it pressed „wöchentlich", the menu
+     closed, and the grid is now drawn under it — which is the Stimme panel's
+     story exactly, where a pointer left on a row was a real difference between
+     two baselines of the same CSS. */
+  await page.mouse.move(0, 0);
+  /* And the focus, off the trigger, which is the same argument one step less
+     obvious. menu.js hands focus back to whatever opened the menu, and
+     `.field:focus` is a white fill and an accent border — so the shot would be
+     one focused control beside one at rest, and the fill of a field this
+     baseline is here to hold would be the one fill it does not show.
+
+     Worse, whether it draws that way at all is not a fact about the CSS.
+     `:focus` paints only where `document.hasFocus()` is true, and a headless
+     browser answers that differently depending on what else the run has open:
+     driving exactly this flow twice while writing this test gave the resting
+     fill once and the focused one the next time. A baseline that turns on that
+     is the flake the config's `retries: 0` note refuses to paper over. */
+  await trigger.blur();
+  await expect(repeat).toHaveScreenshot("termin-wiederholen-woechentlich.png");
 });
 
 /* The card the voice is on — the one surface in this suite that is not the
