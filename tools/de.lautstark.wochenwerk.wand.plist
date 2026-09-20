@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Haelt die Freigabe des Wandgeraets eingehaengt: beim Anmelden und danach
+     jede Minute. Das Skript beendet sich sofort, wenn schon alles steht.
+     Einmal einrichten:
+       cp tools/wand-einhaengen.sh ~/bin/
+       cp tools/de.lautstark.wochenwerk.wand.plist ~/Library/LaunchAgents/
+       launchctl load ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
+     Der Pfad unten muss auf die Kopie zeigen, nicht auf das Arbeitsverzeichnis. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>de.lautstark.wochenwerk.wand</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>REPLACE/wand-einhaengen.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>StandardErrorPath</key>
+  <string>/tmp/wochenwerk-wand.log</string>
+</dict>
+</plist>

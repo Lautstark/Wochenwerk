@@ -145,7 +145,12 @@
       case "saving": return "Wird geschrieben …";
       case "needs-permission": return `Der Browser braucht die Erlaubnis für „${status.folder}“ erneut.`;
       case "failed": return `Der Ordner ließ sich nicht schreiben: ${status.reason}`;
-      case "stale": return `„${status.folder}“ ist nicht erreichbar. Der Kalender zeigt den letzten Stand und nimmt nichts an.`;
+      /* It used to say „und nimmt nichts an", which was never true: the edit went
+         into this browser and the folder write was dropped without a trace. It is
+         true now in the only sense that matters — nothing is lost and nothing is
+         kept back on purpose — because what is planned meanwhile is owed and paid
+         the moment the folder is back. See src/reaching.svelte.ts. */
+      case "stale": return `„${status.folder}“ ist nicht erreichbar. Geplant werden kann trotzdem — es wird nachgereicht, sobald der Ordner wieder da ist.`;
       case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
     }
   }

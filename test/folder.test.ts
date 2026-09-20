@@ -12,7 +12,10 @@ let marked = false, refuse = 0;
 vi.mock("../src/folder.js", () => ({
   KINDS: ["termine", "karten", "personen", "serien"],
   isStore: () => true, isStale: () => false,
-  file: async () => {}, unfile: async () => {},
+  /* A write that lands says so — see src/folder.ts. This folder never goes away;
+     what happens when one does is test/waiting.test.ts. */
+  file: async () => true, unfile: async () => true,
+  stamps: async () => new Map(), reconnect: async () => undefined,
   adopted: async () => marked,
   /* The package's own adopt: write everything, check it landed, then mark — and
      refuse a folder that is already a store. */
@@ -31,7 +34,7 @@ vi.mock("../src/folder.js", () => ({
   /* A folder that stops accepting writes partway is the failure that mattered:
      nothing throws, the records simply are not there afterwards. */
   pushKind: async (kind: keyof typeof there, records: any[]) =>
-    { there[kind] = refuse ? records.slice(0, refuse) : records; },
+    { there[kind] = refuse ? records.slice(0, refuse) : records; return true; },
   readKind: async (kind: keyof typeof there) => there[kind],
 }));
 

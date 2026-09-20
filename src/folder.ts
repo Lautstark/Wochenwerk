@@ -26,31 +26,60 @@ export const isStale = () => ablage.status.kind === "stale";
 
 /* A write reaches the folder only where the folder is the store, and never while
    it is stale — a mirror that took writes nobody else can see would be the second
-   source of truth this whole arrangement exists to avoid. */
-export async function file(kind: Kind, record: Filed): Promise<void> {
-  if (!isStore() || isStale()) return;
-  await ablage.write(kind, { ...record, updatedAt: record.updatedAt ?? Date.now() });
+   source of truth this whole arrangement exists to avoid.
+
+   Whether it landed is the answer, because that is the one thing the caller cannot
+   work out afterwards. It used to be `void`: a folder out of reach swallowed the
+   write, the record sat in IndexedDB alone, and nothing anywhere remembered that
+   it still owed the folder a copy. A laptop carried out of the house came back
+   with a week nobody else could see — and `pull` then wiped it, because the folder
+   is the truth and the browser is its mirror. `true` where there is no folder at
+   all: nothing is owed to something that was never chosen. */
+export async function file(kind: Kind, record: Filed): Promise<boolean> {
+  if (!isStore()) return true;
+  if (isStale()) return false;
+  const status = await ablage.write(kind, { ...record, updatedAt: record.updatedAt ?? Date.now() });
+  return status.kind !== "stale" && status.kind !== "failed";
 }
-export async function unfile(kind: Kind, id: string): Promise<void> {
-  if (!isStore() || isStale()) return;
-  await ablage.remove(kind, id);
+export async function unfile(kind: Kind, id: string): Promise<boolean> {
+  if (!isStore()) return true;
+  if (isStale()) return false;
+  const status = await ablage.remove(kind, id);
+  return status.kind !== "stale" && status.kind !== "failed";
 }
+
+/** What the folder holds for a kind, by id: the stamp each record carries there. */
+/* Which of two versions is the newer one is the whole of the reconciliation rule,
+   and it is asked of the folder rather than remembered here — a stamp this browser
+   wrote down is a stamp from before somebody else's edit. */
+export const stamps = async (kind: Kind): Promise<Map<string, number>> =>
+  new Map((await ablage.list(kind)).map(item => [item.id, item.updatedAt]));
+
+/* Reaching for a folder that went away. It never prompts — the handle and its
+   permission are both already held — so this is a thing a timer may do, which is
+   what makes coming home enough on its own. A folder the package still believes in
+   answers `idle` here even while the share is gone; the write that follows is what
+   actually finds out, and it says so by going stale again. */
+export const reconnect = () => ablage.restore();
 
 /* A batch — a series written, a reach deleted, a calendar emptied — happens inside
    one IndexedDB transaction, and reaching into that to file each record would put
    a folder write inside a transaction that has to stay open. So a batch is
    mirrored afterwards, wholesale: what the browser now holds is written where the
    folder disagrees, and what the browser no longer holds is removed. */
-export async function pushKind(kind: Kind, records: Filed[]): Promise<void> {
-  if (!isStore() || isStale()) return;
-  const there = new Map((await ablage.list(kind)).map(item => [item.id, item.updatedAt]));
+export async function pushKind(kind: Kind, records: Filed[]): Promise<boolean> {
+  if (!isStore()) return true;
+  if (isStale()) return false;
+  const there = await stamps(kind);
   const here = new Set(records.map(record => record.id));
   /* Through `writeAll`, so a folder that goes out of reach partway stops the batch
      instead of running silently to the end writing nothing. */
-  await ablage.writeAll(kind, records
+  const went = await ablage.writeAll(kind, records
     .filter(record => there.get(record.id) !== record.updatedAt)
     .map(record => ({ ...record, updatedAt: record.updatedAt ?? Date.now() })));
+  if (went.missed.length) return false;
   for (const id of there.keys()) if (!here.has(id)) await ablage.remove(kind, id);
+  return !isStale();
 }
 
 /* The folder is not the truth the moment it is chosen — it is the truth once it

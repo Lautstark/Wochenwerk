@@ -422,6 +422,42 @@ herumliegt, nimmt macOS `/Volumes/wochenwerk-1` — und der Browser sucht weiter
 unter dem alten Pfad. Der Kalender meldet dann einen Ordner, den es nicht mehr
 gibt, und niemand verbindet das mit dem Neustart von gestern.
 
+### Die Freigabe muss von allein zurueckkommen
+
+Schritt 3 oben reicht nicht, und das ist dreimal aufgefallen, bevor es jemand
+nachgesehen hat. Ein Anmeldeobjekt haengt einmal beim Anmelden ein. Ein Laptop
+geht aber mit aus dem Haus, kommt zurueck, wacht auf, wechselt das WLAN — und
+nach jedem dieser Momente ist die Freigabe weg und niemand meldet sich an.
+
+Deshalb liegt im Repo ein Agent, der beim Anmelden **und danach jede Minute**
+nachsieht. Steht die Freigabe schon, ist das ein `grep` und ein `exit`.
+
+```
+mkdir -p ~/bin && cp tools/wand-einhaengen.sh ~/bin/
+sed "s|REPLACE|$HOME/bin|" tools/de.lautstark.wochenwerk.wand.plist > ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
+launchctl load ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
+```
+
+**Der Mountpunkt ist `~/Wochenwerk-Wand` und nicht `/Volumes`**, und das ist der
+zweite Teil der Reparatur: unter `/Volumes` vergibt macOS `wochenwerk-1`, sobald
+noch ein Rest des alten Punkts herumliegt, und der Browser sucht weiter unter dem
+alten Pfad — die Falle aus dem Absatz darueber. Ein Ordner im Home wird nie
+umbenannt. Einmal **Einstellungen → Wo alles liegt** auf
+`~/Wochenwerk-Wand/Lautstark` zeigen, „Bei jedem Besuch zulassen", fertig.
+
+**Und den alten lokalen Ordner wegraeumen.** Liegt auf dem Mac noch ein
+`~/Lautstark/wochenwerk` von vor dem Wandgeraet, ist genau das der Ordner, den
+man im Auswahldialog aus Gewohnheit erwischt — er heisst wie der richtige und
+liegt neben den Ordnern, die bildhaft und wortschatz wirklich benutzen. Am
+2026-09-16 ist er so wieder erwischt worden und hat einen Tag Planung
+geschluckt. Umbenennen genuegt; er ist dann nicht mehr im Weg und immer noch da.
+
+Was der Kalender seinerseits dagegen tut, steht in
+[`Waiting`](data-model.md) und `src/reaching.svelte.ts`: er greift von selbst
+wieder nach dem Ordner und reicht nach, was in der Zwischenzeit geplant wurde —
+und sagt ueber der Woche, solange er es nicht konnte. Der Agent hier sorgt dafuer,
+dass es selten ueberhaupt so weit kommt; die beiden ersetzen einander nicht.
+
 Vor dem Umstellen einmal **Einstellungen → Sicherung als Datei**. Zeigt ein
 Geraet auf einen Ordner, in dem schon Datensaetze liegen, zieht es
 ([db.ts](../src/db.ts): `adoptFolder()` → `pullFromFolder()`), statt zu

@@ -6,6 +6,7 @@
   import Legal from "./Legal.svelte";
   import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "../model.js";
   import { load, shown, type Week } from "../store.svelte.js";
+  import { reaching, settled } from "../reaching.svelte.js";
   import { owed } from "../symbols.js";
   import WeekGrid from "./WeekGrid.svelte";
   import { blankAppointment, editAppointment } from "./appointment.svelte.js";
@@ -65,6 +66,30 @@
      because the footer that opens it and the dialog that draws it are both in
      this file and nothing else on the page asks. */
   let legal = $state<string | null>(null);
+
+  /* What the folder is owed, and it is drawn over the week rather than reported in
+     a panel. The folder going out of reach used to be visible in exactly one
+     place: Einstellungen → Ablage, folded shut. So a week got planned into a
+     calendar that was talking to nobody, three times, and the calendar was right
+     every time and said so where nobody was looking. This is the same fact at the
+     place the planning happens. */
+  let reach = $derived(reaching());
+  const many = (count: number) => count === 1 ? "1 Änderung" : `${count} Änderungen`;
+
+  /* And what became of them, once they went. The banner disappearing says the
+     condition ended; it cannot say that somebody else's Tuesday won, and that is
+     the one outcome a person has to hear in words. */
+  let told = 0;
+  $effect(() => {
+    const done = settled();
+    if (!done || done.at === told) return;
+    told = done.at;
+    if (done.clashed.length) {
+      say(`${many(done.clashed.length)} von hier wurden nicht übernommen — sie waren anderswo schon neuer geplant.`);
+    } else if (done.sent) {
+      say(`${many(done.sent)} an die Wand nachgereicht.`);
+    }
+  });
 </script>
 
 <div class="shell">
@@ -83,6 +108,17 @@
          holds until something replaces it. A week nobody has planned yet is not an
          outcome; it is the empty state, and components.css has one of those with a
          heading and a hint under it. -->
+    <!-- What the folder is owed, over the week rather than in a panel. It is not
+         an outcome line and not an empty state: it is a condition, and the one
+         place it used to be visible was a settings panel folded shut. -->
+    {#if reach.away}
+      <p class="notice bad"><b>Die Wand bekommt das gerade nicht.</b>
+        {reach.waiting
+          ? `Der Ordner ist nicht erreichbar. ${many(reach.waiting)} warten und gehen von selbst los, sobald er wieder da ist.`
+          : "Der Ordner ist nicht erreichbar. Planen geht trotzdem — es wird nachgereicht, sobald er wieder da ist."}</p>
+    {:else if reach.waiting}
+      <p class="notice">{many(reach.waiting)} werden gerade nachgereicht.</p>
+    {/if}
     <p class="empty" hidden={current.appointments.length > 0}><b>Noch nichts geplant</b><small>Leg den ersten Termin an — oder klick in eine Spalte.</small></p>
     <WeekGrid visible={narrow ? [current.dates[day]!] : null}
       onopen={appointment => editAppointment(appointment, true, reload)}

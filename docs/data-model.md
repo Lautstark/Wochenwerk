@@ -128,6 +128,31 @@ It is not domain data, and the two deletions say so: emptying the calendar and
 deleting everything both name the appointments, the cards and the people, and take
 exactly those.
 
+## `Waiting`
+
+Not a kind of thing either, and the newest of the three: one row per record the
+folder has not been told about yet.
+
+The folder is the truth and the browser is its mirror (ADR 002), and the laptop
+that plans leaves the house — that is the arrangement, not a fault in it. So the
+share goes away regularly, and what used to happen then was that an edit went into
+IndexedDB, the folder write was dropped with no trace anywhere, and the next read
+of the truth deleted it. Three weeks were planned into a calendar that was talking
+to nobody.
+
+A row is the trace. It holds no record of its own — the record is already in the
+store beside it, and reading it there cannot go stale — only `kind`, which record,
+whether it was a deletion, and when. Keyed `kind/record`, so a record edited five
+times while away is owed once; `kind/*` is a whole kind, which is what a batch
+leaves behind, because a batch removes files as well as writing them and which
+ones can only be worked out against a folder that is there to be asked.
+
+Paid in `settleUp`, driven by [`reaching`](../src/reaching.svelte.ts): newer wins
+and the folder is asked which is newer, so somebody else's later edit is never
+overwritten — it is handed back as a clash and said out loud. Empty on arrival and
+empty most of the time: a browser that never loses sight of its folder never
+writes a row here.
+
 ## Not modelled here
 
 The NFC card. An input picks one of the options an appointment offers; which tag

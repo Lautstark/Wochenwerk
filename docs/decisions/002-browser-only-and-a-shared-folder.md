@@ -175,6 +175,18 @@ included. There is no phone route to a shared folder, and the household has
 accepted that: planning happens on a laptop, the board runs on the Wyse, and both
 are Chromium.
 
+**The share is away often, and that had to stop being an event.** The folder is on
+the wall device and the laptop that writes into it goes out of the house, so
+"unreachable" is an ordinary Tuesday rather than a fault. What was wrong was not
+the arrangement but the recovery: the package marks a folder unreachable and
+refuses to write, a write is the only thing that can mark it reachable again, and
+so the state was a latch nobody could leave without reloading the page. Added
+since: the browser reaches for the folder again on a timer and on the three moments
+a laptop comes home, and everything planned meanwhile is owed and paid on the way
+in. See [`Waiting`](../data-model.md) and `src/reaching.svelte.ts`. The household
+does nothing, which is the only version of this that works — the three times it
+went wrong, the household had done nothing wrong either.
+
 **One thing is not settled here, and cannot be.** Whether METACOM's actual licence
 permits a filename in a shared document is the licence text, not a house rule,
 and a house rule cannot grant what the licence withholds. Read it before the

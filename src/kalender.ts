@@ -4,6 +4,7 @@ import { mount } from "svelte";
 import { pullFromFolder, settings } from "./db.js";
 import { load } from "./store.svelte.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
+import { watchReach } from "./reaching.svelte.js";
 import { metacom, preferRendering, restore } from "./symbols.js";
 import Kalender from "./kalender/Kalender.svelte";
 
@@ -44,3 +45,8 @@ await load(0);
    once the folder is the store: a folder mid-adoption changes constantly, and all
    of those changes are ours. */
 if (await adopted()) watchFolder(() => void pullFromFolder().then(() => load()));
+/* And the other direction: a folder this browser has gone out of reach of, and the
+   records it is owed once it is back. It runs whether or not the folder is adopted
+   — being out of reach is exactly the state in which that question cannot be
+   asked — and redraws the week when something of ours has landed. */
+watchReach(() => void load());

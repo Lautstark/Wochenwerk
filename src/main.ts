@@ -4,6 +4,7 @@ import "./screen.js";
 import { mount } from "svelte";
 import { pullFromFolder, settings, whenStuck } from "./db.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
+import { watchReach } from "./reaching.svelte.js";
 import { preferRendering, restore } from "./symbols.js";
 import { listen } from "./reader.js";
 import Board from "./board/Board.svelte";
@@ -52,3 +53,7 @@ void tick();
 listen();
 /* Somebody else's edit, arriving as a file that changed under this browser. */
 if (await adopted()) watchFolder(() => void pullFromFolder().then(tick));
+/* The board plans nothing, but it does write: a card laid at the slot answers a
+   choice, and that answer is a record like any other. So it owes the folder the
+   same duty, and reaches for it the same way. */
+watchReach(() => void tick());

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { adopt, adopted, file, isStale, isStore, KINDS, pushKind, readKind, unfile } from "./folder.js";
+import { adopt, adopted, file, type Filed, isStale, isStore, type Kind, KINDS, pushKind, readKind, stamps, unfile } from "./folder.js";
 import { addDays, cameFrom, expand, iso, isDerived, notAtHome, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 import { changes } from "@lautstark/werkzeuge/changed";
 
@@ -18,7 +18,26 @@ interface Wochenwerk extends DBSchema {
      losing it costs the time to speak a sentence again, and every key in it is
      derivable from the text, so nothing here is a source of anything. */
   clips: { key: string; value: { id: string; wav: Uint8Array } };
+  /* Not a kind of thing either: what the folder is still owed. See `Waiting`. */
+  waiting: { key: string; value: Waiting };
 }
+
+/**
+ * One record the folder has not been told about yet.
+ *
+ * A household that planned while the share was unreachable used to have no trace
+ * of it anywhere: the record went into IndexedDB, the folder write was dropped on
+ * the floor, and the next `pull` — the folder is the truth — wiped the week
+ * somebody had just typed. This store is the trace. It holds no record of its own,
+ * only the fact that one is owed, because the record itself is already in the
+ * store beside it and reading it there cannot go stale.
+ *
+ * Keyed `kind/record`, so a record edited five times while away is owed once. The
+ * whole of a kind is owed under `kind/*`, which is what a batch leaves behind:
+ * a batch also *removes* files, and which ones can only be worked out against a
+ * folder that is there — so it is redone whole rather than replayed.
+ */
+export type Waiting = { id: string; kind: Kind; record: string; gone: boolean; at: number };
 
 /* Version 2 dropped the separate visit/birthday record. Both are ordinary all-day
    appointments now: the person hangs off the appointment like on any other, and a
@@ -40,7 +59,7 @@ let opening: Promise<IDBPDatabase<Wochenwerk>> | null = null;
    this promise, so whatever the reason, not having opened by now is the thing
    worth saying, and the only screen that can say it is the one being looked at. */
 const PATIENCE = 4000;
-const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 8, {
+const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 9, {
   async upgrade(database, from, _to, transaction) {
     if (from < 1) {
       const appointments = database.createObjectStore("appointments", { keyPath: "id" });
@@ -141,6 +160,9 @@ const db = () => (opening ??= waiting(openDB<Wochenwerk>("wochenwerk", 8, {
     }
     if (!database.objectStoreNames.contains("settings")) database.createObjectStore("settings", { keyPath: "id" });
     if (!database.objectStoreNames.contains("clips")) database.createObjectStore("clips", { keyPath: "id" });
+    /* Version 9. Empty on arrival and empty most of the time: a browser that has
+       never been away from its folder never writes a row here. */
+    if (!database.objectStoreNames.contains("waiting")) database.createObjectStore("waiting", { keyPath: "id" });
   },
   /* A version bump waits for every open connection to close, and the board is a
      page that is never closed: it hangs on a wall. Without these three, deploying
@@ -199,14 +221,28 @@ type Kept = keyof typeof KIND;
 
 async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
   await (await db()).put(store as never, record as never);
-  await file(KIND[store], record as never);
+  await settled(KIND[store], record.id, false, await file(KIND[store], record as never));
   changed.touched();
 }
 async function dropRecord(store: Kept, id: string): Promise<void> {
   await (await db()).delete(store as never, id as never);
-  await unfile(KIND[store], id);
+  await settled(KIND[store], id, true, await unfile(KIND[store], id));
   changed.touched();
 }
+
+/* What a write owes the folder afterwards, which is either nothing or a row. Both
+   funnels end here, so there is no edit anywhere in the product that can reach
+   IndexedDB without the folder either having it or being owed it. */
+async function settled(kind: Kind, record: string, gone: boolean, landed: boolean): Promise<void> {
+  const database = await db();
+  if (landed) await database.delete("waiting", `${kind}/${record}`);
+  else await database.put("waiting", { id: `${kind}/${record}`, kind, record, gone, at: Date.now() });
+}
+
+/** What the folder is still owed, oldest first. Empty is the ordinary case. */
+export const owing = async (): Promise<Waiting[]> =>
+  (await (await db()).getAll("waiting")).sort((a, b) => a.at - b.at);
+export const owed = async (): Promise<number> => (await db()).count("waiting");
 
 /* A stretch of days is what was stored for them plus what the rules put there.
 
@@ -252,7 +288,12 @@ const allAppointments = async () => (await db()).getAll("appointments");
 /** Mirror what a batch left behind. Cheap where no folder is connected. */
 const mirror = async (...kinds: ("termine" | "serien")[]) => {
   for (const kind of kinds) {
-    await pushKind(kind, kind === "termine" ? await allAppointments() : await allSeries());
+    const landed = await pushKind(kind, kind === "termine" ? await allAppointments() : await allSeries());
+    /* The whole kind rather than the records it touched: a batch removes files as
+       well as writing them, and what to remove is the difference against a folder
+       that is not there to be asked. Redoing it whole once the folder is back is
+       the same work `pushKind` does anyway. */
+    await settled(kind, "*", false, landed);
   }
 };
 export const allSeries = async () => (await db()).getAll("series");
@@ -297,8 +338,70 @@ export async function remove(id: string): Promise<void> {
    folder is not read. See sicherung's adr/0001. */
 export async function pullFromFolder(): Promise<boolean> {
   if (!isStore() || !(await adopted())) return false;
+  /* What is owed goes first, and this is the one place that cannot be forgotten:
+     `pull` replaces these four stores with what the folder holds, so a record the
+     folder has never been told about is a record this line is about to delete.
+     That is how a week planned on a laptop away from the house disappeared. */
+  await settleUp();
   await pull();
   return true;
+}
+
+/** Which store each kind of record lives in. The mirror of `KIND`. */
+const STORE = { termine: "appointments", karten: "cards", personen: "people", serien: "series" } as const;
+const ofKind = async (kind: Kind) => (await db()).getAll(STORE[kind] as never) as Promise<Filed[]>;
+const oneOf = async (kind: Kind, id: string) => (await db()).get(STORE[kind] as never, id as never) as Promise<Filed | undefined>;
+
+/**
+ * What was planned while the folder was away, written now that it is back.
+ *
+ * The folder is the truth and this browser is its mirror — which is exactly why
+ * an edit made with the folder out of reach cannot simply sit here: the next read
+ * of the truth would erase it. So every such edit left a row behind, and this is
+ * where the rows are paid.
+ *
+ * **Newer wins, and the folder is asked which is newer.** Where somebody else
+ * changed the same record after we did, ours is not written: it is handed back as
+ * a clash, and the `pull` that follows brings their version in. A household with
+ * one laptop will never see one; a household with two might, and a board that
+ * silently overwrote the other person's Tuesday would be worse than one that says
+ * so. Nothing is overwritten quietly in either direction.
+ *
+ * Stops at the first thing that will not land rather than running to the end: the
+ * folder has gone away again mid-settle, and the rows that are left are still
+ * owed. It is safe to call at any time and does nothing where nothing is owed.
+ */
+export async function settleUp(): Promise<{ sent: number; clashed: Waiting[] }> {
+  const clashed: Waiting[] = [];
+  let sent = 0;
+  if (!isStore() || isStale() || !(await adopted())) return { sent, clashed };
+  const database = await db();
+  /* Whole kinds first. One of them carries every record under it, so a kind that
+     goes through settles its own singles as well and they need no second pass. */
+  for (const row of (await owing()).filter(item => item.record === "*")) {
+    if (!(await pushKind(row.kind, await ofKind(row.kind)))) return { sent, clashed };
+    for (const other of await owing()) if (other.kind === row.kind) await database.delete("waiting", other.id);
+    sent += 1;
+  }
+  const there = new Map<Kind, Map<string, number>>();
+  for (const row of await owing()) {
+    if (!there.has(row.kind)) there.set(row.kind, await stamps(row.kind));
+    const theirs = there.get(row.kind)!.get(row.record);
+    const mine = row.gone ? undefined : await oneOf(row.kind, row.record);
+    /* Deleted here and edited there, or edited here and edited later there: the
+       folder's copy is the newer one and it stays. A record that has since gone
+       from this browser too is nothing to write — its own deletion has a row. */
+    if (row.gone ? theirs !== undefined && theirs > row.at : !mine || (theirs !== undefined && theirs > mine.updatedAt)) {
+      if (mine || row.gone) clashed.push(row);
+      await database.delete("waiting", row.id);
+      continue;
+    }
+    const landed = row.gone ? await unfile(row.kind, row.record) : await file(row.kind, mine!);
+    if (!landed) return { sent, clashed };
+    await database.delete("waiting", row.id);
+    sent += 1;
+  }
+  return { sent, clashed };
 }
 async function pull(): Promise<void> {
   const database = await db();
@@ -435,8 +538,11 @@ export async function clearAll(): Promise<void> {
     database.clear("cards"), database.clear("people"),
   ]);
   await mirror("termine", "serien");
-  await pushKind("karten", []);
-  await pushKind("personen", []);
+  /* Through `settled` like every other write: emptying a calendar while the folder
+     is out of reach is still something the folder has to be told, and the two
+     kinds that have no batch of their own would otherwise be the one hole left. */
+  await settled("karten", "*", false, await pushKind("karten", []));
+  await settled("personen", "*", false, await pushKind("personen", []));
 }
 /* One household, so one record, under a constant key. A settings store keyed by
    anything else would be a store of settings, which is how a second answer to the
