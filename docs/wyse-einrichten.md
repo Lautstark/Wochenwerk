@@ -432,18 +432,35 @@ nach jedem dieser Momente ist die Freigabe weg und niemand meldet sich an.
 Deshalb liegt im Repo ein Agent, der beim Anmelden **und danach jede Minute**
 nachsieht. Steht die Freigabe schon, ist das ein `grep` und ein `exit`.
 
+Vorher einmal Schritt 1 von oben, also ⌘K mit **„Passwort im Schluesselbund
+sichern"** — ohne den Eintrag hat der Agent kein Passwort und niemanden, den er
+fragen koennte. Danach die Verbindung im Finder auswerfen; dieselbe Freigabe
+laesst sich nicht zweimal einhaengen, und solange die Finder-Verbindung steht,
+scheitert der Agent mit `mount error: File exists`.
+
 ```
 mkdir -p ~/bin && cp tools/wand-einhaengen.sh ~/bin/
 sed "s|REPLACE|$HOME/bin|" tools/de.lautstark.wochenwerk.wand.plist > ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
-launchctl load ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
 ```
 
-**Der Mountpunkt ist `~/Wochenwerk-Wand` und nicht `/Volumes`**, und das ist der
-zweite Teil der Reparatur: unter `/Volumes` vergibt macOS `wochenwerk-1`, sobald
-noch ein Rest des alten Punkts herumliegt, und der Browser sucht weiter unter dem
-alten Pfad — die Falle aus dem Absatz darueber. Ein Ordner im Home wird nie
-umbenannt. Einmal **Einstellungen → Wo alles liegt** auf
-`~/Wochenwerk-Wand/Lautstark` zeigen, „Bei jedem Besuch zulassen", fertig.
+`launchctl load` tut es auch, meldet dabei aber „Load failed: 5: Input/output
+error" — das Unterkommando ist abgeloest, der Agent ist trotzdem registriert.
+Nachsehen: `launchctl list | grep wochenwerk`, Log unter
+`/tmp/wochenwerk-wand.log`.
+
+**Das Skript haengt ueber `mount volume` ein und nicht ueber `mount_smbfs`.**
+`mount_smbfs` liest den Schluesselbund nicht — auch nicht im Vordergrund, es
+liegt also nicht an launchd — und antwortet ohne Passwort mit „server rejected
+the connection: Authentication error". `mount volume` geht ueber NetAuthAgent,
+denselben Weg wie der Finder, und der kennt den Eintrag. Am 2026-09-21 beides
+gemessen.
+
+Der Mountpunkt bleibt damit `/Volumes/wochenwerk`, wie in Schritt 2 oben. Gegen
+die `wochenwerk-1`-Falle aus dem Absatz darueber prueft das Skript selbst: liegt
+dort ein uebriggebliebenes Verzeichnis statt eines Mountpunkts, haengt es nichts
+ein und schreibt den einen Befehl ins Log, der es aufraeumt (`sudo rmdir`, denn
+`/Volumes` gehoert root).
 
 **Und den alten lokalen Ordner wegraeumen.** Liegt auf dem Mac noch ein
 `~/Lautstark/wochenwerk` von vor dem Wandgeraet, ist genau das der Ordner, den

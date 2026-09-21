@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- Haelt die Freigabe des Wandgeraets eingehaengt: beim Anmelden und danach
      jede Minute. Das Skript beendet sich sofort, wenn schon alles steht.
-     Einmal einrichten:
-       cp tools/wand-einhaengen.sh ~/bin/
-       cp tools/de.lautstark.wochenwerk.wand.plist ~/Library/LaunchAgents/
-       launchctl load ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
+     Einmal einrichten — siehe docs/wyse-einrichten.md. `launchctl load` ist
+     abgeloest und meldet „Load failed: 5: Input/output error", auch wenn es den
+     Agenten laengst registriert hat; die heutige Form ist:
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/de.lautstark.wochenwerk.wand.plist
      Der Pfad unten muss auf die Kopie zeigen, nicht auf das Arbeitsverzeichnis. -->
 <plist version="1.0">
 <dict>
