@@ -24,12 +24,24 @@ const said = (week: Appointment[], at: Date, home: Household) => announce(week, 
 
 describe("the day sentence", () => {
   it("compounds the weekday with the daypart", () => {
+    /* Each pair straddles one of `daypartTimes`, so the boundaries are what is
+       guarded rather than four times that happen to fall inside them. They sit on
+       what a two-year-old lives through — lunch and the nap, being fetched,
+       supper — and not on round numbers; see the note there. */
     const day = (time: string) => said([], at(time), house())[0];
     expect(day("06:30")).toBe("Es ist Dienstagmorgen.");
-    expect(day("08:00")).toBe("Es ist Dienstagmorgen.");
-    expect(day("12:00")).toBe("Es ist Dienstagmittag.");
-    expect(day("15:30")).toBe("Es ist Dienstagnachmittag.");
-    expect(day("19:15")).toBe("Es ist Dienstagabend.");
+    expect(day("11:15")).toBe("Es ist Dienstagmorgen.");
+    expect(day("11:30")).toBe("Es ist Dienstagmittag.");
+    expect(day("13:45")).toBe("Es ist Dienstagmittag.");
+    expect(day("14:00")).toBe("Es ist Dienstagnachmittag.");
+    expect(day("17:45")).toBe("Es ist Dienstagnachmittag.");
+    expect(day("18:00")).toBe("Es ist Dienstagabend.");
+    /* A boundary is a mark on the grid the board draws, not a minute: `daypartOf`
+       compares through `snapped`, so the quarter hour a time rounds to is what
+       decides. Half past eleven arrives at 11:23 by that rule. Deliberate — the
+       rail's marks stand on the same grid — and the reason the times above stay
+       clear of it rather than straddling it. */
+    expect(day("11:23")).toBe("Es ist Dienstagmittag.");
   });
 
   it("says a birthday after the day and the daypart, with the age spelled out", () => {
@@ -234,7 +246,7 @@ describe("two beside each other", () => {
       appointment("11:00", "12:00", { title: "Turnen", people: ["m"] }),
       appointment("11:30", "12:30", { title: "Musik", people: ["e"] })];
     expect(said(week, at("11:40"), home())).toEqual([
-      "Es ist Dienstagmorgen.", "Mia, jetzt ist Turnen.", "Emma, jetzt ist Musik.", "Danach kommt wieder Kita.",
+      "Es ist Dienstagmittag.", "Mia, jetzt ist Turnen.", "Emma, jetzt ist Musik.", "Danach kommt wieder Kita.",
     ]);
   });
 
@@ -306,7 +318,7 @@ describe("what comes next", () => {
        board said the afternoon was empty while the waffle iron was on the plan. */
     const week = [appointment("09:00", "14:00", { title: "Kita" }), appointment("14:45", "16:00", { title: "Waffeln backen" })];
     expect(said(week, at("13:00"), house())).toEqual(["Es ist Dienstagmittag.", "Jetzt ist Kita."]);
-    expect(said(week, at("14:25"), house())).toEqual(["Es ist Dienstagmittag.", "Gleich kommt Waffeln backen."]);
+    expect(said(week, at("14:25"), house())).toEqual(["Es ist Dienstagnachmittag.", "Gleich kommt Waffeln backen."]);
   });
 
   it("measures the wait from the end of what is running, not from now", () => {

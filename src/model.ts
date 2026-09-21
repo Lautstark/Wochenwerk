@@ -373,8 +373,26 @@ export const appointmentTone = (appointment: Appointment, byId: Map<string, Card
 /* When each of the rail's four marks takes over. The board draws them and speech
    names them, so they are here rather than in either — a rail showing the evening
    moon while the button says Nachmittag is the kind of disagreement that only
-   shows up in front of the child. */
-export const daypartTimes = ["08:00", "12:00", "15:30", "19:15"];
+   shows up in front of the child.
+ *
+ * **The boundaries sit on transitions rather than on round numbers**, because a
+ * two-year-old does not read a clock and does read a day: lunch and the nap, being
+ * fetched, supper. They were 12:00, 15:30 and 19:15 — clock times, and every one
+ * of them fell inside a block rather than between two. The household that found it
+ * was told *Donnerstagnachmittag* at seven in the evening, halfway through supper,
+ * with the bedtime routine due in an hour.
+ *
+ * Fourteen hundred is the one that matters most: it is the end of Kita, the
+ * largest change in the day, and *nachmittags* now means the thing the child can
+ * check for themselves — you are home. Eighteen hundred is the second: supper
+ * opens the evening rather than falling in the afternoon. Half eleven is the
+ * smallest, and it is what the rail is for — lunch and sleeping are not on the
+ * board, so the mark is the only thing that says where you are inside a long
+ * morning at Kita.
+ *
+ * A household whose day is shaped differently would want different numbers. They
+ * are here, in one line, for that reason. */
+export const daypartTimes = ["08:00", "11:30", "14:00", "18:00"];
 
 export const minute = (time: string) => { const [hour, rest] = time.split(":").map(Number); return hour * 60 + rest; };
 export const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;

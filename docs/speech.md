@@ -14,6 +14,17 @@ means nothing before school, and *noch zwanzig Minuten* means nothing either —
 child that age has no unit to hang it on. A button that says them teaches only
 that the button makes noise.
 
+**The four boundaries sit on transitions, not on round numbers.** A two-year-old
+does not read a clock and does read a day, so each mark falls where something
+changes that the child lives through: lunch and the nap at half eleven, being
+fetched from Kita at two, supper at six. They were 12:00, 15:30 and 19:15 once —
+clock times, every one of them inside a block rather than between two, and the
+household that noticed was told *Donnerstagnachmittag* at seven in the evening,
+halfway through supper. Two o'clock is the one that carries the most: *nachmittags*
+now means the thing a child can check without being told, which is that they are
+home. A household whose day is shaped differently wants different numbers, and
+they are one line in `model.ts` for that reason.
+
 Time is spoken the way the board already draws it: in the four METACOM dayparts
 the rail carries — *morgens, mittags, nachmittags, abends* — and otherwise in the
 order of what happens. *Nach dem Mittagessen* is a time a three-year-old can act
@@ -358,7 +369,7 @@ already carries, and the announcement derives them the way
 | *Schwimmbad*, *Bouldern* | the card's `speech`, else its `name` |
 | *Mia*, *Oma* | `Person.name` |
 | *Dienstag* | the date |
-| *morgen … abend* | `daypartTimes`, the same four the rail is drawn from |
+| *morgen … abend* | `daypartTimes`, the same four the rail is drawn from — 08:00, 11:30, 14:00, 18:00 |
 
 **Never a symbol label.** That is the one rule this table exists for. A label is
 a file name — the breakfast picture is `fruehstueck2.png` and the Kita one is
