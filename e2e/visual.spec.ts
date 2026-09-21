@@ -65,12 +65,9 @@ async function openSettings(page: Page): Promise<Locator> {
      whose only change was a shell script — and the darwin baselines did not move
      with the date, so it took the Linux pair side by side to see it at all.
 
-     Pinned like every other page this suite photographs. That is not proof the
-     corner is now still — the overlap is a Linux font metric and cannot be
-     measured from here — but the date was a variable in a screenshot, which it
-     may not be, whatever else is true. If it flickers again the answer is a mask
-     over the corner, and the failure upload in pages.yml now carries the diff to
-     decide that on. */
+     Pinned like every other page this suite photographs. The date had no business
+     being a variable in a screenshot — but it was not the whole of it, and the
+     corners below are the rest. */
   await at(page, "09:30");
   await page.goto("/kalender/");
   await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
@@ -185,8 +182,25 @@ const HEADINGS: ReadonlyArray<readonly [string, string]> = [
   ["Löschen", ""],
 ];
 
+/* The two left corners, squared for the shot, and this is the mask the config
+   asks for in as many words: „If a shot flickers, the mask is wrong."
+
+   A rounded corner's outermost pixels are the page behind, blended through the
+   curve, and Linux Chromium does not blend them the same way twice — nineteen
+   pixels top-left and fifty-nine bottom-left, different between two recordings
+   of the very same commit. Measured on 2026-09-21 by recording the Linux
+   baselines twice and diffing them against each other; `maxDiffPixels` is zero
+   here on purpose and raising it to swallow this is the thing the config forbids.
+
+   Squaring them costs the radius as a guarded property, which this shot was never
+   about: it is the nine panels and the line each one shows folded, and the file's
+   own note above says which parts are deliberately kept out. A change to the
+   radius belongs to design's own suite, next to the token that sets it. */
+const SQUARE = "dialog.sheet { border-radius: 0 !important; }";
+
 test("the settings dialog, folded", async ({ page }) => {
   const sheet = await openSettings(page);
+  await page.addStyleTag({ content: SQUARE });
   for (const [heading, says] of HEADINGS) {
     await expect(state(page, heading), `the „${heading}“ panel's heading state`).toHaveText(says);
   }
