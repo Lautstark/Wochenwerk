@@ -41,7 +41,7 @@ vi.mock("../src/folder.js", () => ({
   reconnect: async () => undefined,
 }));
 
-const { clearAll, owed, owing, pullFromFolder, put, remove, settleUp, uuid, week } = await import("../src/db.js");
+const { adoptFolder, carriedOver, clearAll, owed, owing, pullFromFolder, put, remove, settleUp, uuid, week } = await import("../src/db.js");
 const { iso } = await import("../src/model.js");
 
 const monday = new Date("2026-08-31T00:00");
@@ -164,5 +164,40 @@ describe("a folder that goes away again mid-settle", () => {
     const { sent } = await settleUp();
     expect([sent, await owed()]).toEqual([0, 2]);
     expect((await owing()).every(row => row.kind === "termine")).toBe(true);
+  });
+});
+
+describe("connecting a folder that is already a store", () => {
+  /* The day this cost a household two cards. The folder is the truth and a `pull`
+     replaces — which is right once the two share a history, and a deletion before
+     they do. Everything here is simply a record the folder has not been told
+     about, and it goes over before anything is read back. */
+  it("carries what only this browser has into the folder instead of deleting it", async () => {
+    const mine = appointment("Pfannkuchen");
+    await put(mine);
+    /* A folder that never heard of it: the household's real one, chosen for the
+       first time from a browser that had been planning on its own. */
+    there.termine = [];
+    expect(await adoptFolder()).toBe("pulled");
+    expect(there.termine.map(item => item.title)).toEqual(["Pfannkuchen"]);
+    expect((await week(monday)).map(item => item.title)).toEqual(["Pfannkuchen"]);
+    expect(carriedOver()).toBe(1);
+  });
+
+  it("leaves a record the folder already knows to the folder", async () => {
+    const one = appointment("Waffeln backen");
+    await put(one);
+    there.termine = [{ ...one, title: "Pfannkuchen", updatedAt: Date.now() + 60_000 }];
+    await adoptFolder();
+    expect((await week(monday)).map(item => item.title)).toEqual(["Pfannkuchen"]);
+    expect(carriedOver()).toBe(0);
+  });
+
+  it("says the number once and not twice", async () => {
+    await put(appointment("Pfannkuchen"));
+    there.termine = [];
+    await adoptFolder();
+    expect(carriedOver()).toBe(1);
+    expect(carriedOver()).toBe(0);
   });
 });

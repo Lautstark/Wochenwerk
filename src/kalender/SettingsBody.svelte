@@ -11,7 +11,7 @@
   import { hearSample, prepare } from "../speech.js";
   import { pickFile } from "../ui.js";
   import { dayLabel, type Card, type Person } from "../model.js";
-  import { adoptFolder, clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
+  import { adoptFolder, carriedOver, clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
   import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
   import { caveats, labelOf, nameOf, offered, type Voice } from "../voices.js";
   import { load, shown } from "../store.svelte.js";
@@ -389,6 +389,16 @@
   let people = $derived(shown().people);
   let namedVoice = $derived(nameOf(voices, chosen));
 
+  /* The panel answers in three fixed words and none of them is about what this
+     browser was holding when the folder was chosen. Connecting a folder that is
+     already a store used to delete that silently; it is carried over now, and a
+     household is owed the number. */
+  function afterAdopting(): void {
+    moved();
+    const many = carriedOver();
+    if (many) say(`${many} ${many === 1 ? "Eintrag" : "Einträge"} aus diesem Browser in den Ordner übernommen.`);
+  }
+
   void readAzure();
   void readVoices();
   void readTelling();
@@ -396,7 +406,7 @@
 </script>
 
 <Panel section="Ablage" state={whereSays(where)} class="panel__body" bind:open={unfolded.ablage}><AblagePanel
-  store={ablageStore} adopt={adoptFolder} changed={() => void load().then(moved)} {say} {share} /></Panel>
+  store={ablageStore} adopt={adoptFolder} changed={() => void load().then(afterAdopting)} {say} {share} /></Panel>
 <Panel section="Sicherung" state={keepingState || "Nur von Hand"} class="panel__body" bind:open={unfolded.sicherung}>{#if keepsFolders}<BackupPanel
   {backup} {say}
   headline={text => { keepingState = text || "Nur von Hand"; }} /><hr class="hair" />{/if}<p class="small muted">Eine Momentaufnahme. Sie altert — übersteht aber einen Fehler, den der Ordner sofort mitmacht.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void run(async () => {

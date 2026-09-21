@@ -430,10 +430,48 @@ async function pull(): Promise<void> {
    assumed — the three are not interchangeable and somebody is entitled to know
    which one they got. */
 export async function adoptFolder(): Promise<"pushed" | "pulled" | "incomplete"> {
-  if (await adopted()) { await pullFromFolder(); return "pulled"; }
+  carried = 0;
+  if (await adopted()) {
+    /* Everything this browser holds that the folder has never heard of goes over
+       first. Without this line the read below was a deletion: on 2026-09-21 a
+       household connected a folder that was already a store, and two cards made
+       and two cards deleted that morning went with it — the deletions came back,
+       the additions did not, and nothing anywhere had said what the click meant.
+
+       It is not the two-way sync ADR 002 rules out, and the distinction is the
+       moment rather than the mechanism. An ordinary `pull` replaces, and must:
+       the folder is the truth and a record gone from it is gone. But at the first
+       connection there is no shared history to read a missing record against —
+       every record here is simply one the folder has not been told about, the
+       same shape `importAll` has always had, and the same answer: add, never
+       overwrite. A record the folder already knows stays the folder's. */
+    carried = await carryOver();
+    await pullFromFolder();
+    return "pulled";
+  }
   const went = await adopt(await everything());
   if (!went.adopted) return went.reason === "already" ? "pulled" : "incomplete";
   return "pushed";
+}
+
+/* How many records the last adoption carried into the folder. Read by whoever
+   says so out loud: the panel that calls `adoptFolder` is the package's and
+   answers in three fixed words, none of which is about this. */
+let carried = 0;
+/* Read once and cleared, so a second `changed()` from the same panel cannot say
+   it twice — the panel calls that callback for more than one kind of act. */
+export const carriedOver = () => { const many = carried; carried = 0; return many; };
+
+async function carryOver(): Promise<number> {
+  let sent = 0;
+  for (const kind of KINDS) {
+    const there = await stamps(kind);
+    for (const record of await ofKind(kind)) {
+      if (there.has(record.id)) continue;
+      if (await file(kind, record)) sent += 1;
+    }
+  }
+  return sent;
 }
 
 /** Everything this browser holds, by the name the folder files it under. */
@@ -490,8 +528,10 @@ export async function importAll(backup: Backup): Promise<number> {
     added += coming.length;
   }
   await mirror("termine", "serien");
-  await pushKind("karten", await allCards());
-  await pushKind("personen", await allPeople());
+  /* Through `settled`, like every other write: an import while the folder is out
+     of reach is still owed to it. */
+  await settled("karten", "*", false, await pushKind("karten", await allCards()));
+  await settled("personen", "*", false, await pushKind("personen", await allPeople()));
   return added;
 }
 

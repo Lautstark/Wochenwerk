@@ -187,6 +187,18 @@ in. See [`Waiting`](../data-model.md) and `src/reaching.svelte.ts`. The househol
 does nothing, which is the only version of this that works — the three times it
 went wrong, the household had done nothing wrong either.
 
+**Replacing is right, and the first connection is not a replace.** A `pull`
+empties this browser and fills it from the folder, and that has to stay: the
+folder is the truth, and a record gone from it is gone rather than missing. But
+the very first time a folder is chosen there is no shared history to read an
+absence against — what this browser holds is not a stale mirror, it is simply
+something the folder has never been told about. Read as a replace, that click is
+a deletion nobody asked for, and on 2026-09-21 it was one: two cards made and two
+deleted that morning went, and the three fixed words the panel answers in say
+nothing about either. Carried over first now, the shape `importAll` has always
+had — add, never overwrite, a record the folder already knows stays the folder's
+— and the household is told how many went. See `adoptFolder`.
+
 **One thing is not settled here, and cannot be.** Whether METACOM's actual licence
 permits a filename in a shared document is the licence text, not a house rule,
 and a house rule cannot grant what the licence withholds. Read it before the
