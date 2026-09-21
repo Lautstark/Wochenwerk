@@ -55,6 +55,23 @@ const state = (page: Page, heading: string) => panel(page, heading).locator("sum
  * machine is.
  */
 async function openSettings(page: Page): Promise<Locator> {
+  /* The clock first, and it is not about anything inside the dialog.
+
+     The shot is of the `<dialog>`, whose corners are rounded — so its outermost
+     pixels are the page behind it, blended through the curve. That page was
+     drawn for the real date: the week on screen and the range in the topbar were
+     whatever day the suite happened to run on. It cost a red main on 2026-09-21,
+     nineteen pixels in a four-by-nine corner, brown against grey, on a push
+     whose only change was a shell script — and the darwin baselines did not move
+     with the date, so it took the Linux pair side by side to see it at all.
+
+     Pinned like every other page this suite photographs. That is not proof the
+     corner is now still — the overlap is a Linux font metric and cannot be
+     measured from here — but the date was a variable in a screenshot, which it
+     may not be, whatever else is true. If it flickers again the answer is a mask
+     over the corner, and the failure upload in pages.yml now carries the diff to
+     decide that on. */
+  await at(page, "09:30");
   await page.goto("/kalender/");
   await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
   /* By name rather than by `dialog.sheet`, which stopped being one element when

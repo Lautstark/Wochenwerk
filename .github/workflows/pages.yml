@@ -126,12 +126,22 @@ jobs:
       # build is still gated: the `build` job below needs this one.
       - name: End-to-end tests
         run: npm run test:e2e
-      - name: Upload report on failure
+      # `playwright-report/` is the HTML reporter's output and CI runs the github
+      # and list reporters, so that path was never written and every failed run
+      # said „No files were found" instead of handing back the evidence. What a
+      # failed visual comparison actually leaves behind is `test-results/`: the
+      # shot it took, the baseline it expected and the diff between them. A
+      # seven-pixel disagreement is not readable from a log line, and without
+      # these three files the only way to see one is to guess.
+      - name: Upload what failed
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: playwright-failure
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
           retention-days: 7
 
   build:
