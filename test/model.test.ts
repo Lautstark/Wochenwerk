@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateLabel, dayLabel, iso, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
+import { addDays, dateLabel, dayLabel, iso, seasonOf, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
   type Appointment, type Card , runsOf, type Series } from "../src/model.js";
 
 const at = (start: string, end: string, extra: Partial<Appointment> = {}): Appointment =>
@@ -107,6 +107,22 @@ describe("dates", () => {
 
   it("crosses a month boundary when adding days", () => {
     expect(iso(addDays(new Date("2026-08-31T12:00"), 6))).toBe("2026-09-06");
+  });
+});
+
+describe("the season", () => {
+  it("turns on the first of the month, on either side of every boundary", () => {
+    /* Each pair straddles one of `seasonMonths`, so the boundaries are what is
+       guarded; winter is the one that crosses the new year. */
+    expect(seasonOf("2026-02-28")).toBe(3);
+    expect(seasonOf("2026-03-01")).toBe(0);
+    expect(seasonOf("2026-05-31")).toBe(0);
+    expect(seasonOf("2026-06-01")).toBe(1);
+    expect(seasonOf("2026-08-31")).toBe(1);
+    expect(seasonOf("2026-09-01")).toBe(2);
+    expect(seasonOf("2026-11-30")).toBe(2);
+    expect(seasonOf("2026-12-01")).toBe(3);
+    expect(seasonOf("2027-01-01")).toBe(3);
   });
 });
 

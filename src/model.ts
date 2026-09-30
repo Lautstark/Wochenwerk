@@ -394,6 +394,20 @@ export const appointmentTone = (appointment: Appointment, byId: Map<string, Card
  * are here, in one line, for that reason. */
 export const daypartTimes = ["08:00", "11:30", "14:00", "18:00"];
 
+/* The months in which spring, summer, autumn and winter begin — the meteorological
+   seasons, whole months from the first. The astronomical ones begin on the 20th
+   or the 23rd, a boundary nobody in the room can see; neither can they see the
+   first of September, but it is the same day every year and a parent can say it.
+   A household that wants autumn to start when the leaves do would change this
+   line, as with the dayparts above. */
+export const seasonMonths = [3, 6, 9, 12];
+/** Which season an ISO date falls in: 0 spring, 1 summer, 2 autumn, 3 winter. */
+export const seasonOf = (date: string) => {
+  const month = Number(date.slice(5, 7));
+  const begun = seasonMonths.filter(first => first <= month).length;
+  return (begun + 3) % 4;
+};
+
 export const minute = (time: string) => { const [hour, rest] = time.split(":").map(Number); return hour * 60 + rest; };
 export const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 export const snapped = (time: string) => Math.round(minute(time) / board.snap) * board.snap;

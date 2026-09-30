@@ -2,7 +2,7 @@
    nothing about how it is drawn. Board.svelte is the drawing; this is the
    arithmetic behind it, kept apart so that it stays a function of `at`. */
 import { addDays, allDay, birthdayName, board, iso, minute, mondayOf, reading, drawnSymbols, runsOf, snapped, undecided,
-  daypartTimes, type Appointment, type Card, type Person, type Run, type SymbolRef } from "../model.js";
+  daypartTimes, seasonOf, type Appointment, type Card, type Person, type Run, type SymbolRef } from "../model.js";
 import { allCards, allPeople, allSeries, week } from "../db.js";
 import { owed, pictures } from "../symbols.js";
 
@@ -98,6 +98,22 @@ const daypartIcons = [
 ];
 export const dayparts = daypartTimes.map((at, index) => ({ at, icon: daypartIcons[index]! }));
 
+/* The season sits in the rail's head, above the dayparts, in the same flat family.
+   Not a sun — the sun already means the time of day — but the Kita's
+   Jahreszeitenbaum: always the same tree, and only its crown changes, the way only
+   the sun moves along the arc below it. */
+const ground = `<path d="M5 21.5h14" stroke-width="1.7" opacity=".8"/>`;
+const bare = `<path d="M12 21.5V8M12 15.5 7.6 11.6M12 13.2l4.4-3.8M7.6 11.6 6.4 9M16.4 9.4l1.2-2.6M12 10.4 9.6 7.4"/>`;
+const dots = (at: number[][], r: number) => at.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="currentColor" stroke="none"/>`).join("");
+const leaf = (cx: number, cy: number, turn: number) =>
+  `<ellipse cx="${cx}" cy="${cy}" rx="1.7" ry=".95" transform="rotate(${turn} ${cx} ${cy})" fill="currentColor" stroke="none"/>`;
+export const seasons = [
+  { name: "frühling", icon: glyph(ground + bare + dots([[6.4, 8.6], [9.4, 6.9], [12, 6.8], [17.6, 6.4], [14.6, 9.2], [8.6, 11.2]], 1.55)) },
+  { name: "sommer", icon: glyph(ground + `<path d="M12 21.5v-8"/><circle cx="12" cy="9" r="6.6" fill="currentColor" stroke="none"/>`) },
+  { name: "herbst", icon: glyph(ground + `<path d="M12 21.5v-9M12 15.5 9.4 13"/><path d="M7 10.6a5.2 5.2 0 0 1 10-1.4 3.4 3.4 0 0 1-1.4 4.6H8.6A3 3 0 0 1 7 10.6Z" fill="currentColor" stroke="none"/>` + leaf(5.4, 16.8, -35) + leaf(18.6, 18.6, 25)) },
+  { name: "winter", icon: glyph(`<path d="M4.5 21.5h15" stroke-width="2.6"/>` + bare + dots([[5, 5.5], [19.4, 4.6], [4.4, 13.5], [20, 13], [15.5, 3.4]], 0.95)) },
+];
+
 export const crown = `<svg class="crown" viewBox="0 0 24 15" aria-hidden="true"><path d="M1.5 13.5 3 2.5l5 4.5 4-6 4 6 5-4.5 1.5 11Z"/></svg>`;
 
 /** Everything the board draws from, for one moment. */
@@ -129,6 +145,8 @@ export interface Built {
   /* The grid's columns, with the rail's own track spliced in at today. */
   track: string[];
   active: number;
+  /* Index into `seasons`, for today. */
+  season: number;
 }
 
 /* The board is a projection of one moment against one week, so building it is one
@@ -162,5 +180,5 @@ export async function assemble(at: Date): Promise<Built> {
   const runs = runsOf(appointments, dates, new Map(seriesList.map(item => [item.id, item])))
     .filter(run => !birthday(run.appointment))
     .filter(run => drawnSymbols(run.appointment, cards).length || run.appointment.people.length);
-  return { at, now, dates, todayIndex, appointments, urls, people, cards, birthday, runs, credit: owed(drawn).join(" "), open, track, active };
+  return { at, now, dates, todayIndex, appointments, urls, people, cards, birthday, runs, credit: owed(drawn).join(" "), open, track, active, season: seasonOf(iso(at)) };
 }

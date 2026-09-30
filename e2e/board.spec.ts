@@ -95,6 +95,17 @@ test("each day is a field of its own colour, and a day that is over has faded", 
   expect(await dimming("MI")).toBe(await dimming("DI"));
 });
 
+test("the head of the daypart rail carries the season, and it turns with the month", async ({ page }) => {
+  /* The seeded week straddles the first of September: Monday is the last day of
+     summer and Tuesday the first of autumn. */
+  const season = page.locator(".rail-head .season");
+  await openBoard(page, week());
+  await expect(season).toHaveAttribute("data-season", "herbst");
+  await at(page, "09:30", WEEK[0]);
+  await page.reload();
+  await expect(season).toHaveAttribute("data-season", "sommer");
+});
+
 test("a card's height is its duration", async ({ page }) => {
   await openBoard(page, week());
   const today = cards(column(page, "DI"));

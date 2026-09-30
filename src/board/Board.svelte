@@ -5,7 +5,7 @@
      string on every minute. */
   import { allDay, bornOn, dayLabel, drawnSymbols, iso, undecided, weekdays, type Appointment, type SymbolRef } from "../model.js";
   import { pictureFor } from "../symbols.js";
-  import { crown, dayparts, place, pos, reached, type Built } from "./layout.js";
+  import { crown, dayparts, place, pos, reached, seasons, type Built } from "./layout.js";
   import { flareLasts, view } from "./board.svelte.js";
 
   let built = $derived(view.built);
@@ -70,7 +70,7 @@
     <div class="week" style="grid-template-columns:{b.track.join(" ")};{grown}">
       {#each b.dates as date, index}
         {#if index === b.todayIndex}
-          <aside class="rail day-{b.todayIndex + 1}" aria-hidden="true" style="--now:{reached(b.now)}"><div class="rail-head"></div><div class="rail-track">
+          <aside class="rail day-{b.todayIndex + 1}" aria-hidden="true" style="--now:{reached(b.now)}"><div class="rail-head"><span class="season" data-season={seasons[b.season]!.name}>{@html seasons[b.season]!.icon}</span></div><div class="rail-track">
             {#each dayparts as part, at}<span class="mark{at === b.active ? " is-now" : ""}" style="top:{pos(part.at)}%">{@html part.icon}</span>{/each}
           </div></aside>
         {/if}
