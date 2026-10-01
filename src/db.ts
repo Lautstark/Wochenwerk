@@ -743,8 +743,11 @@ export async function reshapeOf(series: string, pattern: Pattern, from: string, 
   const ahead = (await inSeries(series)).filter(appointment => appointment.date >= from);
   const wanted = new Set(occurrences(pattern, from, until < from ? from : until));
   const have = new Set(ahead.map(appointment => appointment.date));
+  /* A day somebody deleted is not one the new rule adds: it stays deleted, and
+     counting it would announce an appointment that is not going to appear. */
+  const deleted = new Set((await (await db()).get("series", series))?.skipped ?? []);
   return {
-    adding: [...wanted].filter(date => !have.has(date)),
+    adding: [...wanted].filter(date => !have.has(date) && !deleted.has(date)),
     dropping: ahead.filter(appointment => !wanted.has(appointment.date)),
     series,
   };
@@ -776,7 +779,12 @@ export async function repattern(series: string, pattern: Pattern, from: string, 
   }
   await keep("series", { ...record, until: dayBefore(from), skipped: record.skipped.filter(date => date < from), updatedAt: now });
   const id = uuid();
-  await keep("series", { ...record, id, pattern, from, until: stop, skipped: [], createdAt: now, updatedAt: now });
+  /* The days deleted after the cut go with the half that now covers them, as
+     they do in the branch above and in `editSeries`. A new half that started
+     with none drew every one of them again — a Kita day that fell away came
+     back the moment somebody added a Friday. */
+  await keep("series", { ...record, id, pattern, from, until: stop,
+    skipped: record.skipped.filter(date => date >= from && date <= stop), createdAt: now, updatedAt: now });
   for (const appointment of await overridesOf(series)) {
     if (appointment.date >= from) await keep("appointments", { ...appointment, series: id, updatedAt: now });
   }

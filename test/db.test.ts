@@ -222,6 +222,17 @@ describe("a batch given a new rule", () => {
     expect(await inSeries(id)).toHaveLength(7);
   });
 
+  it("cut later, keeps a day deleted after the cut deleted, and does not count it as coming", async () => {
+    const id = await createSeries({ kind: "weekly", weekdays: [0] }, "2026-10-05", "2026-11-30", shape("09:00", "10:00"));
+    await remove(`${id}@2026-10-26`);
+    const change = await repattern(id, { kind: "weekly", weekdays: [0, 4] }, "2026-10-12", "2026-11-30");
+    expect(change.adding).not.toContain("2026-10-26");
+    expect(change.adding).toHaveLength(7);
+    const all = (await Promise.all((await allSeries()).map(item => inSeries(item.id)))).flat().map(item => item.date);
+    expect(all).not.toContain("2026-10-26");
+    expect(all).toHaveLength(15);
+  });
+
   it("says what it would cost without costing it", async () => {
     const id = await createSeries({ kind: "daily" }, iso(monday), iso(addDays(monday, 6)), shape("09:00", "10:00"));
     const change = await reshapeOf(id, { kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(addDays(monday, 6)));
