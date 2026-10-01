@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, dateLabel, dayLabel, iso, seasonOf, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
+import { addDays, bornOn, birthdayName, dateLabel, dayLabel, iso, seasonOf, lanesOf, occurrences, mondayOf, strays, titleOf, undecided, shownCards,
   type Appointment, type Card , runsOf, type Series } from "../src/model.js";
 
 const at = (start: string, end: string, extra: Partial<Appointment> = {}): Appointment =>
@@ -17,6 +17,18 @@ describe("occurrences", () => {
     const dates = occurrences({ kind: "yearly" }, "2026-09-06", "2126-09-06");
     expect(dates).toHaveLength(101);
     expect(dates.at(-1)).toBe("2126-09-06");
+  });
+
+  it("brings 29 February round on the 28th in a year without it, and names the day it brings", () => {
+    /* Not 1 March: that is another month and, on the board, another season. */
+    expect(occurrences({ kind: "yearly" }, "2028-02-29", "2032-03-01"))
+      .toEqual(["2028-02-29", "2029-02-28", "2030-02-28", "2031-02-28", "2032-02-29"]);
+    const leapling = { id: "p", name: "Testkind", initials: "TK", tone: "#000", birthday: "2028-02-29", updatedAt: 0 };
+    expect(bornOn(leapling, "2029-02-28")).toBe(true);
+    expect(bornOn(leapling, "2029-03-01")).toBe(false);
+    expect(bornOn(leapling, "2032-02-28")).toBe(false);
+    const bar = { id: "b", date: "2029-02-28", symbols: [], options: [], people: ["p"], showPeople: true, updatedAt: 0 };
+    expect(birthdayName(bar, [leapling])).toBe("Testkind Geburtstag");
   });
 
   it("covers every day of a span", () => {

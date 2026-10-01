@@ -163,7 +163,13 @@ export function strays(appointment: Appointment, like: Appointment): boolean {
    crown is then derived rather than stored: any day that is somebody's birthday
    wears one, and nothing in the appointment has to say so. */
 export type Person = { id: string; name: string; initials: string; tone: string; photo?: string; birthday?: string; birthdaySeries?: string; updatedAt: number };
-export const bornOn = (person: Person, date: string) => !!person.birthday && person.birthday.slice(5) === date.slice(5);
+/* Asked through `anniversary` rather than by comparing month and day, because
+   that comparison has no answer for somebody born on 29 February in the three
+   years out of four that have no such day — and the yearly rule drawing the
+   bar and this naming it have to agree on which day it is, or the bar stands
+   there without a name. */
+export const bornOn = (person: Person, date: string) =>
+  !!person.birthday && anniversary(person.birthday, Number(date.slice(0, 4))) === date;
 
 /* Appointments that run at the same time share the width of their day. Both routes
    lay them out the same way, so the board and the calendar never disagree about
@@ -255,6 +261,18 @@ export function runsOf(appointments: Appointment[], dates: string[], series: Map
   return runs;
 }
 
+/** The day a date comes round on in another year. */
+/* Only 29 February needs this, and it is the one date a yearly rule cannot keep.
+   `new Date(year, 1, 29)` rolls over into 1 March in a year without it, which
+   is a different month, and on the board a different season: the tree turns on
+   the first of March (docs/ux.md). So it is the last day of its own month
+   instead — the 28th, still February, the day before the day that is missing
+   rather than the day after it. Every other date is itself. */
+export function anniversary(date: string, year: number): string {
+  const month = Number(date.slice(5, 7)) - 1, day = Number(date.slice(8, 10));
+  return iso(new Date(year, month, Math.min(day, new Date(year, month + 1, 0).getDate())));
+}
+
 /** Which dates a pattern covers between its bounds. Monday is 0. */
 export function occurrences(pattern: Pattern, from: string, until: string): string[] {
   const start = new Date(`${from}T00:00`), stop = new Date(`${until}T00:00`);
@@ -263,8 +281,8 @@ export function occurrences(pattern: Pattern, from: string, until: string): stri
      thousand iterations for a century and hit the guard below long before. */
   if (pattern.kind === "yearly") {
     for (let year = start.getFullYear(); year <= stop.getFullYear(); year++) {
-      const at = new Date(year, start.getMonth(), start.getDate());
-      if (at >= start && at <= stop) dates.push(iso(at));
+      const at = anniversary(from, year);
+      if (at >= from && at <= until) dates.push(at);
     }
     return dates;
   }
