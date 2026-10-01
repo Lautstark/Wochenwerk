@@ -13,7 +13,7 @@ const appointment = (start: string | undefined, end: string | undefined, extra: 
 
 const card = (id: string, name: string, speech?: string): Card => ({ id, name, speech, updatedAt: 0 });
 const person = (id: string, name: string, birthday?: string): Person =>
-  ({ id, name, initials: name.slice(0, 2), tone: "#000", birthday });
+  ({ id, name, initials: name.slice(0, 2), tone: "#000", birthday, updatedAt: 0 });
 
 const house = (cards: Card[] = [], people: Person[] = []): Household =>
   ({ cards: new Map(cards.map(item => [item.id, item])), people: new Map(people.map(item => [item.id, item])) });

@@ -27,15 +27,13 @@
     "onnxruntime-web": "^1.18.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@lautstark/toolchain": "github:Lautstark/toolchain#v4.0.0",
+    "@playwright/test": "1.62.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^24.19.0",
     "fake-indexeddb": "^6.2.5",
     "svelte": "^5.57.0",
-    "svelte-check": "^4.7.6",
-    "typescript": "^6.0.3",
-    "vite": "8.0.13",
-    "vitest": "^5.0.3"
+    "svelte-check": "^4.7.6"
   },
   "type": "module"
 }

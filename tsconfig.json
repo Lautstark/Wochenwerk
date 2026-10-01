@@ -1,20 +1,14 @@
 {
+  "extends": "@lautstark/toolchain/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true
+    "types": ["vite/client", "node"]
   },
   /* The e2e suite is in here on purpose. `npm run typecheck` is the only thing that
      reads these files without running them, and a spec that no longer compiles
      — a renamed export, a locator helper given the wrong shape — is otherwise
      found by whoever next runs Playwright, which for a visual baseline may be
-     weeks after the change that broke it. */
-  "include": ["src/**/*.ts", "src/**/*.svelte", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"],
+     weeks after the change that broke it. The compiler options themselves are
+     @lautstark/toolchain's, as in the other products. */
+  "include": ["src/**/*.ts", "src/**/*.svelte", "test/**/*.ts", "e2e/**/*.ts", "vite.config.ts", "playwright.config.ts"],
   "exclude": ["node_modules"]
 }

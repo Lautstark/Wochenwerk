@@ -1,4 +1,4 @@
-import { addDays, allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, notAtHome, reading, snapped, spokenName, undecided,
+import { allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, notAtHome, reading, snapped, spokenName, undecided,
   type Appointment, type Card, type Person } from "./model.js";
 
 /* The week, one moment, and what is said out loud about it. See docs/speech.md

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { addDays, board, bornOn, cardSays, clock, dateLabel, dayLabel, iso, minute, samePattern,
-    strays, titleOf, weekdays, type Pattern, type Person, type SymbolRef } from "../model.js";
+    strays, titleOf, weekdays, type Pattern, type Person } from "../model.js";
   import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
   import { cardById, load, shown } from "../store.svelte.js";
   import { prepare } from "../speech.js";

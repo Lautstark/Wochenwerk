@@ -219,7 +219,7 @@ export function runsOf(appointments: Appointment[], dates: string[], series: Map
   dates.forEach((date, index) => {
     const here = new Map(appointments.filter(item => item.date === date && allDay(item))
       .map(item => [sameThing(item), item]));
-    for (const [key, run] of open) if (!here.has(key)) open.delete(key);
+    for (const key of open.keys()) if (!here.has(key)) open.delete(key);
     for (const [key, appointment] of here) {
       const running = open.get(key);
       /* Consecutive means the day before, not merely an earlier day: a Monday and

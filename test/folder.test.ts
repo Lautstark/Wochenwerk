@@ -38,7 +38,7 @@ vi.mock("../src/folder.js", () => ({
   readKind: async (kind: keyof typeof there) => there[kind],
 }));
 
-const { adoptFolder, allCards, clearAll, pullFromFolder, put, uuid, week } = await import("../src/db.js");
+const { adoptFolder, clearAll, pullFromFolder, put, uuid, week } = await import("../src/db.js");
 const { iso } = await import("../src/model.js");
 
 const monday = new Date("2026-08-31T00:00");
