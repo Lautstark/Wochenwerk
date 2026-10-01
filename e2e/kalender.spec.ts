@@ -356,6 +356,24 @@ test("the week can be walked forwards and back, and Heute returns", async ({ pag
   await expect(label).toBeVisible();
 });
 
+test("on a phone it shows the day being looked at, and the arrows walk days", async ({ page }) => {
+  /* Narrow enough for the one-day layout (Kalender.svelte, max-width 700px).
+     That layout reads a date out of the week while it is first drawn, which is
+     before the week has been read — and an empty week with no dates in it made
+     that first draw throw and left the page blank on every phone. */
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openCalendar(page, {
+    appointments: [timed(WEEK[1], "10:00", "11:00", "Turnen"), timed(WEEK[2], "10:00", "11:00", "Logopädie")],
+  });
+  await expect(page.getByText("DI 1.9.", { exact: true })).toBeVisible();
+  await expect(inWeek(page, "Turnen")).toBeVisible();
+  await expect(inWeek(page, "Logopädie")).toHaveCount(0);
+  await page.getByRole("button", { name: "›" }).click();
+  await expect(page.getByText("MI 2.9.", { exact: true })).toBeVisible();
+  await expect(inWeek(page, "Logopädie")).toBeVisible();
+  await expect(inWeek(page, "Turnen")).toHaveCount(0);
+});
+
 test("today is marked in the head of the week, and only this week", async ({ page }) => {
   await openCalendar(page);
   const dateOf = (weekday: string) => dayHead(page, weekday).locator("span");

@@ -24,8 +24,15 @@ export interface Week {
   pictures: Map<string, string>;
 }
 
+/* The week before anything is read is this week with nothing in it — its seven
+   dates included. The page is mounted before the first `load()` has answered,
+   and on a phone it draws `dates[day]` straight away: with no dates that was
+   `undefined`, the first render threw, the boot stopped at `mount` and the
+   calendar stayed blank for good. An empty week is still seven days long. */
+const sevenFrom = (monday: Date) => Array.from({ length: 7 }, (_, index) => iso(addDays(monday, index)));
+const thisMonday = mondayOf(new Date());
 const empty: Week = {
-  offset: 0, monday: mondayOf(new Date()), dates: [],
+  offset: 0, monday: thisMonday, dates: sevenFrom(thisMonday),
   appointments: [], people: [], cards: new Map(), series: new Map(), pictures: new Map(),
 };
 
@@ -41,7 +48,7 @@ export async function load(offset = current.offset): Promise<Week> {
   ]);
   current = {
     offset, monday,
-    dates: Array.from({ length: 7 }, (_, index) => iso(addDays(monday, index))),
+    dates: sevenFrom(monday),
     appointments, people,
     cards: new Map(cardList.map(card => [card.id, card])),
     series: new Map(seriesList.map(item => [item.id, item])),
