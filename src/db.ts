@@ -683,14 +683,6 @@ export async function setBirthday(person: Person, birthday: string | undefined):
   await putPerson({ ...person, birthday, birthdaySeries: series });
 }
 
-/** An input picked one of the options this appointment offers. */
-export async function choose(id: string, option: string): Promise<void> {
-  const database = await db();
-  const appointment = await database.get("appointments", id);
-  if (!appointment || !appointment.options.includes(option)) return;
-  await database.put("appointments", { ...appointment, chosen: option, updatedAt: Date.now() });
-}
-
 /* Creating a series writes the rule and nothing else. What used to be three
    thousand records is one, and the days it covers are worked out when they are
    read. */
