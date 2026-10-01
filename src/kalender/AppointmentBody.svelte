@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { addDays, board, bornOn, cardSays, clock, dateLabel, dayLabel, iso, minute, samePattern,
+  import { board, bornOn, cardSays, clock, dateLabel, dayLabel, iso, minute, samePattern,
     strays, titleOf, weekdays, type Pattern, type Person } from "../model.js";
   import { createSeries, dropSeries, editSeries, put, reachOf, remove, repattern, reshapeOf, seriesFrom, uuid } from "../db.js";
   import { cardById, load, shown } from "../store.svelte.js";
@@ -22,7 +22,12 @@
   import CardEditor from "./CardEditor.svelte";
 
   let { s, handle }: { s: Editing; handle: Handle } = $props();
-  const draft = s.draft;
+  /* Read once, on purpose. `s` is the one state object this sheet was opened
+     with and nothing hands it another, and `draft` is the record inside it that
+     every control writes into in place — so this holds *that object*, not a
+     copy of its values, and every read through it is live. `untrack` says the
+     one-time read is meant. */
+  const draft = untrack(() => s.draft);
   let speechField: SpeechField;
   let search: SymbolSearch;
 
@@ -105,7 +110,9 @@
      at seven arrives with the box ticked and no record has to say so. Unticking
      puts back what was there before rather than leaving the box ticked over a
      time nobody chose. */
-  let priorFrom = s.from, priorTo = s.to;
+  /* What the sheet opened with, deliberately: a snapshot, overwritten by each
+     tick of a box, and never meant to follow the fields. */
+  let priorFrom = untrack(() => s.from), priorTo = untrack(() => s.to);
   let atOpen = $derived(s.from === board.from);
   let atClose = $derived(s.to === board.to);
   function toggleOpen(on: boolean) {
@@ -179,8 +186,6 @@
     : draft.options.length === 0
       ? "Wähl mindestens zwei Karten aus."
       : "Noch eine Karte — zwischen einer allein gibt es nichts zu wählen.");
-
-  if (!s.until) s.until = s.batch ? s.batch.until : iso(addDays(new Date(`${draft.date}T00:00`), 55));
 
   /* What the board says about this appointment. Empty means the name, which is
      the ordinary case: the board draws symbols and never a title, so a title is
@@ -288,7 +293,7 @@
     if (!s.weekly.length) s.weekly = [index];
   };
 
-  s.erase = async () => {
+  async function erase() {
     if (draft.series) {
       const scope = await askScope("löschen", $state.snapshot(s.counts), { kind: s.shapeOfBatch() });
       if (!scope) return;
@@ -303,9 +308,9 @@
     await remove(draft.id);
     handle.close();
     s.done();
-  };
+  }
 
-  s.save = async () => {
+  async function save() {
     /* Rendered here rather than at the key press: planning is a moment somebody
        is already waiting through, and a child pressing a key is not. Not awaited
        — the sheet closes and the cache fills behind it. */
@@ -400,7 +405,10 @@
     await put(plain);
     handle.close();
     s.done();
-  };
+  }
+  /* Handed to the foot, which is what presses them. Once, when the body is
+     drawn, for the same reason `draft` is read once above. */
+  untrack(() => { s.erase = erase; s.save = save; });
 
   /* Making a card without leaving the appointment being planned. It ends by
      dropping the editor and letting the list draw again — with the new card

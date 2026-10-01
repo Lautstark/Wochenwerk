@@ -5,13 +5,15 @@
 
      A panel and not a dialog, for the reason CardEditor gives: the only place
      this is reached from is the Personen panel, which is already inside a sheet. */
+  import { untrack } from "svelte";
   import { TONES, type Person } from "../model.js";
   import { putPerson, setBirthday } from "../db.js";
   import { pickFile } from "../ui.js";
   import Face from "../pieces/Face.svelte";
 
   let { person, done }: { person: Person; done: (saved: boolean) => void } = $props();
-  const draft: Person = $state(structuredClone($state.snapshot(person)));
+  /* A copy taken once, on purpose, as in CardEditor: Abbrechen throws it away. */
+  const draft: Person = $state(structuredClone(untrack(() => $state.snapshot(person))));
   let name = $state(draft.name);
   let birthday = $state(draft.birthday ?? "");
   let nameField: HTMLInputElement;

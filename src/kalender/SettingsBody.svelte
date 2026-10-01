@@ -3,6 +3,7 @@
      list of answers rather than a scroll through everything anybody has opened.
      `name=` is the platform's own accordion. conventions.md §3.5, and the markup
      is @lautstark/design/svelte/Panel's — §6.2. */
+  import { untrack } from "svelte";
   import { readTheme, type Theme } from "@lautstark/design/theme";
   import { listVoices } from "@lautstark/stimmquelle";
   import { downloadJson } from "@lautstark/werkzeuge/download";
@@ -50,7 +51,8 @@
   import PersonEditor from "./PersonEditor.svelte";
 
   let { s }: { s: SettingsState; handle: unknown } = $props();
-  const say = s.say;
+  /* Once: the sheet is opened with one `say` and is never handed another. */
+  const say = untrack(() => s.say);
 
   /**
    * Which panel stands open, one field per panel.

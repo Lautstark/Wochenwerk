@@ -20,9 +20,27 @@ export const WORDS = {
     from: "Diesen und alle folgenden Tage", all: "Alle Tage des Zeitraums", unit: ["Tag", "Tage"] },
 } as const;
 
-export interface ScopeState {
-  verb: "ändern" | "löschen"; kind: Kind; counts: { from: number; all: number }; note?: string;
-  picked: Scope; answer: (scope: Scope | null) => void;
+/* A class for the reason `Editing` is one (appointment.svelte.ts): the body
+   writes `picked` through a prop it was not bound to, and a class owns its own
+   fields where a `$state` object would be read as the frame's. Only `picked` is
+   written, and whole. */
+export class ScopeState {
+  readonly verb: "ändern" | "löschen";
+  readonly kind: Kind;
+  readonly counts: { from: number; all: number };
+  readonly note: string | undefined;
+  picked = $state.raw<Scope>("one");
+  #resolve: ((scope: Scope | null) => void) | undefined;
+  constructor(verb: "ändern" | "löschen", kind: Kind, counts: { from: number; all: number },
+    note: string | undefined, resolve: (scope: Scope | null) => void) {
+    this.verb = verb; this.kind = kind; this.counts = counts; this.note = note;
+    this.#resolve = resolve;
+  }
+  /** Once: the sheet closing after an answer must not answer again with null. */
+  answer(scope: Scope | null): void {
+    this.#resolve?.(scope);
+    this.#resolve = undefined;
+  }
 }
 
 /* Which of a series an action applies to is asked at the moment of consequence
@@ -31,11 +49,7 @@ export interface ScopeState {
 export function askScope(verb: "ändern" | "löschen", counts: { from: number; all: number },
   { kind = "series", note }: { kind?: Kind; note?: string } = {}): Promise<Scope | null> {
   return new Promise(resolve => {
-    let settled = false;
-    const s: ScopeState = $state({
-      verb, kind, counts, note, picked: "one",
-      answer: (scope: Scope | null) => { if (!settled) { settled = true; resolve(scope); } },
-    });
+    const s = new ScopeState(verb, kind, counts, note, resolve);
     openSheet({ title: `${WORDS[kind].what} ${verb}`, closeLabel: CLOSE, state: s, body: ScopeBody, foot: ScopeFoot, onClose: () => s.answer(null) });
   });
 }

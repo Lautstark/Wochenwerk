@@ -354,6 +354,37 @@ test("an empty day of the ganztags row is a button, and the keyboard reaches it"
   await expect(sheet.getByLabel("Ganztägig")).toBeChecked();
 });
 
+test("planning, moving and asking about a series write nothing Svelte calls somebody else's", async ({ page }) => {
+  /* The three sheets write into the state they are handed — that is what the
+     state is for — and Svelte read every one of those writes as a component
+     mutating its parent's state, in the console, on nearly every keystroke. One
+     warning is enough to fail this: they came in dozens, so a single one means
+     the ownership is unclear again. */
+  const warned: string[] = [];
+  page.on("console", message => { if (message.text().includes("ownership_")) warned.push(message.text()); });
+  await openCalendar(page);
+  const sheet = await newAppointment(page);
+  await titleOf(sheet).fill("Kindergarten");
+  await withTimes(sheet, "08:00", "12:00");
+  await repeatEvery(sheet, "wöchentlich");
+  await pickSymbol(sheet, "Kindergarten");
+  await sheet.getByRole("button", { name: "Fertig" }).click();
+  await inWeek(page, "Kindergarten").click();
+  const again = page.getByRole("dialog", { name: "Kindergarten" });
+  await again.getByLabel("Tag", { exact: true }).fill(WEEK[2]);
+  await again.getByRole("button", { name: "Fertig" }).click();
+  const asking = page.getByRole("dialog", { name: "Wiederkehrender Termin ändern" });
+  await asking.getByRole("button", { name: "1 Termin ändern" }).click();
+  await expect(asking).toBeHidden();
+  /* And the move moved it: one Kindergarten in the week, under Wednesday. The
+     week is read again behind the closing sheet, so the place is waited for. */
+  const wednesday = await box(dayHead(page, "MI"));
+  await expect.poll(async () => (await inWeek(page, "Kindergarten").boundingBox())?.x ?? -1)
+    .toBeGreaterThanOrEqual(wednesday.x - 1);
+  await expect(inWeek(page, "Kindergarten")).toHaveCount(1);
+  expect(warned).toEqual([]);
+});
+
 test("the week can be walked forwards and back, and Heute returns", async ({ page }) => {
   await openCalendar(page);
   const label = page.getByText("31.8. – 6.9. 2026");

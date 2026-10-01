@@ -11,6 +11,7 @@
      `done` is called with the card's id when it was saved and with null when it was
      not, so a caller that wanted a new card for something can tell the two apart
      without asking the database what happened. */
+  import { untrack } from "svelte";
   import type { Card } from "../model.js";
   import { putCard } from "../db.js";
   import { prepare } from "../speech.js";
@@ -32,7 +33,10 @@
      Escape emptying the field and the second closing the sheet is what
      somebody pressing it twice is asking for. */
   let { card, done }: { card: Card; done: (id: string | null) => void } = $props();
-  const draft: Card = $state(structuredClone($state.snapshot(card)));
+  /* A copy taken once, on purpose: the editor works on a draft, Abbrechen is
+     throwing it away, and a card changing underneath while it is open is not
+     something it should follow. */
+  const draft: Card = $state(structuredClone(untrack(() => $state.snapshot(card))));
   let name = $state(draft.name);
   let nfc = $state(draft.nfc ?? "");
   let speech = $state(draft.speech ?? "");
