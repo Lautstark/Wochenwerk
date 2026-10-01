@@ -343,6 +343,17 @@ test("an all-day appointment stands in the ganztags row rather than in the colum
   expect((await box(bar)).y + (await box(bar)).height).toBeLessThanOrEqual(seven.y + 1);
 });
 
+test("an empty day of the ganztags row is a button, and the keyboard reaches it", async ({ page }) => {
+  await openCalendar(page);
+  const thursday = week(page).getByRole("button", { name: "Ganztägig am 3.9. anlegen" });
+  await thursday.focus();
+  await page.keyboard.press("Enter");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByLabel("Tag", { exact: true })).toHaveValue(WEEK[3]);
+  await expect(sheet.getByLabel("Ganztägig")).toBeChecked();
+});
+
 test("the week can be walked forwards and back, and Heute returns", async ({ page }) => {
   await openCalendar(page);
   const label = page.getByText("31.8. – 6.9. 2026");

@@ -4,7 +4,7 @@
      they hold — the name says that — but what kind of entry they are, and there are
      three of those which combine. Three marks, because a colour cannot say two
      things at once. */
-  import { allDay, board, bornOn, clock, drawnSymbols, iso, lanesOf, runsOf, snapped, titleOf, undecided,
+  import { allDay, board, bornOn, clock, dayLabel, drawnSymbols, iso, lanesOf, runsOf, snapped, titleOf, undecided,
     weekdays, type Appointment } from "../model.js";
   import { personById, shown } from "../store.svelte.js";
   import { everyMinute } from "../minutes.js";
@@ -50,6 +50,21 @@
   const kindOf = (appointment: Appointment) =>
     [appointment.series ? "" : "once", undecided(appointment) ? "choice" : ""].filter(Boolean).join(" ");
 
+  /* Two ways into a new appointment from the grid itself, and they are not the
+     same kind of thing.
+
+     An empty all-day cell has one meaning — „ganztägig, an diesem Tag" — and
+     nothing inside it, so it is a button: it can be reached by Tab, pressed with
+     Enter or Space, and is named for what it does. The bars of the row are
+     drawn over it in the same grid cell, so a press on a bar is the bar's.
+
+     A press into an hour column is a pointer's shortcut and stays one. What it
+     means is *where* it landed — the minute under the pointer — which a key has
+     no way to say, and the column holds the appointments' own buttons, which a
+     button cannot. Its keyboard twin is „＋ Termin", which opens the day in view
+     with the times to type (Kalender.svelte, `dayInView`). So the column says
+     it is not a control (`role="presentation"`) rather than claiming to be one
+     that a keyboard could not use. */
   function pressedColumn(event: MouseEvent, date: string) {
     if (event.target !== event.currentTarget) return;
     const minutes = Math.round((span.from + (event.offsetY / HOUR) * 60) / board.snap) * board.snap;
@@ -59,6 +74,6 @@
 
 <div class="cal" style="--days:{days.length}">
   <div class="cal__head"><div class="cal__corner"></div>{#each days as date}<div class="cal__day{date === today ? " cal__day--today" : ""}"><b>{weekdays[current.dates.indexOf(date)]}</b><span>{String(Number(date.slice(8)))}</span></div>{/each}</div>
-  <div class="cal__whole" style="--lanes:{lanes}"><div class="cal__corner">ganztags</div>{#each days as date, index}<div class="cal__whole-rule" style="grid-column: {index + 2}" onclick={event => { if (event.target === event.currentTarget) oncreate(date); }}></div>{/each}{#each runs as run}{@const item = run.appointment}{@const first = drawnSymbols(item, current.cards)[0]}<button class={`whole ${kindOf(item)}${run.before ? " whole--from" : ""}${run.after ? " whole--into" : ""}`.replace(/\s+/g, " ").trim()} type="button" style="grid-column: {days.indexOf(run.days[0]) + 2} / span {run.days.length}; grid-row: {run.lane + 1}" onclick={() => onopen(item)}>{#if first}<Picture symbol={first} name={first.label} />{/if}<span class="whole__name">{titleOf(item, current.cards, current.people) || "Ganztägig"}</span>{#if item.people.length}<span class="whole__who">{#each item.people.slice(0, 3) as id}{@const person = personById(id)}<span class="whole__face"><Face {person} size="sm" />{#if person && bornOn(person, run.days[0])}<span class="crown">👑</span>{/if}</span>{/each}</span>{/if}</button>{/each}</div>
-  <div class="cal__body"><div class="cal__gutter">{#each hours as hour}<div class="cal__hour" style="height: {HOUR}px"><span>{clock(hour)}</span></div>{/each}</div>{#each days as date}<div class="cal__col{date === today ? " cal__col--today" : ""}" style="height: {((span.to - span.from) / 60) * HOUR}px" onclick={event => pressedColumn(event, date)}>{#each hours as _, index}<div class="cal__rule" style="top: {index * HOUR}px"></div>{/each}{#if date === today && at >= span.from && at <= span.to}<div class="cal__now" style="top: {((at - span.from) / 60) * HOUR}px"></div>{/if}{#each lanesOf(current.appointments.filter(item => item.date === date && !allDay(item))) as { appointment, lane, lanes }}{@const top = ((snapped(appointment.start!) - span.from) / 60) * HOUR}{@const tall = Math.max(26, ((snapped(appointment.end!) - snapped(appointment.start!)) / 60) * HOUR)}{@const name = titleOf(appointment, current.cards, current.people) || (undecided(appointment) ? "Auswahl" : "Termin")}{@const width = 100 / lanes}<button class={`event ${kindOf(appointment)}${tall < 40 ? " event--tight" : ""}`.trim()} type="button" title="{name} · {appointment.start}–{appointment.end}" style="top: {top}px; height: {tall - 2}px; left: calc({lane * width}% + 2px); width: calc({width}% - 4px)" onclick={() => onopen(appointment)}><span class="event__name">{name}</span><span class="event__who">{#each appointment.people as id}<Face person={personById(id)} size="sm" />{/each}</span></button>{/each}</div>{/each}</div>
+  <div class="cal__whole" style="--lanes:{lanes}"><div class="cal__corner">ganztags</div>{#each days as date, index}<button class="cal__whole-rule" type="button" aria-label="Ganztägig am {dayLabel(date)} anlegen" style="grid-column: {index + 2}" onclick={() => oncreate(date)}></button>{/each}{#each runs as run}{@const item = run.appointment}{@const first = drawnSymbols(item, current.cards)[0]}<button class={`whole ${kindOf(item)}${run.before ? " whole--from" : ""}${run.after ? " whole--into" : ""}`.replace(/\s+/g, " ").trim()} type="button" style="grid-column: {days.indexOf(run.days[0]) + 2} / span {run.days.length}; grid-row: {run.lane + 1}" onclick={() => onopen(item)}>{#if first}<Picture symbol={first} name={first.label} />{/if}<span class="whole__name">{titleOf(item, current.cards, current.people) || "Ganztägig"}</span>{#if item.people.length}<span class="whole__who">{#each item.people.slice(0, 3) as id}{@const person = personById(id)}<span class="whole__face"><Face {person} size="sm" />{#if person && bornOn(person, run.days[0])}<span class="crown">👑</span>{/if}</span>{/each}</span>{/if}</button>{/each}</div>
+  <div class="cal__body"><div class="cal__gutter">{#each hours as hour}<div class="cal__hour" style="height: {HOUR}px"><span>{clock(hour)}</span></div>{/each}</div>{#each days as date}<div class="cal__col{date === today ? " cal__col--today" : ""}" role="presentation" style="height: {((span.to - span.from) / 60) * HOUR}px" onclick={event => pressedColumn(event, date)}>{#each hours as _, index}<div class="cal__rule" style="top: {index * HOUR}px"></div>{/each}{#if date === today && at >= span.from && at <= span.to}<div class="cal__now" style="top: {((at - span.from) / 60) * HOUR}px"></div>{/if}{#each lanesOf(current.appointments.filter(item => item.date === date && !allDay(item))) as { appointment, lane, lanes }}{@const top = ((snapped(appointment.start!) - span.from) / 60) * HOUR}{@const tall = Math.max(26, ((snapped(appointment.end!) - snapped(appointment.start!)) / 60) * HOUR)}{@const name = titleOf(appointment, current.cards, current.people) || (undecided(appointment) ? "Auswahl" : "Termin")}{@const width = 100 / lanes}<button class={`event ${kindOf(appointment)}${tall < 40 ? " event--tight" : ""}`.trim()} type="button" title="{name} · {appointment.start}–{appointment.end}" style="top: {top}px; height: {tall - 2}px; left: calc({lane * width}% + 2px); width: calc({width}% - 4px)" onclick={() => onopen(appointment)}><span class="event__name">{name}</span><span class="event__who">{#each appointment.people as id}<Face person={personById(id)} size="sm" />{/each}</span></button>{/each}</div>{/each}</div>
 </div>
