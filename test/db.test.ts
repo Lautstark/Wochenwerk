@@ -60,6 +60,59 @@ describe("a series", () => {
   });
 });
 
+describe("one day of a series moved to another", () => {
+  const monday = new Date("2026-10-05T00:00");
+  const day = (offset: number) => iso(addDays(monday, offset));
+  const drawn = async () => (await week(monday)).map(item => item.date);
+
+  it("leaves the day it came from", async () => {
+    const id = await createSeries({ kind: "weekly", weekdays: [0] }, day(0), day(27), shape("09:00", "10:00"));
+    const [first] = await week(monday);
+    await put({ ...first, date: day(1) });
+    expect(await drawn()).toEqual([day(1)]);
+    /* And the rule says so too: Monday is a day it no longer draws. */
+    expect((await inSeries(id)).map(item => item.date)).toEqual([day(1), day(7), day(14), day(21)]);
+  });
+
+  it("does not hide the occurrence already standing on the day it moves to", async () => {
+    await createSeries({ kind: "daily" }, day(0), day(2), shape("09:00", "10:00"));
+    const [first] = await week(monday);
+    await put({ ...first, date: day(1), start: "15:00", end: "16:00" });
+    const after = await week(monday);
+    expect(after.map(item => item.date)).toEqual([day(1), day(1), day(2)]);
+    expect(after.filter(item => item.date === day(1)).map(item => item.start).sort()).toEqual(["09:00", "15:00"]);
+  });
+
+  it("moved a second time, does not bring back where it stood before", async () => {
+    await createSeries({ kind: "weekly", weekdays: [0] }, day(0), day(27), shape("09:00", "10:00"));
+    const [first] = await week(monday);
+    await put({ ...first, date: day(1) });
+    const [stored] = await week(monday);
+    await put({ ...stored, date: day(2) });
+    expect(await drawn()).toEqual([day(2)]);
+  });
+
+  it("an edited day, moved, leaves its own day empty", async () => {
+    await createSeries({ kind: "weekly", weekdays: [0] }, day(0), day(27), shape("09:00", "10:00"));
+    const [first] = await week(monday);
+    await put({ ...first, title: "eigen" });
+    const [edited] = await week(monday);
+    await put({ ...edited, date: day(3) });
+    const after = await week(monday);
+    expect(after.map(item => [item.date, item.title])).toEqual([[day(3), "eigen"]]);
+  });
+
+  it("and changed „ab hier“ with it, is still drawn once — in the half the change made", async () => {
+    const id = await createSeries({ kind: "weekly", weekdays: [0] }, day(0), day(27), shape("09:00", "10:00"));
+    const second = (await inSeries(id))[1];
+    /* What the sheet does: the move, then the change over the rest of the batch. */
+    await put({ ...second, date: day(8), title: "neu" });
+    await editSeries(id, { title: "neu" }, second.date);
+    const later = await week(addDays(monday, 7));
+    expect(later.map(item => [item.date, item.title])).toEqual([[day(8), "neu"]]);
+  });
+});
+
 describe("an appointment turned into a series", () => {
   const single = (date: string, extra: Partial<Appointment> = {}): Appointment =>
     ({ id: uuid(), date, start: "09:00", end: "10:00", symbols: [], options: [], people: [], showPeople: false, updatedAt: 0, ...extra });

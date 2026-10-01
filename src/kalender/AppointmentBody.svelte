@@ -371,8 +371,13 @@
         note: movedDay ? "Der Tag gilt nur für diesen Termin. Wann die Serie stattfindet, steht unter „Wiederholen“." : undefined });
       if (!scope) return;
       if (scope !== "one") {
-        await editSeries(plain.series, shape, scope === "from" ? s.anchor : undefined);
+        /* The move first, while the day still belongs to the batch it was opened
+           in. „Ab hier" splits the batch, and a move written after the split
+           would be told about the old half — whose rule no longer reaches the
+           day it left — while the new half went on drawing it. Moved first, the
+           day is already one the rule skips, and the split carries that across. */
         if (movedDay) await put(plain);
+        await editSeries(plain.series, shape, scope === "from" ? s.anchor : undefined);
         handle.close();
         return s.done();
       }

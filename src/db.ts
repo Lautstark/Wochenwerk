@@ -309,10 +309,43 @@ export async function inSeries(id: string): Promise<Appointment[]> {
 }
 
 /* Editing one day of a batch is what makes that day concrete: it stops being
-   arithmetic and becomes a record, which is exactly what happened to it. */
+   arithmetic and becomes a record, which is exactly what happened to it.
+
+   Moving it is the one edit that also concerns two other days. A stored day of a
+   batch stands in for the occurrence on its *own* date — that is all `between`
+   knows about it — so a day moved from Monday to Tuesday left Monday's occurrence
+   standing where it was, the appointment drawn twice, and hid Tuesday's own
+   occurrence instead of Monday's. Where the day came from is read before it is
+   overwritten: from the handle for a derived day, from the stored record for one
+   edited before. */
 export async function put(appointment: Appointment): Promise<void> {
   const record = isDerived(appointment.id) ? { ...appointment, id: uuid() } : appointment;
+  const was = isDerived(appointment.id) ? cameFrom(appointment.id).date
+    : (await (await db()).get("appointments", appointment.id))?.date;
+  if (record.series && was && was !== record.date) await moving(record.series, record.id, was, record.date);
   await keep("appointments", { ...record, updatedAt: Date.now() });
+}
+
+/* What a move owes the batch, both ends of it.
+
+   The day it leaves is taken out of the rule, exactly as a deletion takes it
+   out: otherwise the rule draws it again, and a stored record that moved away is
+   no longer there to stand in for it. Only where the rule covers that day — a
+   day already moved off the pattern once has nothing to leave behind.
+
+   The day it arrives on may be one the rule draws as well — Monday's Kita moved
+   onto the Tuesday that has its own. That occurrence is written down as a record
+   of its own before the moved one lands beside it, so that it is a record
+   standing in for its day like any other, and the moved one hides nothing. Two
+   appointments of one batch on one day is what was asked for; one of them
+   vanishing is not. */
+async function moving(series: string, id: string, from: string, to: string): Promise<void> {
+  const record = await (await db()).get("series", series);
+  if (!record) return;
+  if (expand(record, from, from).length) await skip(series, from);
+  const [arriving] = expand(record, to, to);
+  const there = (await overridesOf(series)).some(item => item.date === to && item.id !== id);
+  if (arriving && !there) await keep("appointments", { ...arriving, id: uuid(), updatedAt: Date.now() });
 }
 
 /* Deleting one day of a batch takes that date out of the rule — and does so for a
