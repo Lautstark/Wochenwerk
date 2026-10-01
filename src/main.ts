@@ -8,7 +8,8 @@ import { watchReach } from "./reaching.svelte.js";
 import { preferRendering, restore } from "./symbols.js";
 import { listen } from "./reader.js";
 import Board from "./board/Board.svelte";
-import { draw, pressed, reads, tick, trouble, view, wire } from "./board/board.svelte.js";
+import { draw, pressed, reads, redraw, trouble, view, wire } from "./board/board.svelte.js";
+import { everyMinute } from "./minutes.js";
 
 /* The board's own file is board/Board.svelte, and what it holds between draws is
    board/board.svelte.ts. This is the boot: the page, the doors input comes
@@ -48,12 +49,14 @@ await pullFromFolder().catch(() => undefined);
    qualified path no longer matches is looked up by name — and that lookup answers
    in index order unless it is told which fassung was meant. See `urlFor`. */
 preferRendering((await settings()).metacomRendering ?? null);
-void tick();
+/* The minute loop, started here and nowhere else. Everything below redraws
+   without starting another one. */
+everyMinute(redraw);
 /* Und der Leser, falls auf dieser Maschine eine Brücke läuft. */
 listen();
 /* Somebody else's edit, arriving as a file that changed under this browser. */
-if (await adopted()) watchFolder(() => void pullFromFolder().then(tick));
+if (await adopted()) watchFolder(() => void pullFromFolder().then(redraw));
 /* The board plans nothing, but it does write: a card laid at the slot answers a
    choice, and that answer is a record like any other. So it owes the folder the
    same duty, and reaches for it the same way. */
-watchReach(() => void tick());
+watchReach(() => void redraw());

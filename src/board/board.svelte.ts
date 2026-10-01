@@ -63,14 +63,12 @@ export async function draw(at: Date): Promise<void> {
   if (Date.now() - refusedAt < refusalLasts) view.wrong = true;
 }
 
-/* Redraw on every minute boundary rather than on an interval, so the board never
-   drifts away from the wall clock and a resumed kiosk catches up immediately. The
-   same tick re-reads the store, which is how a change made in the calendar arrives. */
-export async function tick(): Promise<void> {
-  const at = new Date();
-  await draw(at);
-  setTimeout(tick, 60_000 - (at.getSeconds() * 1000 + at.getMilliseconds()) + 20);
-}
+/* Draw the board as it is now. Every draw re-reads the store, which is how a
+   change made in the calendar arrives — on the minute boundary, where
+   `everyMinute` in main.ts calls this, or straight away where somebody's edit or
+   a settled folder says there is something new. This draws and schedules
+   nothing; the minute loop is started once, in main.ts, and only there. */
+export const redraw = (): Promise<void> => draw(new Date());
 
 function flare(day: string, back: boolean) {
   view.taken = { at: Date.now(), day: ((new Date(`${day}T00:00`).getDay() + 6) % 7) + 1, back };
