@@ -239,11 +239,22 @@ export function runsOf(appointments: Appointment[], dates: string[], series: Map
   });
 
   /* Whether a stretch continues past the edge is the rule's business, not the
-     week's: the days outside are not loaded, and the record already says. */
+     week's: the days outside are not loaded, and the record already says.
+
+     What it says is whether the rule draws the *neighbouring* day, which is not
+     the same question as whether the rule goes on. A Monday-only rule runs for
+     months and still has nothing on the Sunday before, so asking only where it
+     starts and stops drew every Monday as the tail of a bar coming in from the
+     previous week. A day deleted from the rule is not drawn either, and the
+     rule's own `skipped` says so. A day edited out there would break the run
+     anyway (see `sameThing`), so the rule is the whole answer. */
+  const draws = (rule: Series, date: string) => expand(rule, date, date).length > 0;
+  const next = (date: string, by: number) => iso(addDays(new Date(`${date}T00:00`), by));
   for (const run of runs) {
     const rule = run.appointment.series ? series.get(run.appointment.series) : undefined;
-    run.before = !!rule && rule.from < run.days[0] && run.days[0] === dates[0];
-    run.after = !!rule && rule.until > run.days[run.days.length - 1] && run.days[run.days.length - 1] === dates[dates.length - 1];
+    const first = run.days[0], last = run.days[run.days.length - 1];
+    run.before = !!rule && first === dates[0] && draws(rule, next(first, -1));
+    run.after = !!rule && last === dates[dates.length - 1] && draws(rule, next(last, 1));
   }
 
   /* Lanes, packed the way parallel appointments are packed inside a day: first row

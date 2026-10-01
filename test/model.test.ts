@@ -183,6 +183,21 @@ describe("a stretch of all-day appointments", () => {
     expect([over[0].before, over[0].after]).toEqual([true, true]);
   });
 
+  it("does not carry a weekly day over the edge to a neighbour the rule does not draw", () => {
+    const mondays: Series = { ...rule("2026-08-03", "2026-12-28"), pattern: { kind: "weekly", weekdays: [0] } };
+    const sundays: Series = { ...rule("2026-08-02", "2026-12-27"), pattern: { kind: "weekly", weekdays: [6] } };
+    const [monday] = runsOf([visit(dates[0])], dates, only(mondays));
+    expect([monday.before, monday.after]).toEqual([false, false]);
+    const [sunday] = runsOf([visit(dates[6])], dates, only(sundays));
+    expect([sunday.before, sunday.after]).toEqual([false, false]);
+  });
+
+  it("does not carry a stretch over the edge onto a day deleted from it", () => {
+    const gapped: Series = { ...rule("2026-08-24", "2026-09-20"), skipped: ["2026-08-30", "2026-09-07"] };
+    const [run] = runsOf(dates.map(date => visit(date)), dates, only(gapped));
+    expect([run.before, run.after]).toEqual([false, false]);
+  });
+
   it("puts stretches that overlap in lanes of their own", () => {
     const runs = runsOf([
       ...dates.slice(0, 3).map(date => visit(date)),
