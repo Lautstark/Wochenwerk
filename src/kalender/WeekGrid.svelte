@@ -7,6 +7,7 @@
   import { allDay, board, bornOn, clock, drawnSymbols, iso, lanesOf, runsOf, snapped, titleOf, undecided,
     weekdays, type Appointment } from "../model.js";
   import { personById, shown } from "../store.svelte.js";
+  import { everyMinute } from "../minutes.js";
   import Face from "../pieces/Face.svelte";
   import Picture from "../pieces/Picture.svelte";
 
@@ -22,8 +23,16 @@
 
   let current = $derived(shown());
   let days = $derived(visible ?? current.dates);
-  let today = $derived(iso(new Date()));
-  let at = $derived.by(() => { const now = new Date(); return now.getHours() * 60 + now.getMinutes(); });
+  /* The clock the grid reads, as state. Both of these used to call `new Date()`
+     inside a `$derived`, which reads no signal and so was worked out once and
+     never again: the now line stood where the page was opened, and a calendar
+     left open overnight went on marking yesterday as today. A Date is replaced
+     whole and never edited, hence `.raw`; it is set on every minute boundary by
+     the same loop the board runs on, and the loop goes with the grid. */
+  let now = $state.raw(new Date());
+  $effect(() => everyMinute(() => { now = new Date(); }));
+  let today = $derived(iso(now));
+  let at = $derived(now.getHours() * 60 + now.getMinutes());
   let span = $derived.by(() => {
     const times = current.appointments.filter(item => !allDay(item)).flatMap(item => [snapped(item.start!), snapped(item.end!)]);
     return {

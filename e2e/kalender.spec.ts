@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { at, openCalendar, person, stubSpeech, timed, WEEK } from "./seed.js";
+import { at, openCalendar, person, stubSpeech, timed, TUESDAY, WEEK } from "./seed.js";
 
 /*
  * The calendar, as a person uses it.
@@ -386,6 +386,21 @@ test("today is marked in the head of the week, and only this week", async ({ pag
   await page.getByRole("button", { name: "›" }).click();
   await expect(dateOf("DI")).toHaveText("8");
   expect(await marked("DI")).toBe(await marked("MI"));
+});
+
+test("left open over midnight, the calendar moves today on to the new day", async ({ page }) => {
+  /* The one case in this file where time has to pass, so the clock is installed
+     rather than only fixed: timers run on it, and `runFor` moves it on. A
+     calendar left open on a laptop overnight used to go on marking yesterday. */
+  await page.clock.install({ time: new Date(`${TUESDAY}T23:59:30+02:00`) });
+  await openCalendar(page);
+  const marked = (weekday: string) => dayHead(page, weekday).locator("span").evaluate(node => getComputedStyle(node).backgroundColor);
+  const bare = await marked("MO");
+  expect(await marked("DI")).not.toBe(bare);
+  expect(await marked("MI")).toBe(bare);
+  await page.clock.runFor("01:00");
+  await expect.poll(() => marked("MI")).not.toBe(bare);
+  expect(await marked("DI")).toBe(bare);
 });
 
 test("a weekly appointment repeats into the following weeks", async ({ page }) => {
