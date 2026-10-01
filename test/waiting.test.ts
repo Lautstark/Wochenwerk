@@ -41,7 +41,8 @@ vi.mock("../src/folder.js", () => ({
   reconnect: async () => undefined,
 }));
 
-const { adoptFolder, carriedOver, clearAll, owed, owing, pullFromFolder, put, remove, settleUp, uuid, week } = await import("../src/db.js");
+const { adoptFolder, carriedOver, clearAll, clearAppointments, exportAll, importAll, onChanged, owed, owing, pullFromFolder, put, remove,
+  setBirthday, settleUp, uuid, week } = await import("../src/db.js");
 const { iso } = await import("../src/model.js");
 
 const monday = new Date("2026-08-31T00:00");
@@ -199,5 +200,35 @@ describe("connecting a folder that is already a store", () => {
     await adoptFolder();
     expect(carriedOver()).toBe(1);
     expect(carriedOver()).toBe(0);
+  });
+});
+
+describe("the bulk writes", () => {
+  it("emptying the calendar tells the folder that a person's birthday batch is gone", async () => {
+    const person = { id: uuid(), name: "Testperson", initials: "TP", tone: "#000", updatedAt: 0 };
+    await setBirthday(person, "2026-09-06");
+    expect((there.personen[0] as { birthdaySeries?: string }).birthdaySeries).toBeTruthy();
+    await clearAppointments();
+    expect(there.serien).toEqual([]);
+    /* The folder's copy, not only the browser's: it is what the next start reads. */
+    expect(there.personen).toHaveLength(1);
+    expect((there.personen[0] as { birthdaySeries?: string }).birthdaySeries).toBeUndefined();
+  });
+
+  it("each say that something changed, so the standing backup is scheduled", async () => {
+    await put(appointment("Waffeln backen"));
+    const backup = await exportAll();
+    const heard = vi.fn();
+    const stop = onChanged(heard);
+    try {
+      await clearAppointments();
+      expect(heard).toHaveBeenCalled();
+      heard.mockClear();
+      await importAll(backup);
+      expect(heard).toHaveBeenCalled();
+      heard.mockClear();
+      await clearAll();
+      expect(heard).toHaveBeenCalled();
+    } finally { stop(); }
   });
 });

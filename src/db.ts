@@ -565,19 +565,29 @@ export async function importAll(backup: Backup): Promise<number> {
      of reach is still owed to it. */
   await settled("karten", "*", false, await pushKind("karten", await allCards()));
   await settled("personen", "*", false, await pushKind("personen", await allPeople()));
+  /* This and the two emptyings below write around `keep` and `dropRecord`, so
+     they say it themselves — once, at the end, because a backup taken halfway
+     through would hold half of it. Without this a restore or an emptied calendar was
+     the one change the standing backup never heard of. */
+  changed.touched();
   return added;
 }
 
-/** Empty the calendar./** Empty the calendar. Cards, people and their birthdays stay. */
+/** Empty the calendar. Cards and people stay, each with the birthday written
+    on them; the bars those birthdays drew are appointments and go with the rest. */
 export async function clearAppointments(): Promise<number> {
   const database = await db();
   const many = await database.count("appointments");
   await database.clear("appointments");
   await database.clear("series");
-  const everyone = await database.getAll("people");
-  await Promise.all(everyone.filter(person => person.birthdaySeries)
-    .map(person => database.put("people", { ...person, birthdaySeries: undefined })));
+  /* Through `keep`, one person at a time: the batch a person points at has just
+     gone, and a raw `put` told IndexedDB so and not the folder — which went on
+     holding a person whose `birthdaySeries` names a batch nobody has. */
+  for (const person of await database.getAll("people")) {
+    if (person.birthdaySeries) await keep("people", { ...person, birthdaySeries: undefined, updatedAt: Date.now() });
+  }
   await mirror("termine", "serien");
+  changed.touched();
   return many;
 }
 
@@ -616,6 +626,7 @@ export async function clearAll(): Promise<void> {
      kinds that have no batch of their own would otherwise be the one hole left. */
   await settled("karten", "*", false, await pushKind("karten", []));
   await settled("personen", "*", false, await pushKind("personen", []));
+  changed.touched();
 }
 /* One household, so one record, under a constant key. A settings store keyed by
    anything else would be a store of settings, which is how a second answer to the
