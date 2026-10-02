@@ -297,7 +297,7 @@
     if (draft.series) {
       const scope = await askScope("löschen", $state.snapshot(s.counts), { kind: s.shapeOfBatch() });
       if (!scope) return;
-      if (scope !== "one") { await dropSeries(draft.series, scope === "from" ? s.anchor : undefined); handle.close(); return s.done(); }
+      if (scope !== "one") { const series = draft.series; return gone(() => dropSeries(series, scope === "from" ? s.anchor : undefined)); }
     } else {
       const sure = await confirmDialog({
         title: "Termin löschen", body: `„${titleOf(draft, shown().cards, shown().people) || "Dieser Termin"}“ am ${dayLabel(draft.date)} wird gelöscht.`,
@@ -305,7 +305,11 @@
       });
       if (!sure) return;
     }
-    await remove(draft.id);
+    return gone(() => remove(draft.id));
+  }
+  async function gone(drop: () => Promise<unknown>) {
+    s.erasing = true;
+    try { await drop(); } finally { s.erasing = false; }
     handle.close();
     s.done();
   }

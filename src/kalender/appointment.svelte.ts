@@ -67,6 +67,10 @@ export class Editing {
   canSave = $state.raw(false);
   save = $state.raw<() => Promise<void>>(async () => {});
   erase = $state.raw<() => Promise<void>>(async () => {});
+  /* From the answer to „wirklich löschen?" until the sheet closes. With a folder
+     connected that is a round trip per file, and a sheet that stood there
+     unchanged through it read as a press that had not landed. */
+  erasing = $state.raw(false);
 
   constructor(appointment: Appointment, existing: boolean, done: () => void) {
     const draft = structuredClone(appointment);
