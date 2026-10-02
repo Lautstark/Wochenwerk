@@ -16,7 +16,10 @@ export const KINDS = ["termine", "karten", "personen", "serien"] as const;
 export type Kind = (typeof KINDS)[number];
 export type Filed = Appointment | Card | Person | Series;
 
-export const ablage = new Ablage({ app: "wochenwerk", kinds: KINDS });
+/* `files: []` — nothing here keeps a picture beside a record, and saying so
+   spares every delete a listing of its whole folder, which on a share across
+   the house was the seconds between pressing Löschen and the sheet closing. */
+export const ablage = new Ablage({ app: "wochenwerk", kinds: KINDS, files: [] });
 export const supported = Ablage.supported;
 
 /** Whether the folder is the store rather than a copy of one. */

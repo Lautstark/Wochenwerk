@@ -20,7 +20,7 @@
     "@diffusionstudio/piper-wasm": "^1.0.0",
     "@lautstark/bildquelle": "github:Lautstark/bildquelle#v2.4.1",
     "@lautstark/design": "github:Lautstark/design#v1.40.3",
-    "@lautstark/sicherung": "github:Lautstark/sicherung#v1.17.2",
+    "@lautstark/sicherung": "github:Lautstark/sicherung#v1.18.0",
     "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.12.2",
     "@lautstark/werkzeuge": "github:Lautstark/werkzeuge#v2.0.1",
     "idb": "^8.0.3",
