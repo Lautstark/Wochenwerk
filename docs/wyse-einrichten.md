@@ -292,6 +292,10 @@ xset s off
 xset -dpms
 xset s noblank
 unclutter -idle 0 &
+for _ in $(seq 1 45); do
+  python3 -c 'import socket; socket.create_connection(("wochenwerk.lautstark.tech", 443), 3)' 2>/dev/null && break
+  sleep 2
+done
 exec chromium \
   --kiosk \
   --no-first-run \
@@ -314,6 +318,12 @@ Was diese Schalter tun, und warum jeder einzelne dasteht:
   dann kommen, wenn der Browser gerade neu gestartet ist.
 - `--password-store=basic`, weil Chromium ohne Desktop sonst nach einem
   Schlüsselbund sucht, den es hier nicht gibt.
+- Die Schleife vor Chromium wartet, bis der Server des Boards antwortet,
+  höchstens anderthalb Minuten. Das WLAN meldet sich beim Hochfahren rund eine
+  Sekunde vor Chromium als „oben", und das reichte am 2026-10-20 nicht: die Seite
+  kam an, ihr Code nicht, und die Wand blieb weiß, bis jemand F5 drückte. Das
+  Board lädt sich in dem Fall inzwischen selbst neu (`index.html`), aber es soll
+  nicht die einzige Instanz sein, die daran denkt.
 - `xset s off -dpms`, damit der Bildschirm nicht abschaltet. Das Board hält ihn
   im Vollbild auch selbst wach ([screen.ts](../src/screen.ts)), aber es soll
   nicht die einzige Instanz sein, die daran denkt.

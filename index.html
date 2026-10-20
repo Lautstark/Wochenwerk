@@ -5,6 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <title>Wochenwerk</title>
+    <!-- The one thing the board cannot do for itself: notice that it never
+         arrived. The wall boots faster than its WLAN, and a first load that
+         gets this page but not the bundle or the stylesheet is a white screen
+         with no code on it to try again — on 2026-10-20 the wall stood like
+         that until somebody pressed F5. So the page checks, once everything
+         that was going to load has, whether main.ts ran and its CSS applied,
+         and if not, reloads as soon as the server answers. The wait doubles
+         with every reload in a row, so a real bug in the bundle costs a reload
+         every few minutes rather than a loop; the board's own start clears
+         the count. -->
+    <script>
+      (function () {
+        var KEY = "wochenwerk.neustart", n = 0, done = false;
+        try { n = Number(sessionStorage.getItem(KEY)) || 0; } catch (e) {}
+        function arrived() {
+          return "started" in document.documentElement.dataset
+            && getComputedStyle(document.body).backgroundColor !== "rgba(0, 0, 0, 0)";
+        }
+        function check() {
+          if (done) return;
+          if (arrived()) {
+            done = true;
+            try { sessionStorage.removeItem(KEY); } catch (e) {}
+            return;
+          }
+          fetch(location.href, { cache: "no-store" }).then(function (answer) {
+            if (!answer.ok) return later(5000);
+            done = true;
+            try { sessionStorage.setItem(KEY, String(n + 1)); } catch (e) {}
+            location.reload();
+          }, function () { later(5000); });
+        }
+        function later(ms) { setTimeout(check, ms); }
+        addEventListener("load", function () { later(3000 * Math.pow(2, Math.min(n, 7))); });
+        /* A request that hangs instead of failing holds `load` back with it. */
+        later(30000 * Math.pow(2, Math.min(n, 3)));
+      })();
+    </script>
   </head>
   <body>
     <main id="app" aria-label="Wochenplan"></main>

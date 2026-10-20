@@ -17,6 +17,8 @@ import { everyMinute } from "./minutes.js";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 mount(Board, { target: app });
+/* For the watchdog in index.html: the bundle ran. Without this mark it reloads. */
+document.documentElement.dataset.started = "";
 
 wire(app);
 

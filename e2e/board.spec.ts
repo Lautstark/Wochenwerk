@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { at, bars, board, card, cards, column, openBoard, screen, spoken, stubScreen, stubSpeech, timed, tray, VOICE, WEEK, wholeDay, type Seed } from "./seed.js";
+import { at, bars, board, card, cards, column, offline, openBoard, screen, spoken, stubScreen, stubSpeech, timed, tray, VOICE, WEEK, wholeDay, type Seed } from "./seed.js";
 
 /*
  * The board, as a child sees it and a parent hears it.
@@ -279,4 +279,17 @@ test("Ctrl+Shift+F asks for the whole screen and keeps it lit, and asks again to
   await page.keyboard.press("f");
   await page.keyboard.press("Shift+F");
   expect(await screen(page)).toEqual({ entered: 1, left: 1, locks: ["screen"], released: 1 });
+});
+
+/* ## Arriving */
+
+test("a first load that lost its bundle tries again by itself, and the board arrives", async ({ page }) => {
+  /* The wall at boot: the page came, the code behind it did not — the WLAN was
+     a second late. Nobody stands there to press F5. */
+  await offline(page);
+  let refused = 0;
+  await page.route("**/src/main.ts", route => (refused++ === 0 ? route.abort() : route.fallback()));
+  await page.goto("/");
+  await expect(page.getByText("Diese Woche ist noch nichts geplant.")).toBeVisible({ timeout: 15_000 });
+  expect(refused).toBe(2);
 });
