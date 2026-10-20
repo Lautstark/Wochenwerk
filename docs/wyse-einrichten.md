@@ -737,11 +737,19 @@ for p in 0 3 7 8; do echo "pcm${p}p: $(head -1 /proc/asound/card0/pcm${p}p/sub0/
 `speaker-test` ohne `-D` misst das **nicht**: es geht an ALSAs Vorgabe und damit
 an PipeWire vorbei. Wir haben damit dreimal dasselbe falsche Ergebnis erzeugt.
 
-Hier zeigt Profil 7 (`output:hdmi-stereo-extra1`) auf `pcm7p` und ist der
-richtige; Profil 4 zeigt auf den toten `pcm3p`. Was über den falschen zu hören
-ist, ist Übersprechen aus der Klinkenbuchse — leise genug, dass es wie ein
-Lautstärkeproblem aussieht, und laut genug, dass man es für den richtigen Weg
-hält.
+Was über den falschen zu hören ist, ist Übersprechen aus der Klinkenbuchse —
+leise genug, dass es wie ein Lautstärkeproblem aussieht, und laut genug, dass man
+es für den richtigen Weg hält.
+
+**Und er wandert zurück.** Nach dem Kabelwechsel saß der Monitor auf Profil 7
+(`output:hdmi-stereo-extra1`, `pcm7p`), und genau diese 7 stand fest in der
+`.xinitrc`. Nach einem Stromausfall am 2026-10-20 meldete er sich wieder auf dem
+ersten Kanal an (Profil 4, `pcm3p`), und jede Ansage ging auf den toten Ausgang.
+Seitdem wird das Profil bei jedem Start gemessen: der HDMI-Ausgang, den PipeWire
+als belegt meldet (`available: yes` in `pw-dump`, dahinter das ELD in
+`/proc/asound/card0/eld#*` mit dem Namen des Monitors), und das reine
+Ausgabeprofil dazu. Eine feste Nummer an dieser Stelle ist eine Vermutung mit
+Verfallsdatum.
 
 ## Was hier noch nicht steht
 
