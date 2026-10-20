@@ -24,13 +24,17 @@
   /* Where the card slot sits in the frame, across the width of the display. This is
      a measurement of the built thing, and the one number on this page that is wrong
      if the hardware moves: the box above it points at the slot by standing over it,
-     so everything the bar promises rests on these two figures being true. */
-  --slot: 82%;
-  /* And how wide the box over it is: 8 cm on the 21.5-inch panel, whose picture is
-     476 mm across — so a sixth of the width, and about the width of one of the
-     laminated cards it is asking for. Written as a share rather than in centimetres
-     because the browser measures the panel in pixels and knows nothing of its size. */
-  --boxw: 16.8%;
+     so everything the bar promises rests on these two figures being true.
+
+     Measured off a photo of the frame on 2026-10-20: the opening runs from 1472 to
+     1736 of the panel's 1920 pixels. It was 82% and a sixth wide before, which
+     stood the box a hand's breadth left of the slot and ended it at the same edge. */
+  --slot: 83.5%;
+  /* And how wide the box over it is: exactly the opening, about 6.6 cm of the
+     21.5-inch panel's 476 mm — a box wider than the slot points at the frame beside
+     it. Written as a share rather than in centimetres because the browser measures
+     the panel in pixels and knows nothing of its size. */
+  --boxw: 13.8%;
   background: var(--ground);
   color: var(--ink);
 }
@@ -356,7 +360,7 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
   color: color-mix(in oklab, var(--day) 40%, #1d232b); }
 /* A card in the box has the proportions of the laminated card on the table — the
    height of this row decides its size, so the two share a shape and not a scale. */
-/* Two cards is what eight centimetres hold at full size; more of them share the
+/* Two cards is what the slot's width holds at full size; more of them share the
    width rather than being cut off, because what is on offer has to be countable.
 
    The proportions are the laminated card's, so the two share a shape if not a scale. */
