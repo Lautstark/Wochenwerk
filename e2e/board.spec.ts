@@ -219,6 +219,27 @@ test("an open choice stands on the tray, and while it runs the announcement is o
   ]);
 });
 
+test("the question asked out loud stands large over the slot until a card answers it", async ({ page }) => {
+  await at(page, "15:45");
+  await openBoard(page, afternoon("16:00", "17:00"));
+  const small = await box(tray(page));
+  await page.keyboard.press("Space");
+  await expect(tray(page)).toHaveClass(/asked/);
+  await expect.poll(async () => (await box(tray(page))).height).toBeGreaterThan(small.height * 4);
+  /* Still standing on the bottom edge, centred where it was. */
+  const wall = await box(board(page));
+  const large = await box(tray(page));
+  expect(large.y + large.height).toBeGreaterThan(wall.y + wall.height - 4);
+  expect(Math.abs(large.x + large.width / 2 - (small.x + small.width / 2))).toBeLessThan(2);
+  expect(large.x + large.width).toBeLessThanOrEqual(wall.x + wall.width);
+  await slot(page, "04a1b2c3");
+  await expect(tray(page)).toHaveCount(0);
+  /* Taken back out: the question is open again, but nobody asked it aloud. */
+  await slot(page, null);
+  await expect(tray(page)).toBeVisible();
+  await expect(tray(page)).not.toHaveClass(/asked/);
+});
+
 test("a card at the slot answers the question, is said back, and stays once the appointment has begun", async ({ page }) => {
   await at(page, "15:30");
   await openBoard(page, afternoon("15:00", "16:00"));

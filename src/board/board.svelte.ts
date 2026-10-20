@@ -13,6 +13,10 @@ export const refusalLasts = 1400;
 /* How long a question stays asked, so that one taken back a moment after the last
    one is not asked twice. The same window the refusal answers one question in. */
 const askAgainAfter = 6000;
+/* How long the tray stays large once the question has been asked out loud. A
+   minute is the time a child takes to walk to the table, look, and come back —
+   and past it a board still shouting a question nobody is answering is furniture. */
+export const askedLasts = 60000;
 
 export const view = $state({
   built: null as Built | null,
@@ -30,6 +34,11 @@ export const view = $state({
   taken: { at: 0, day: 1, back: false },
   /* Bumped whenever a moment-based mark should be looked at again. */
   stamp: 0,
+  /* The choice the voice last asked about, and when. While it is the one on the
+     tray and the minute is not up, the tray stands large over the slot. An answer
+     ends it, and a card taken back out does not start it again: only the voice
+     asks the large question. */
+  asked: { id: "", at: 0 },
   readerGone: false,
   /* Whatever an announcement could not do, for whoever is setting the board up —
      never for the child, which is why it is small, in a corner, and says nothing
@@ -74,6 +83,11 @@ function flare(day: string, back: boolean) {
   view.taken = { at: Date.now(), day: ((new Date(`${day}T00:00`).getDay() + 6) % 7) + 1, back };
   /* Once to light it, once to put it out. */
   setTimeout(() => void draw(new Date()).then(() => { view.stamp += 1; }), flareLasts);
+}
+
+function ask(id: string) {
+  view.asked = { id, at: Date.now() };
+  setTimeout(() => { view.stamp += 1; }, askedLasts);
 }
 
 let refusedAt = 0, refusedSaid = 0, refusedCard = "";
@@ -156,6 +170,7 @@ export async function reads(uid: string | null): Promise<void> {
     inSlot = card.id;
     if (open.chosen === card.id) return;
     await put({ ...open, chosen: card.id });
+    view.asked = { id: "", at: 0 };
     flare(open.date, false);
     /* And it is said back, through the same door the refusal answers through. The
        light over the slot says that something arrived; only the sentence says
@@ -235,5 +250,10 @@ export function pressed(event: KeyboardEvent): void {
   /* Cleared before rather than after: a sentence takes seconds to speak, and a
      line about what went wrong last time is still on the wall for all of them. */
   trouble();
-  void announceAt(new Date(), id => { view.lit = id; }).then(said => trouble(said.trouble));
+  void announceAt(new Date(), id => {
+    view.lit = id;
+    /* The moment the voice reaches the question on the tray, the tray grows: what
+       is being asked stands at full size over the place the answer goes. */
+    if (id && id === view.built?.open?.id) ask(id);
+  }).then(said => trouble(said.trouble));
 }

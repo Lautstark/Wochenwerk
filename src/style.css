@@ -368,6 +368,19 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
   display: grid; place-items: center;
   border-radius: .35rem; background: #f4f0e9; box-shadow: 0 .15rem .5rem rgba(0, 0, 0, .55); }
 .pick img { width: 82%; height: 82%; object-fit: contain; }
+/* The question asked out loud: the tray grows up out of the slot until the cards in
+   it are the size of the ones on the table. It stays centred over the slot, so it
+   still points where it always did — wider than the opening for this minute only,
+   and as wide as it can be there without leaving the screen. The question mark
+   goes on top, because two cards side by side already fill the width. */
+.offerbox { transition: width .35s ease-out, height .35s ease-out; }
+.offerbox.asked { --bigw: 32vw; width: var(--bigw); height: 58vh; flex-wrap: wrap;
+  align-content: center; gap: 1.2rem; padding: 1.2rem 1.6rem; border-radius: 1.2rem 1.2rem 0 0;
+  box-shadow: 0 -.6rem 3rem rgba(0, 0, 0, .6); }
+.offerbox.asked .query { flex-basis: 100%; text-align: center; font-size: 9vh; }
+.offerbox.asked .pick { height: auto; border-radius: .8rem;
+  width: min(13vw, calc((var(--bigw) - 3.2rem - (var(--count) - 1) * 1.2rem) / var(--count))); }
+@media (prefers-reduced-motion: reduce) { .offerbox { transition: none; } }
 .pick .missing { font-size: .6rem; }
 /* What the device says about itself: a fault in the frame, and the notice ARASAAC's
    licence asks for. Both belong to whoever set the board up rather than to the

@@ -6,12 +6,15 @@
   import { allDay, bornOn, dayLabel, drawnSymbols, iso, undecided, weekdays, type Appointment, type SymbolRef } from "../model.js";
   import { pictureFor } from "../symbols.js";
   import { crown, dayparts, place, pos, reached, seasons, type Built } from "./layout.js";
-  import { flareLasts, view } from "./board.svelte.js";
+  import { askedLasts, flareLasts, view } from "./board.svelte.js";
 
   let built = $derived(view.built);
 
   /* Reads the moment-based marks again whenever `stamp` moves. */
   let flareLit = $derived.by(() => { void view.stamp; return Date.now() - view.taken.at < flareLasts; });
+  /* The tray stands large while the question it carries is the one last asked out
+     loud, for a minute at most. */
+  let asked = $derived.by(() => { void view.stamp; return !!view.built?.open && view.asked.id === view.built.open.id && Date.now() - view.asked.at < askedLasts; });
 
   const url = (b: Built, ref: SymbolRef) => pictureFor(b.urls, ref);
 
@@ -105,6 +108,6 @@
   {@const open = b.open}
   {@const offered = open ? offeredOf(b, open) : []}
   <div class="slotbar{open ? ` day-${b.dates.indexOf(open.date) + 1}` : ""}{view.wrong ? " wrong" : ""}" data-open={open?.id}>{#if view.readerGone || b.credit}<span class="notes">{#if view.readerGone}<span class="fault">Kartenleser antwortet nicht</span>{/if}{#if b.credit}<span class="credit">{b.credit}</span>{/if}</span>{/if}{#if open}
-    <div class="offerbox" style="--count:{Math.max(1, offered.length)}"><span class="query" aria-hidden="true">?</span>{#each offered as symbol}<span class="pick">{@render picture(b, symbol)}</span>{/each}</div>{/if}{#if flareLit}<span class="taken day-{view.taken.day}{view.taken.back ? " back" : ""}"></span>{/if}
+    <div class="offerbox{asked ? " asked" : ""}" style="--count:{Math.max(1, offered.length)}"><span class="query" aria-hidden="true">?</span>{#each offered as symbol}<span class="pick">{@render picture(b, symbol)}</span>{/each}</div>{/if}{#if flareLit}<span class="taken day-{view.taken.day}{view.taken.back ? " back" : ""}"></span>{/if}
   </div>
 {/if}
