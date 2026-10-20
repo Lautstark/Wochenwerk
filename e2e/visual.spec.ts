@@ -625,5 +625,8 @@ test("the Impressum, whole", async ({ page }) => {
      than cut off at the fold. */
   await expect(sheet.getByRole("heading", { name: "Angaben gemäß § 5 DDG" })).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Streitbeilegung" })).toBeInViewport();
+  /* The same sheet as the settings dialog, and the same corners: on 2026-10-20
+     the top-left one blended four pixels differently on two runs in a row. */
+  await page.addStyleTag({ content: SQUARE });
   await expect(sheet).toHaveScreenshot("impressum.png");
 });
