@@ -1,5 +1,5 @@
 import { owed, pullFromFolder, settleUp, type Waiting } from "./db.js";
-import { isStale, isStore, reconnect } from "./folder.js";
+import { isAsking, isStale, isStore, probe, reconnect } from "./folder.js";
 
 /* Coming home has to be enough.
  *
@@ -18,20 +18,27 @@ import { isStale, isStore, reconnect } from "./folder.js";
  * This is the half-minute that ends that. `reconnect` never prompts — the handle
  * and its permission are both still held — so a timer may do it, and a timer is
  * exactly who should: the household did nothing wrong and should not have to do
- * anything about it. Whether the share is genuinely back is answered by the writes
- * that follow, which is what `settleUp` is: the reaching and the paying are one
- * pass, because a folder that is reachable and still owed records is not yet a
- * folder anybody can plan against.
+ * anything about it. But `reconnect` answers from the handle and the browser's
+ * grant alone, so a share still gone answers `idle` — whether it is genuinely back
+ * is answered by `probe`, one real read, and only then is what is owed paid. The
+ * reaching and the paying stay one pass, because a folder that is reachable and
+ * still owed records is not yet a folder anybody can plan against.
+ *
+ * One state a timer cannot end: the browser wanting its permission confirmed
+ * again, which takes a click. That is `asking`, said apart from `away` because
+ * the sentence over the week must not promise a healing that cannot happen —
+ * whoever draws it offers the click instead (`folder.ts`'s `allow`).
  *
  * It also watches the three moments a laptop actually comes home — the lid opens,
  * the tab is looked at, the network returns — because half a minute is a long time
  * to stand in front of a screen that is wrong. */
 
-/** Whether the folder is out of reach, and how many records it is owed. */
-export type Reach = { away: boolean; waiting: number };
+/** Whether the folder is out of reach or the browser wants a click first,
+ *  and how many records the folder is owed. */
+export type Reach = { away: boolean; asking: boolean; waiting: number };
 
 /* `$state.raw`, like the week: replaced whole, never edited in place. */
-let state = $state.raw<Reach>({ away: false, waiting: 0 });
+let state = $state.raw<Reach>({ away: false, asking: false, waiting: 0 });
 /** What to draw: read it while drawing and the drawing follows it. */
 export const reaching = (): Reach => state;
 
@@ -64,24 +71,37 @@ export function look(after?: (sent: number, clashed: Waiting[]) => void): Promis
 }
 
 async function pass(after?: (sent: number, clashed: Waiting[]) => void): Promise<void> {
-  if (!isStore()) return say({ away: false, waiting: 0 });
-  if (isStale()) await reconnect().catch(() => null);
-  if (!isStale()) {
+  if (!isStore()) return say({ away: false, asking: false, waiting: 0 });
+  /* What the last pass said, read before this one overwrites it: a folder that
+     was away and is reachable again has to be read even where nothing is owed. */
+  const was = state.away || state.asking;
+  if (isStale() || isAsking()) await reconnect().catch(() => null);
+  /* Not while the browser is asking: the probe's refused read would be said as
+     `stale`, and "nicht erreichbar" is the wrong sentence for "braucht einen
+     Klick" — the one condition on this page a timer cannot end. */
+  if (!isStale() && !isAsking()) await probe();
+  const asking = isAsking();
+  if (!isStale() && !asking) {
     const { sent, clashed } = await settleUp().catch(() => ({ sent: 0, clashed: [] as Waiting[] }));
     /* Read back what everybody else did only once ours is in. The other order is
        the bug this whole file is about: `pull` replaces these stores with the
-       folder's content, and an unsent edit under it is an edit deleted. */
-    if (sent || clashed.length) {
+       folder's content, and an unsent edit under it is an edit deleted.
+
+       Also on the way back with nothing owed: the mirror sat still the whole
+       time the folder was away, and the folder is the truth. Without this read
+       the week on screen stayed the old one until the poll happened to run —
+       and on a page that booted away from home, no poll was running at all. */
+    if (sent || clashed.length || was) {
       await pullFromFolder().catch(() => undefined);
-      last = { sent, clashed, at: Date.now() };
+      if (sent || clashed.length) last = { sent, clashed, at: Date.now() };
       after?.(sent, clashed);
     }
   }
-  say({ away: isStale(), waiting: await owed().catch(() => 0) });
+  say({ away: isStale(), asking, waiting: await owed().catch(() => 0) });
 }
 
 function say(next: Reach): void {
-  if (next.away !== state.away || next.waiting !== state.waiting) state = next;
+  if (next.away !== state.away || next.asking !== state.asking || next.waiting !== state.waiting) state = next;
 }
 
 /**

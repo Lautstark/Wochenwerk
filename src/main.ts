@@ -56,9 +56,15 @@ preferRendering((await settings()).metacomRendering ?? null);
 everyMinute(redraw);
 /* Und der Leser, falls auf dieser Maschine eine Brücke läuft. */
 listen();
-/* Somebody else's edit, arriving as a file that changed under this browser. */
-if (await adopted()) watchFolder(() => void pullFromFolder().then(redraw));
+/* Somebody else's edit, arriving as a file that changed under this browser. Asked
+   again on every settling, because a board that booted while the share was away
+   was answered `false` here and then never watched at all — see kalender.ts. */
+let watching = false;
+const watchOnceAdopted = async () => {
+  if (!watching && (watching = await adopted())) watchFolder(() => void pullFromFolder().then(redraw));
+};
+await watchOnceAdopted();
 /* The board plans nothing, but it does write: a card laid at the slot answers a
    choice, and that answer is a record like any other. So it owes the folder the
    same duty, and reaches for it the same way. */
-watchReach(() => void redraw());
+watchReach(() => { void redraw(); void watchOnceAdopted(); });

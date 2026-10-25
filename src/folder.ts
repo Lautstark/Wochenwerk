@@ -26,6 +26,13 @@ export const supported = Ablage.supported;
 export const isStore = () => ablage.status.kind !== "off" && ablage.status.kind !== "unsupported";
 /** Whether it is the store but currently out of reach. */
 export const isStale = () => ablage.status.kind === "stale";
+/** Whether the browser wants its permission for the folder confirmed again. */
+/* Kept apart from `isStale` because the way back differs: a share that is gone
+   comes back on its own and a timer notices, but `requestPermission` needs a
+   click — a page that says "es wird nachgereicht, sobald er wieder da ist" over
+   this state promises a healing that cannot happen. Whoever draws it offers
+   `allow` instead. */
+export const isAsking = () => ablage.status.kind === "needs-permission";
 
 /* A write reaches the folder only where the folder is the store, and never while
    it is stale — a mirror that took writes nobody else can see would be the second
@@ -64,6 +71,16 @@ export const stamps = async (kind: Kind): Promise<Map<string, number>> =>
    answers `idle` here even while the share is gone; the write that follows is what
    actually finds out, and it says so by going stale again. */
 export const reconnect = () => ablage.restore();
+/** One real read, so "back" is the folder's answer and not the permission's. */
+/* `reconnect` answers from the handle and the browser's grant alone, and a pass
+   with nothing owed used to write nothing either — so a share still gone was
+   believed to be back, and the banner fell half a minute before the poll stood
+   it up again. `list` says `stale` itself where the folder cannot be read,
+   which is the point of calling it; `personen` because it is the smallest kind
+   a household has. */
+export const probe = async (): Promise<void> => { await ablage.list("personen").catch(() => undefined); };
+/** Re-ask the browser for the folder. Must be called from a click. */
+export const allow = () => ablage.confirm();
 
 /* A batch — a series written, a reach deleted, a calendar emptied — happens inside
    one IndexedDB transaction, and reaching into that to file each record would put
