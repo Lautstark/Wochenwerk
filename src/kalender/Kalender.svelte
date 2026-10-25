@@ -129,7 +129,11 @@
         {reach.waiting
           ? `Der Browser braucht wieder deine Erlaubnis für den Ordner. ${many(reach.waiting)} warten darauf.`
           : "Der Browser braucht wieder deine Erlaubnis für den Ordner."}</span>
-        <button class="btn sm" type="button" onclick={() => void grant()}>Wieder erlauben</button></p>
+        <!-- `destructive` is the system's "a colour on a quiet button": the
+             banner's own red, on the banner's own ground. Not `.filled` — that
+             is the confirm of a destructive dialog, and this button is the
+             remedy, not the danger. -->
+        <button class="btn destructive sm" type="button" onclick={() => void grant()}>Wieder erlauben</button></p>
     {:else if reach.away}
       <p class="notice bad"><b>Die Wand bekommt das gerade nicht.</b>
         {reach.waiting

@@ -40,6 +40,9 @@
      with nine people in it, at 380px wide, the summary row wraps from 34px to
      50px.
    shadows .field: scoped to `.speech-row .field`.
+   shadows .btn: scoped to `.notice > .btn.destructive:hover`, adding the hover
+     ground components.css already measured for the quiet tier on this plate.
+     The reason stands beside the rule, after the status line's.
    shadows .btn: scoped to `.speech-row .btn`. The pair is what makes that row a
      row — the field takes the space, the play button keeps its size — and
      components.css has no opinion about either, since it draws the two controls
@@ -94,6 +97,11 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .topbar__nav b { font-size: 16px; margin-left: 6px; }
 a.btn { text-decoration: none; }
 .line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
+/* The banner's remedy button, in the banner's own colours. `destructive` hovers
+   to --danger-soft, which is this plate — the same disappearance components.css
+   measured for the quiet tier on a notice and answered with --surface-3, so the
+   same ground serves the same place. Adds a hover, replaces nothing. */
+.notice > .btn.destructive:hover:not(:disabled) { background: var(--surface-3); }
 /* The status line's own row, under the week. It used to share this row with what
    ARASAAC's licence is owed; that line is the shared footer's `credit` now —
    conventions.md §6.12 — and `.credit` went with it, so this holds one sentence
