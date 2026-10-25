@@ -189,12 +189,21 @@ about something.
 | next is an open choice | *Danach darfst du aussuchen: Laufrad fahren oder Spielplatz. Was möchtest du tun?* |
 | next is an open choice the cards of which cannot all be named | *Danach darfst du aussuchen.* |
 | next is a decided choice | *Danach kommt Schwimmbad. Das hast du ausgesucht.* |
-| nothing left today | *Heute ist nichts mehr geplant.* — alone, and the *now* sentence goes |
+| nothing left today, and nothing running | *Heute ist nichts mehr geplant.* — alone, and the *now* sentence goes |
+| nothing left today, behind something running | nothing — the *now* sentence has said everything that is true |
 
 **And when the day itself is over, that is the only sentence.** *Gerade ist nichts
 geplant. Heute ist nichts mehr geplant.* is one fact in two wordings; the second
 says the first and more, so it stays alone — the same yielding as one table up,
 and the day's end is where it was first noticed.
+
+**A day with something running is not over.** *Jetzt ist Fahrt zum anderen Haus.
+Heute ist nichts mehr geplant.* was the board contradicting itself inside one
+breath, about an evening that simply went on at the other house: nothing more
+*starts* on this board, but what a child hears claimed is the day, and the day is
+mid-sentence. So the day's own sentence is said only into an empty evening, and
+behind the last running appointment the slot keeps the same silence it keeps when
+the next thing is hours off.
 
 **In a gap there is one threshold, not two.** The horizon measures the wait from
 the end of what is running — but in a gap nothing is running, and that wait is the

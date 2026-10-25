@@ -423,7 +423,16 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
     return said ? [about(around, utter(fixed(FRAMES.again), own(said)))] : [];
   }
   const next = timedOn(week, iso(at)).find(item => item.start! > now);
-  if (!next) return [restOfIt()];
+  /* And the day's own sentence only into an empty evening. *Heute ist nichts mehr
+     geplant* is the sentence for a day that is over, and a day with something
+     still running is not over — it is being lived in. "Jetzt ist Fahrt zum
+     anderen Haus. Heute ist nichts mehr geplant." was the board contradicting
+     itself inside one breath, about an evening that simply went on at the other
+     house: nothing more *starts* on this board, but what a child hears claimed is
+     the day, and the day is mid-sentence. Behind a running appointment the slot
+     goes quiet instead — the same silence the horizon keeps below, and for the
+     same reason: the *now* sentence has already said everything that is true. */
+  if (!next) return running.length ? [] : [restOfIt()];
   const soon = minute(next.start!) - minute(now) <= SOON;
   /* *Gleich* is wall time and the wait is not. What a child is waiting through is
      the gap after whatever is happening now, so it is measured from the end of a
@@ -445,7 +454,8 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
      nothing in it. Not naming what is hours off is the judgement this horizon
      carries; claiming there is nothing there is a different claim, and it was the
      false one. *Heute ist nichts mehr geplant* is the sentence for a day that is
-     genuinely over, and it is reached above, where there is no `next` at all.
+     genuinely over, and it is reached above, where there is no `next` and nothing
+     running either.
 
      And in a gap there is no *after* for the horizon to measure from: `until` is
      this minute, so `wait` is the very number `soon` is asking about. Two

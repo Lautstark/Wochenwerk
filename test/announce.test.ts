@@ -129,6 +129,15 @@ describe("what is running", () => {
     const week = [appointment("08:00", "09:00", { title: "Frühstück" }), appointment("14:00", "15:00", { title: "Kita" })];
     expect(said(week, at("19:15"), house())).toEqual(["Es ist Dienstagabend.", "Heute ist nichts mehr geplant."]);
   });
+
+  it("does not call the day over while something is still running", () => {
+    /* "Jetzt ist Fahrt zum anderen Haus. Heute ist nichts mehr geplant." — the
+       board contradicting itself inside one breath, about an evening that simply
+       went on at the other house. The day sentence belongs to the day that is
+       over; behind the last running appointment the next slot goes quiet. */
+    const week = [appointment("19:30", "20:30", { title: "Fahrt zum anderen Haus" })];
+    expect(said(week, at("19:45"), house())).toEqual(["Es ist Dienstagabend.", "Jetzt ist Fahrt zum anderen Haus."]);
+  });
 });
 
 describe("two at once", () => {
@@ -258,8 +267,10 @@ describe("two beside each other", () => {
     const three = [appointment("09:00", "12:00", { title: "Kindergarten", people: ["e"] }),
       appointment("09:30", "12:30", { title: "Turnen", people: ["m"] }),
       appointment("10:00", "13:00", { title: "Musik", people: ["e"], id: "musik" })];
+    /* And no day-over sentence behind it: two of the three are still running, and
+       a day being lived in three places at once is the opposite of over. */
     expect(said(three, at("10:30"), home()))
-      .toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Musik.", "Heute ist nichts mehr geplant."]);
+      .toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Musik."]);
   });
 
   it("keeps the name where the third thing is a bracket rather than a third place", () => {

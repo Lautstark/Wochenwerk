@@ -247,16 +247,17 @@ test("a card at the slot answers the question, is said back, and stays once the 
   await expect.poll(() => spoken(page)).toEqual(["Du hast Spielplatz ausgesucht."]);
   await expect(tray(page)).toHaveCount(0);
   await page.keyboard.press("Space");
+  /* And no "Heute ist nichts mehr geplant" behind it: the afternoon it would be
+     called over by is the one being announced as happening. */
   await expect.poll(() => spoken(page)).toEqual([
     "Du hast Spielplatz ausgesucht.",
     "Es ist Dienstagnachmittag.",
     "Jetzt ist Spielplatz. Das hast du ausgesucht.",
-    "Heute ist nichts mehr geplant.",
   ]);
   /* Taken out again: the afternoon is already happening, so the answer stays. */
   await slot(page, null);
   await expect(tray(page)).toHaveCount(0);
-  await expect.poll(() => spoken(page)).toHaveLength(4);
+  await expect.poll(() => spoken(page)).toHaveLength(3);
 });
 
 test("taking the card out before the appointment begins takes the answer back", async ({ page }) => {
