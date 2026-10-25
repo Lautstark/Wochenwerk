@@ -6,7 +6,8 @@
   import Legal from "./Legal.svelte";
   import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "../model.js";
   import { load, shown, type Week } from "../store.svelte.js";
-  import { reaching, settled } from "../reaching.svelte.js";
+  import { allow } from "../folder.js";
+  import { look, reaching, settled } from "../reaching.svelte.js";
   import { owed } from "../symbols.js";
   import WeekGrid from "./WeekGrid.svelte";
   import { blankAppointment, editAppointment } from "./appointment.svelte.js";
@@ -76,6 +77,16 @@
   let reach = $derived(reaching());
   const many = (count: number) => count === 1 ? "1 Änderung" : `${count} Änderungen`;
 
+  /* The one way back no timer has: the browser wanting its permission confirmed
+     again takes a click, so the click is offered where the condition is said.
+     The folder may then turn out to be gone as well — `look` reads it and the
+     banner changes sentence rather than falling. */
+  async function grant() {
+    await allow().catch(() => undefined);
+    await look();
+    await load();
+  }
+
   /* And what became of them, once they went. The banner disappearing says the
      condition ended; it cannot say that somebody else's Tuesday won, and that is
      the one outcome a person has to hear in words. */
@@ -111,7 +122,15 @@
     <!-- What the folder is owed, over the week rather than in a panel. It is not
          an outcome line and not an empty state: it is a condition, and the one
          place it used to be visible was a settings panel folded shut. -->
-    {#if reach.away}
+    {#if reach.asking}
+      <!-- Said apart from `away`, because the promise differs: nothing here goes
+           of itself — the browser wants a click, and this is the click. -->
+      <p class="notice bad"><span><b>Die Wand bekommt das gerade nicht.</b>
+        {reach.waiting
+          ? `Der Browser braucht wieder deine Erlaubnis für den Ordner. ${many(reach.waiting)} warten darauf.`
+          : "Der Browser braucht wieder deine Erlaubnis für den Ordner."}</span>
+        <button class="btn sm" type="button" onclick={() => void grant()}>Wieder erlauben</button></p>
+    {:else if reach.away}
       <p class="notice bad"><b>Die Wand bekommt das gerade nicht.</b>
         {reach.waiting
           ? `Der Ordner ist nicht erreichbar. ${many(reach.waiting)} warten und gehen von selbst los, sobald er wieder da ist.`

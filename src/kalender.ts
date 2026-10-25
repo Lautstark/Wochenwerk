@@ -43,10 +43,16 @@ preferRendering((await settings()).metacomRendering ?? null);
 await load(0);
 /* Somebody else's edit, arriving as a file that changed under this browser. Only
    once the folder is the store: a folder mid-adoption changes constantly, and all
-   of those changes are ours. */
-if (await adopted()) watchFolder(() => void pullFromFolder().then(() => load()));
+   of those changes are ours. Asked again on every settling, because a page that
+   booted away from home was answered `false` here and then never watched at all —
+   the folder came back, and nobody was looking. */
+let watching = false;
+const watchOnceAdopted = async () => {
+  if (!watching && (watching = await adopted())) watchFolder(() => void pullFromFolder().then(() => load()));
+};
+await watchOnceAdopted();
 /* And the other direction: a folder this browser has gone out of reach of, and the
    records it is owed once it is back. It runs whether or not the folder is adopted
    — being out of reach is exactly the state in which that question cannot be
    asked — and redraws the week when something of ours has landed. */
-watchReach(() => void load());
+watchReach(() => { void load(); void watchOnceAdopted(); });
