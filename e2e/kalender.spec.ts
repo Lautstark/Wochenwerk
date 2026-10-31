@@ -507,7 +507,7 @@ async function openSettings(page: Page): Promise<Locator> {
 /** One of the folding panels, found by its heading, and unfolded. */
 async function panel(sheet: Locator, heading: string): Promise<Locator> {
   const node = sheet.locator("details").filter({ has: sheet.page().getByText(heading, { exact: true }) });
-  await node.locator("summary").click();
+  await node.locator("> summary").click();
   await expect(node).toHaveJSProperty("open", true);
   return node;
 }
@@ -614,21 +614,25 @@ test("the calendar's look is remembered, and applied before the sheet is opened 
   await expect(headingOf(sheet, "Aussehen")).toContainText("Dunkel");
 });
 
-test("the Ablage and Sicherung panels are there and say where things are", async ({ page }) => {
-  /* Both are shared panels from @lautstark/sicherung. Their insides belong to
-     that package's own suite; what this calendar owes is that they are present,
-     named, and answer the empty state in its words. */
+test("„Deine Daten“ is there and says where things are, with everything else in its ⋯", async ({ page }) => {
+  /* The shared panel from @lautstark/sicherung, in place of „Ablage" and
+     „Sicherung" since 2026-10-31. Its insides belong to that package's own
+     suite; what this calendar owes is that it is present, named, answers the
+     empty state, and that the backup file and deleting everything are reachable
+     through its ⋯. */
   await openCalendar(page);
   const sheet = await openSettings(page);
-  await expect(headingOf(sheet, "Ablage")).toContainText("Kein Ordner — der Kalender liegt nur hier.");
-  await expect(headingOf(sheet, "Sicherung")).toContainText("Nur von Hand");
-  const ablage = await panel(sheet, "Ablage");
-  await expect(ablage.getByRole("button", { name: "Ordner wählen …" })).toBeVisible();
-  const keeping = await panel(sheet, "Sicherung");
-  await expect(keeping.getByText("Noch kein Ordner für Sicherungskopien.")).toBeVisible();
-  await expect(keeping.getByRole("button", { name: "Ordner wählen", exact: true })).toBeVisible();
-  await expect(keeping.getByRole("button", { name: "Sicherung als Datei" })).toBeVisible();
-  await expect(keeping.getByRole("button", { name: "Sicherung einlesen" })).toBeVisible();
+  await expect(headingOf(sheet, "Deine Daten")).toContainText("nur in diesem Browser");
+  const data = await panel(sheet, "Deine Daten");
+  await expect(data.getByText("Alles liegt nur in diesem Browser.")).toBeVisible();
+  await expect(data.getByRole("button", { name: "Ordner wählen …" })).toBeVisible();
+  await data.getByRole("button", { name: "Mehr" }).click();
+  const rows = data.getByRole("menuitem");
+  await expect(rows.filter({ hasText: "Automatisch sichern in …" })).toBeVisible();
+  await expect(rows.filter({ hasText: "Sicherung herunterladen" })).toBeVisible();
+  await expect(rows.filter({ hasText: "Sicherung einlesen …" })).toBeVisible();
+  await expect(rows.last()).toHaveText("Alles löschen …");
+  await expect(rows.last()).toHaveClass("danger");
 });
 
 test("emptying the calendar counts what goes, and keeps the people", async ({ page }) => {

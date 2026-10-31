@@ -10,7 +10,6 @@
   import type { AblageStatus } from "@lautstark/sicherung/ablage";
   import { standing } from "../announce.js";
   import { hearSample, prepare } from "../speech.js";
-  import { pickFile } from "../ui.js";
   import { dayLabel, type Card, type Person } from "../model.js";
   import { adoptFolder, carriedOver, clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
   import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
@@ -36,8 +35,7 @@
      from the published entries — were nominally distinct from the ones the
      props asked for. They import `../dist` now, and the objects go straight
      in. */
-  import AblagePanel from "@lautstark/sicherung/svelte/AblagePanel";
-  import BackupPanel from "@lautstark/sicherung/svelte/BackupPanel";
+  import DatenPanel from "@lautstark/sicherung/svelte/DatenPanel";
   import MetacomPanel from "@lautstark/bildquelle/svelte/MetacomPanel";
   import VoicePicker from "@lautstark/stimmquelle/svelte/VoicePicker";
   import AzurePanel, { type AzureAccess, type AzureAnswer, type AzureWords }
@@ -71,7 +69,7 @@
    * would short-circuit against that record without reaching the DOM.
    */
   const unfolded = $state({
-    ablage: false, sicherung: false, symbole: false, stimme: false, sprachdienst: false,
+    daten: false, symbole: false, stimme: false, sprachdienst: false,
     karten: false, personen: false, aussehen: false, loeschen: false,
   });
 
@@ -137,25 +135,7 @@
     failed: words => `Azure hat nicht geantwortet (${words}).`,
   };
 
-  /* The package answers with a shape and never with words; these are ours. */
   const ablageStatus = (): AblageStatus => ablageStore.status;
-  function whereSays(status: AblageStatus): string {
-    switch (status.kind) {
-      case "unsupported": return "Dieser Browser kann keinen Ordner öffnen.";
-      case "off": return "Kein Ordner — der Kalender liegt nur hier.";
-      case "idle": return `Ordner „${status.folder}“.`;
-      case "saving": return "Wird geschrieben …";
-      case "needs-permission": return `Der Browser braucht die Erlaubnis für „${status.folder}“ erneut.`;
-      case "failed": return `Der Ordner ließ sich nicht schreiben: ${status.reason}`;
-      /* It used to say „und nimmt nichts an", which was never true: the edit went
-         into this browser and the folder write was dropped without a trace. It is
-         true now in the only sense that matters — nothing is lost and nothing is
-         kept back on purpose — because what is planned meanwhile is owed and paid
-         the moment the folder is back. See src/reaching.svelte.ts. */
-      case "stale": return `„${status.folder}“ ist nicht erreichbar. Geplant werden kann trotzdem — es wird nachgereicht, sobald der Ordner wieder da ist.`;
-      case "conflicted": return `${status.ids.length} Datei(en) liegen zweimal.`;
-    }
-  }
   /* „1 Termin" / „14 Termine" / „keine Termine". Zero gets a word rather than a
      digit, because „0 Karten werden gelöscht" is a sentence about nothing. */
   const count = (many: number, one: string, more: string) =>
@@ -180,11 +160,11 @@
      list is asked for a second time without the key. */
   let refused = $state("");
   let told = $state(false);
-  /* What the two shared panels tell their headings. Both answer '' where there
-     is no folder — deliberately, because neither has anything to name — and the
-     fallback beside each is this product's, saying what is true in the blank
-     case: kept by hand, and drawn from ARASAAC. */
-  let keepingState = $state("");
+  /* What the shared panels tell their headings. „Deine Daten" always has an
+     answer — where the work is, in the words every Lautstark programme uses.
+     METACOM's answers '' where there is no folder, and the fallback beside it
+     is this product's: drawn from ARASAAC. */
+  let dataState = $state("");
   let symbolsState = $state("");
   /* The name of the folder METACOM was found in, and what a fruitless look
      turned up — both only until the next act, because both are answers to a
@@ -407,21 +387,33 @@
   void sourceInUse;
 </script>
 
-<Panel section="Ablage" state={whereSays(where)} class="panel__body" bind:open={unfolded.ablage}><AblagePanel
-  store={ablageStore} adopt={adoptFolder} changed={() => void load().then(afterAdopting)} {say} {share} /></Panel>
-<Panel section="Sicherung" state={keepingState || "Nur von Hand"} class="panel__body" bind:open={unfolded.sicherung}>{#if keepsFolders}<BackupPanel
-  {backup} {say}
-  headline={text => { keepingState = text || "Nur von Hand"; }} /><hr class="hair" />{/if}<p class="small muted">Eine Momentaufnahme. Sie altert — übersteht aber einen Fehler, den der Ordner sofort mitmacht.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void run(async () => {
+<!--
+  „Deine Daten", @lautstark/sicherung's DatenPanel: the same panel in every
+  Lautstark programme, in place of „Ablage" and „Sicherung" until 2026-10-31.
+  One box says where the calendar is and whether that is safe, at most one
+  button sits under it, and the ⋯ in its corner holds another folder, forgetting
+  it, the dated second copy (only without a folder), the backup file out and
+  in, and — red, last — deleting everything, which still asks for the word.
+--><Panel section="Deine Daten" state={dataState} class="panel__body" bind:open={unfolded.daten}><DatenPanel
+  store={ablageStore} adopt={adoptFolder} changed={() => void load().then(afterAdopting)} {say} {share}
+  backup={keepsFolders ? backup : null}
+  headline={text => { dataState = text; }}
+  file={{
+    note: "Termine, Karten und Personen als eine Datei.",
+    download: () => void run(async () => {
       const made = await exportAll();
       const day = new Date().toISOString().slice(0, 10);
       downloadJson(made, `wochenwerk-sicherung-${day}.json`);
-    }, "Sicherung geschrieben.")}>Sicherung als Datei</button><button class="btn sm quiet" type="button" onclick={() => pickFile("application/json,.json", false, files => void run(async () => {
-      const data: unknown = JSON.parse(await files[0].text());
+    }, "Sicherung geschrieben."),
+    read: picked => void run(async () => {
+      const data: unknown = JSON.parse(await picked.text());
       if (!isBackup(data)) throw new Error("Das ist keine Wochenwerk-Sicherung.");
       const added = await importAll(data);
       await load();
       say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
-    }, ""))}>Sicherung einlesen</button></div><p class="small muted">Einlesen fügt hinzu und überschreibt nie.</p></Panel>
+    }, ""),
+  }}
+  wipe={() => void wipe(true)} /></Panel>
 <Panel section="Symbole" state={symbolsState || "Von ARASAAC"} class="panel__body" bind:open={unfolded.symbole}>{#if !ready}<p class="small">{connected ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage." : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung."}</p>{/if}{#if !ready && connected}<pre class="tree">{[folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"].join("\n")}</pre><p class="small muted">Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz.</p>{/if}{#if looked}<p class="notice bad">{looked.length ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.` : "Der Ordner ist noch leer."}</p>{/if}{#if connected && !ready}<div class="acts"><button class="btn sm primary" type="button" onclick={() => void lookForMetacom()}>Nochmal nachsehen</button></div>{/if}<MetacomPanel
   {metacom} {say}
   headline={text => { symbolsState = text || "Von ARASAAC"; }}
@@ -453,4 +445,6 @@
 <Panel section="Karten" state={`${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`} class="panel__body" bind:open={unfolded.karten}>{#if editingCard}<CardEditor card={editingCard} done={async () => { editingCard = null; await load(); moved(); }} />{:else}<p class="small muted">Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst.</p><div class="rows">{#each cardList as card}<Row title={card.name}>{#snippet lead()}<Picture symbol={card.symbol} name={card.name} />{/snippet}{#snippet state()}{#if card.nfc}<code class="nfc">{card.nfc}</code>{:else}<span class="row__state small muted">keine Nummer</span>{/if}{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingCard = card; }); add("Entfernen", () => void eraseCard(card), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !cardList.length}<p class="empty">noch keine</p>{/if}<button class="btn sm" type="button" onclick={() => { editingCard = { id: uuid(), name: "", updatedAt: 0 }; }}>＋ Neue Karte</button>{/if}</Panel>
 <Panel section="Personen" state={`${people.length} ${people.length === 1 ? "Person" : "Personen"}`} class="panel__body" bind:open={unfolded.personen}>{#if editingPerson}<PersonEditor person={editingPerson} done={async () => { editingPerson = null; await load(); moved(); }} />{:else}<div class="rows">{#each people as person}<Row title={person.name} state={person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag"}>{#snippet lead()}<Face {person} />{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingPerson = person; }); add("Entfernen", () => void erasePerson(person), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !people.length}<p class="empty">noch niemand</p>{/if}<button class="btn sm" type="button" onclick={() => { editingPerson = { id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 }; }}>＋ Neue Person</button>{/if}</Panel>
 <Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>
-<Panel section="Löschen" state="" class="panel__body" bind:open={unfolded.loeschen}><p class="small muted">Den Kalender leeren und von vorn planen. Karten und Personen bleiben.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void wipe(false)}>Alle Termine löschen</button></div><hr class="hair" /><p class="small muted">Alles, was Wochenwerk kennt. Danach ist es wie frisch installiert.</p><div class="acts"><button class="btn sm destructive" type="button" onclick={() => void wipe(true)}>Alle Daten löschen</button></div></Panel>
+<!-- Only the calendar's own reset is left here. Deleting everything moved into
+     the ⋯ of „Deine Daten" on 2026-10-31, beside the backup it should be
+     weighed against. --><Panel section="Löschen" state="" class="panel__body" bind:open={unfolded.loeschen}><p class="small muted">Den Kalender leeren und von vorn planen. Karten und Personen bleiben.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void wipe(false)}>Alle Termine löschen</button></div></Panel>

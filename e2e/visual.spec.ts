@@ -85,7 +85,7 @@ async function openSettings(page: Page): Promise<Locator> {
 /** Unfolds one panel and hands it back. `name=settings` closes the others. */
 async function open(page: Page, heading: string): Promise<Locator> {
   const node = panel(page, heading);
-  await node.locator("summary").click();
+  await node.locator("> summary").click();
   await expect(node).toHaveJSProperty("open", true);
   return node;
 }
@@ -167,10 +167,9 @@ test("the folder picker is available, so the panels below are the ones with fold
  * staying in the empty state rather than by being covered up.
  */
 const HEADINGS: ReadonlyArray<readonly [string, string]> = [
-  ["Ablage", "Kein Ordner — der Kalender liegt nur hier."],
-  ["Sicherung", "Nur von Hand"],
+  ["Deine Daten", "nur in diesem Browser"],
   /* @lautstark/bildquelle/metacom-panel answers '' for „no folder chosen" and
-     this product supplies the fallback, exactly as „Sicherung" does one row up.
+     this product supplies the fallback.
      It states what is happening rather than what is missing: with no licensed
      folder the search answers from ARASAAC, and needs no setting up to do it. */
   ["Symbole", "Von ARASAAC"],
@@ -216,26 +215,19 @@ test("the settings dialog, folded", async ({ page }) => {
  * line of text and the CSS being moved is all in the body.
  */
 
-test("the Ablage panel, unfolded", async ({ page }) => {
+test("the „Deine Daten“ panel, unfolded, and its ⋯ open", async ({ page }) => {
   await openSettings(page);
-  const ablage = await open(page, "Ablage");
-  /* From @lautstark/sicherung/ablage-panel — the shared panel that says where
-     the household's work lives. It is the same markup in four products, so a
-     change here is a change everywhere, which is the reason to hold it. */
-  await expect(ablage.locator(".where-panel")).toBeVisible();
-  await expect(ablage).toHaveScreenshot("panel-ablage.png");
-});
-
-test("the Sicherung panel, unfolded", async ({ page }) => {
-  await openSettings(page);
-  const keeping = await open(page, "Sicherung");
-  /* @lautstark/sicherung/backup-panel on top, this product's own file export
-     under the hairline. With no folder chosen the shared half says „Noch kein
-     Ordner für Sicherungskopien" and carries no age — which is why nothing in
-     this shot needs masking. Every other state of this panel puts a „vor elf
-     Tagen" in it, and a baseline of one of those would rot overnight. */
-  await expect(keeping.getByText("Noch kein Ordner für Sicherungskopien.")).toBeVisible();
-  await expect(keeping).toHaveScreenshot("panel-sicherung.png");
+  const data = await open(page, "Deine Daten");
+  /* @lautstark/sicherung's DatenPanel — the same markup in four products, so a
+     change here is a change everywhere, which is the reason to hold it. With no
+     folder it carries no name and no age, so nothing needs masking. */
+  await expect(data.locator(".where-panel .where")).toBeVisible();
+  await expect(data).toHaveScreenshot("panel-deine-daten.png");
+  /* Its ⋯, which holds the rest — „Alles löschen" last and red. The menu on
+     its own: it hangs out of the panel's box. */
+  await data.getByRole("button", { name: "Mehr" }).click();
+  await expect(data.getByRole("menuitem").last()).toHaveClass("danger");
+  await expect(data.locator(".menu")).toHaveScreenshot("panel-deine-daten-menu.png");
 });
 
 test("the Symbole panel, unfolded", async ({ page }) => {
@@ -341,10 +333,9 @@ test("the Stimme panel, unfolded", async ({ page }) => {
 test("the Löschen panel, unfolded", async ({ page }) => {
   await openSettings(page);
   const data = await open(page, "Löschen");
-  /* Two destructive buttons ranked rather than paired, which is a layout
-     decision and therefore exactly what a CSS move can undo without anybody
-     noticing. */
-  await expect(data.getByRole("button", { name: "Alle Daten löschen" })).toBeVisible();
+  /* Only the calendar's own reset since 2026-10-31; deleting everything is the
+     last row of the ⋯ in „Deine Daten". */
+  await expect(data.getByRole("button", { name: "Alle Termine löschen" })).toBeVisible();
   await expect(data).toHaveScreenshot("panel-loeschen.png");
 });
 
