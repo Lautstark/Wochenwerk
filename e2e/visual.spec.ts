@@ -29,8 +29,8 @@ import { at, cards, column, openBoard, timed, TUESDAY } from "./seed.js";
  * in this dialog was drawn for and the only one that does not depend on what
  * somebody happened to plan this week.
  *
- * Two panels are answered asynchronously (`Stimme` and `Sprachdienst` say „Wird
- * geladen …" until the voice catalogue arrives), so `openSettings` waits that
+ * One panel is answered asynchronously (`Stimme` says „Wird geladen …" until
+ * the voice catalogue arrives), so `openSettings` waits that
  * out rather than racing it. Everything else that could still move is pinned by
  * name before the shutter opens — see HEADINGS below, which is where the
  * masking argument is written out.
@@ -82,10 +82,11 @@ async function openSettings(page: Page): Promise<Locator> {
   return sheet;
 }
 
-/** Unfolds one panel and hands it back. `name=settings` closes the others. */
+/** Unfolds one panel and hands it back. `name=settings` closes the others.
+ *  „Aussehen" stands open on arrival, and a click would fold it. */
 async function open(page: Page, heading: string): Promise<Locator> {
   const node = panel(page, heading);
-  await node.locator("> summary").click();
+  if (!(await node.evaluate(el => (el as HTMLDetailsElement).open))) await node.locator("> summary").click();
   await expect(node).toHaveJSProperty("open", true);
   return node;
 }
@@ -146,8 +147,8 @@ test("the folder picker is available, so the panels below are the ones with fold
 });
 
 /**
- * Every heading, and the line beside it. Nine answers against an empty
- * database, and all nine of them fixed.
+ * Every heading, and the line beside it. Six answers against an empty
+ * database, and all six of them fixed.
  *
  * This is the masking, done as words.
  *
@@ -155,7 +156,7 @@ test("the folder picker is available, so the panels below are the ones with fold
  * down because it is not obvious until you look at the file it produces: the
  * state span is a stretched flex item in `summary`, so it is as wide as the row
  * whatever it says, and `mask` paints the element's box. Masking the four
- * moving-looking lines put a solid bar across four of the nine rows — half the
+ * moving-looking lines put a solid bar across four of the then nine rows — half the
  * dialog gone, including the paddings and the type this baseline exists to
  * hold, and it would have hidden a colour change in that very line.
  *
@@ -167,18 +168,18 @@ test("the folder picker is available, so the panels below are the ones with fold
  * staying in the empty state rather than by being covered up.
  */
 const HEADINGS: ReadonlyArray<readonly [string, string]> = [
+  /* First and open on arrival since 2026-10-31, as „Sprache & Aussehen" is in
+     the other programmes; the shot below therefore has its body in it. */
+  ["Aussehen", "Wie das Gerät"],
   ["Deine Daten", "nur in diesem Browser"],
-  /* @lautstark/bildquelle/metacom-panel answers '' for „no folder chosen" and
-     this product supplies the fallback.
-     It states what is happening rather than what is missing: with no licensed
-     folder the search answers from ARASAAC, and needs no setting up to do it. */
-  ["Symbole", "Von ARASAAC"],
+  /* @lautstark/bildquelle's SymbolePanel names the source in force; with no
+     METACOM folder that is ARASAAC. */
+  ["Symbole", "ARASAAC"],
+  /* Azure is a box inside this panel since 2026-10-31, not a panel of its own. */
   ["Stimme", "keine gewählt"],
-  ["Sprachdienst", "Kein Schlüssel"],
   ["Karten", "0 Karten"],
   ["Personen", "0 Personen"],
-  ["Aussehen", "Wie das Gerät"],
-];
+]
 
 /* The two left corners, squared for the shot, and this is the mask the config
    asks for in as many words: „If a shot flickers, the mask is wrong."
@@ -191,7 +192,7 @@ const HEADINGS: ReadonlyArray<readonly [string, string]> = [
    here on purpose and raising it to swallow this is the thing the config forbids.
 
    Squaring them costs the radius as a guarded property, which this shot was never
-   about: it is the nine panels and the line each one shows folded, and the file's
+   about: it is the panels and the line each one shows folded, and the file's
    own note above says which parts are deliberately kept out. A change to the
    radius belongs to design's own suite, next to the token that sets it. */
 const SQUARE = "dialog.sheet { border-radius: 0 !important; }";
@@ -232,23 +233,16 @@ test("the „Deine Daten“ panel, unfolded, and its ⋯ open", async ({ page })
 test("the Symbole panel, unfolded", async ({ page }) => {
   await openSettings(page);
   const symbols = await open(page, "Symbole");
-  /* @lautstark/bildquelle/metacom-panel, with this calendar's own material
-     around it: where METACOM belongs inside the Ablage above, which fassung the
-     search prefers below.
+  /* @lautstark/bildquelle's SymbolePanel since 2026-10-31: one question, two
+     cards — the same markup as bildhaft, drawn by components.css's `.answers`
+     and `.answer`, so a regression here is one in every product that asks it.
 
-     This shot is new with the migration and it is the one components.css asked
-     for by name — its note beside `.standing.bad .dot` says the rule "changes
-     nothing that was already drawn" only because no product emitted
-     `.metacom-panel` yet, and that the migration is where that has to be
-     checked. This is that check. `.metacom-panel` and `.metacom-panel__note` are
-     drawn by @lautstark/design v1.29.0 and by nothing in this repository, so a
-     regression in either is a regression in four products at once.
-
-     Empty like the rest: no folder chosen, so the state line is the grey dot and
-     „Noch kein METACOM-Ordner gewählt." and there is no count and no folder name
+     Empty like the rest: no folder chosen, so ARASAAC is the answer and METACOM
+     is the card that is „nicht eingerichtet", with no count and no folder name
      to rot. */
-  await expect(symbols.locator(".metacom-panel")).toBeVisible();
-  await expect(symbols.getByText("Noch kein METACOM-Ordner gewählt.")).toBeVisible();
+  await expect(symbols.getByRole("radiogroup")).toBeVisible();
+  await expect(symbols.getByRole("radio", { name: /ARASAAC/ })).toBeChecked();
+  await expect(symbols.getByText("nicht eingerichtet")).toBeVisible();
   await expect(symbols).toHaveScreenshot("panel-symbole.png");
 });
 
@@ -256,7 +250,9 @@ test("the Stimme panel, unfolded", async ({ page }) => {
   await openSettings(page);
   const voice = await open(page, "Stimme");
   /* @lautstark/stimmquelle/voice-picker, drawn by design 1.30.0's `.voice-picker`
-     rules, with this calendar's own sentence above it.
+     rules, and under it since 2026-10-31 the Azure box (AzureConnection) and
+     this calendar's own sentence. Nothing is chosen, so the list is unfolded
+     even though the picker is `folded`.
    *
    * This shot is new with the migration, and the reason it is new is the whole
    * argument for taking it. The picker was the largest hand-drawn surface in this
@@ -274,6 +270,7 @@ test("the Stimme panel, unfolded", async ({ page }) => {
    * and the row has to be a radio, which is the one piece of this that a
    * screenshot cannot check at all. */
   await expect(voice.locator(".voice-picker")).toBeVisible();
+  await expect(voice.locator("#azure .where")).toContainText("Stimmen von Microsoft Azure · nicht verbunden");
   await expect(voice.locator('.voices [role="radio"]').first()).toBeVisible();
   /* No language chips, and not because this product asked for none. The module
      draws them only where the catalogue holds more than one language, and

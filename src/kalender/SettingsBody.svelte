@@ -12,16 +12,18 @@
   import { hearSample, prepare } from "../speech.js";
   import { dayLabel, type Card, type Person } from "../model.js";
   import { adoptFolder, carriedOver, clearAll, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
-  import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
+  import { arasaac } from "@lautstark/bildquelle";
+  import type { SymbolSource } from "@lautstark/bildquelle/symbole-panel";
+  import { chooseSource, chosenSource, metacom, preferredRendering, preferRendering, useFolder } from "../symbols.js";
   import { caveats, labelOf, nameOf, offered, type Voice } from "../voices.js";
   import { load, shown } from "../store.svelte.js";
-  import { ablage as ablageStore, folders, HOME, isStore, metacomInFolder, stopTelling, tellOthers } from "../folder.js";
+  import { ablage as ablageStore, isStore, metacomInFolder, stopTelling, tellOthers } from "../folder.js";
   import { backup, keepsFolders } from "../backup.js";
   import { confirmDialog, openDialog } from "../views/dialog.js";
   import type { SettingsState } from "./settings.svelte.js";
   import Panel from "@lautstark/design/svelte/Panel";
   import ThemePicker from "@lautstark/design/svelte/ThemePicker";
-  /* The five provider panels, declared. Until 2026-09-17 each of these was a
+  /* The provider panels, declared. Until 2026-09-17 each of these was a
      plain DOM node from the package's vanilla twin, hosted through
      `@lautstark/design/svelte/Vanilla` — a wrapper, an `$effect` to sign the
      panel up for what it had to be told about, and an `onDestroy` to dispose
@@ -36,11 +38,10 @@
      props asked for. They import `../dist` now, and the objects go straight
      in. */
   import DatenPanel from "@lautstark/sicherung/svelte/DatenPanel";
-  import MetacomPanel from "@lautstark/bildquelle/svelte/MetacomPanel";
+  import SymbolePanel from "@lautstark/bildquelle/svelte/SymbolePanel";
   import VoicePicker from "@lautstark/stimmquelle/svelte/VoicePicker";
-  import AzurePanel, { type AzureAccess, type AzureAnswer, type AzureWords }
-    from "@lautstark/stimmquelle/svelte/AzurePanel";
-  import Dropdown from "@lautstark/design/svelte/Dropdown";
+  import AzureConnection, { type AzureConnectionWords } from "@lautstark/stimmquelle/svelte/AzureConnection";
+  import type { AzureAccess, AzureAnswer } from "@lautstark/stimmquelle/svelte/AzurePanel";
   import Overflow from "@lautstark/design/svelte/Overflow";
   import Row from "../pieces/Row.svelte";
   import Picture from "../pieces/Picture.svelte";
@@ -55,11 +56,11 @@
   /**
    * Which panel stands open, one field per panel.
    *
-   * Everything folded on arrival, which is what this dialog has always opened
-   * as. §3.11's „Sprache first and the only one open" is about a language
-   * setting and this product has none — no i18n module, both pages hardcoded
-   * `lang="de"` — so there is nothing for it to name, and conventions.md §6.2
-   * says so in as many words.
+   * „Aussehen" first and open on arrival, the way „Sprache & Aussehen" stands
+   * in the other Lautstark programmes since 2026-10-31. This one has no
+   * language to choose — no i18n module, both pages hardcoded `lang="de"` — so
+   * the panel is the half that is left, in the place the whole one has
+   * everywhere else. Everything else folded.
    *
    * Bound rather than passed one way, and that is a correctness matter rather
    * than a style. `name="settings"` is the platform's own accordion: opening
@@ -69,8 +70,8 @@
    * would short-circuit against that record without reaching the DOM.
    */
   const unfolded = $state({
-    daten: false, symbole: false, stimme: false, sprachdienst: false,
-    karten: false, personen: false, aussehen: false,
+    aussehen: true, daten: false, symbole: false, stimme: false,
+    karten: false, personen: false,
   });
 
   /* localStorage, like the three siblings: the scheme has to be readable before
@@ -85,7 +86,7 @@
    * the database; the person who typed a key wants to know whether Microsoft
    * answers, and each way it does not points somewhere different.
    *
-   * Injected into `AzurePanel` rather than owned by it — §6.9. The panel decides
+   * Injected into `AzureConnection` rather than owned by it — §6.9. The panel decides
    * *when* to ask (on arrival, and again before a save is written) and puts the
    * answer into words; which regex means „refused" stays here, beside the
    * `listVoices` call that produces the error, and this is the product's only
@@ -111,18 +112,22 @@
   }
 
   /**
-   * Every sentence the Azure panel says, and all of them this product's.
+   * Every sentence the Azure box under the voices says, and all of them this
+   * product's — §6.0: a shared component carries no German.
    *
-   * §6.0: a shared component carries no German. These are the words the
-   * hand-drawn panel said, moved rather than rewritten — `refusedOnSave` is the
-   * longer one, because a save is the moment the key and the region are being
-   * paired and the wrong pairing answers exactly the same 401 as a wrong key.
+   * The box's own words (what it is, whether it is connected, its one button)
+   * are bildhaft's, so the connection reads the same in every programme. The
+   * form's are the ones the hand-drawn panel said, moved rather than rewritten
+   * — `refusedOnSave` is the longer one, because a save is the moment the key
+   * and the region are being paired and the wrong pairing answers exactly the
+   * same 401 as a wrong key.
    */
-  const AZURE_WORDS: AzureWords = {
+  const AZURE_WORDS: AzureConnectionWords = {
     key: "Schlüssel",
     region: "Region",
-    regionHint: "Steht im Azure-Portal bei deiner Speech-Ressource.",
+    regionHint: "Steht im Azure-Portal neben dem Schlüssel.",
     save: "Speichern",
+    cancel: "Abbrechen",
     saving: "Wird geprüft …",
     forget: "Schlüssel entfernen",
     asking: "Frage Azure …",
@@ -133,6 +138,34 @@
     refused: "Azure nimmt den Schlüssel nicht an.",
     refusedOnSave: "Azure hat den Schlüssel abgelehnt. Meistens ist es die Region: sie muss die der Speech-Ressource sein, nicht die deines Kontos.",
     failed: words => `Azure hat nicht geantwortet (${words}).`,
+    title: "Stimmen von Microsoft Azure",
+    off: "nicht verbunden",
+    on: "verbunden",
+    refusedState: "abgelehnt",
+    offNote: "Mehr Stimmen, die natürlicher klingen. Dafür brauchst du ein eigenes Azure-Konto.",
+    onNote: (hint, region) => `Schlüssel ••••${hint} · Region ${region}`,
+    refusedNote: "Azure nimmt den Schlüssel nicht mehr an. Bis das behoben ist, sprechen die Stimmen auf diesem Gerät.",
+    connect: "Verbinden …",
+    change: "Ändern …",
+    check: "Schlüssel und Region prüfen …",
+  };
+
+  /* Where the household's Speech resource is when nothing is stored yet —
+     Frankfurt, as in bildhaft. stimmquelle's own default is still westeurope. */
+  const AZURE_REGION = "germanywestcentral";
+
+  /* Where a region is, in the words of somebody who has never opened the Azure
+     portal. Only the ones in Europe; anything else reads as Azure's code.
+     bildhaft's table. */
+  const REGION_NAMES: Record<string, string> = {
+    germanywestcentral: "Frankfurt",
+    westeurope: "Niederlande",
+    northeurope: "Irland",
+    switzerlandnorth: "Zürich",
+    francecentral: "Paris",
+    uksouth: "London",
+    swedencentral: "Schweden",
+    norwayeast: "Oslo",
   };
 
   const ablageStatus = (): AblageStatus => ablageStore.status;
@@ -156,32 +189,22 @@
      saying „keine gewählt" — an empty list is an answer, and it was giving the
      wrong one for as long as the catalogue took to arrive. */
   let loaded = $state(false);
-  /* Said rather than swallowed: stimmquelle throws on a key it cannot use, so the
-     list is asked for a second time without the key. */
-  let refused = $state("");
   let told = $state(false);
-  /* What the shared panels tell their headings. „Deine Daten" always has an
-     answer — where the work is, in the words every Lautstark programme uses.
-     METACOM's answers '' where there is no folder, and the fallback beside it
-     is this product's: drawn from ARASAAC. */
+  /* What the shared panels tell their headings: where the work is, and which
+     symbols are in force. */
   let dataState = $state("");
   let symbolsState = $state("");
-  /* The name of the folder METACOM was found in, and what a fruitless look
-     turned up — both only until the next act, because both are answers to a
-     question somebody just asked. */
+  /* The name of the Ablage folder METACOM was found in, until the next act on
+     the symbols — it is the answer to a question just asked. */
   let fromFolder = $state<string | null>(null);
-  let looked = $state<string[] | null>(null);
   /* A card and a person are edited inside the panel that lists them, not in a sheet
      over this one. */
   let editingCard = $state<Card | null>(null);
   let editingPerson = $state<Person | null>(null);
-  /* What is stored, and only so that the heading can say so without unfolding:
-     the field, the region, the probe line and which of the two buttons is
-     offered are all `AzurePanel`'s now. The key is held here because the
-     placeholder is the four characters it ends in — never the value, which is
-     the whole of that design. */
+  /* What is stored, so the Azure box can say whether it is connected. The key
+     is held here because the box shows the four characters it ends in — never
+     the value, which is the whole of that design. */
   let azure = $state<{ key: string; region: string } | undefined>(undefined);
-  let azureLoaded = $state(false);
   let theme = $state<Theme>(readTheme(THEME_KEY));
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -227,11 +250,11 @@
   }
   async function readVoices() {
     chosen = (await settings()).voice;
+    /* stimmquelle throws on a key it cannot use, so the list is asked for a
+       second time without the key. The Azure box under the list says why. */
     try {
       voices = await offered();
-      refused = "";
-    } catch (error) {
-      refused = (error as Error)?.message ?? "unbekannter Fehler";
+    } catch {
       voices = await offered(false).catch(() => []);
     }
     loaded = true;
@@ -242,7 +265,6 @@
      its own region field from `region`, and asks Azure itself. */
   async function readAzure() {
     azure = (await settings()).azure;
-    azureLoaded = true;
   }
 
   /**
@@ -264,7 +286,7 @@
   }
   async function forgetAzure() {
     await saveAzure(undefined);
-    say("Azure Speech wieder abgeschaltet.");
+    say("Die Stimmen von Microsoft Azure sind wieder aus.");
     await readAzure();
     await readVoices();
   }
@@ -313,55 +335,81 @@
     }
   };
 
-  async function lookForMetacom() {
-    await run(async () => {
-      const found = await metacomInFolder();
-      looked = found ? null : await folders();
-      if (found) { await useFolder(found.handle); fromFolder = found.name; looked = null; }
-    }, "");
+  /**
+   * Symbole: ARASAAC or METACOM, as one question — @lautstark/bildquelle's
+   * SymbolePanel, the same panel as in bildhaft. It replaced MetacomPanel, the
+   * Ablage tree drawn above it, „Nochmal nachsehen" and the „Darstellung"
+   * dropdown below it on 2026-10-31. The fassung is in the METACOM card's ⋯ now.
+   *
+   * `chosenSource()` is what the household answered; the panel draws METACOM
+   * as the answer only while its folder can be read. `pick` writes it down and
+   * hands it to symbols.ts, and then does what a change of source always did
+   * here: the folder-found note goes, the store is reloaded, the panels are
+   * told.
+   */
+  let source = $state<SymbolSource>(chosenSource());
+  /* What moving the answer did, waiting one task for a `say` from the panel to
+     take its place — after a folder is read in, the panel calls `pick` and then
+     says „METACOM ist eingerichtet", and one sentence is enough. */
+  let pickedTimer: ReturnType<typeof setTimeout> | undefined;
+  async function pickSource(next: SymbolSource) {
+    const was = source;
+    source = next;
+    chooseSource(next);
+    fromFolder = null;
+    await run(() => saveSettings({ symbolSource: next }), "");
+    if (next === was || (next === "arasaac" && !metacom.isReady())) return;
+    clearTimeout(pickedTimer);
+    pickedTimer = setTimeout(() => say(`Neue Symbole kommen jetzt von ${next === "metacom" ? "METACOM" : "ARASAAC"}. Was schon im Kalender ist, behält sein Bild.`));
   }
+  const symbolsSaid = (line: string) => { clearTimeout(pickedTimer); say(line); };
 
-  /* Which fassung of a doubled symbol the search should offer first. Only when the
-     folder holds more than one — a list with one answer is a question that should
-     not have been asked.
+  /**
+   * METACOM in the Ablage, looked for without being asked.
+   *
+   * A household that keeps its licensed folder beside its calendar should not
+   * have to set it up again on every device. Until 2026-10-31 that was a tree
+   * of the Ablage, a sentence and a „Nochmal nachsehen" button; now the panel
+   * looks each time it is unfolded and METACOM is not ready, and only says
+   * something when it found it. The capability is the one the Ablage already
+   * holds, so nothing is asked.
+   */
+  /* Once at a time: indexing a whole METACOM folder takes minutes on the
+     Wyse, and folding and unfolding in the meantime must not start a second. */
+  let looking = false;
+  async function lookInAblage() {
+    if (looking || !isStore() || metacom.isReady()) return;
+    looking = true;
+    const found = await metacomInFolder().catch(() => null);
+    if (found) await useFolder(found.handle).catch(() => undefined);
+    looking = false;
+    if (!found || !metacom.isReady()) return;
+    await pickSource("metacom");
+    clearTimeout(pickedTimer);
+    fromFolder = found.name;
+    say(`METACOM aus „${found.name}“ gelesen. Neue Symbole kommen jetzt von METACOM.`);
+  }
+  $effect(() => { if (unfolded.symbole) void untrack(lookInAblage); });
 
-     The trigger is @lautstark/design/svelte/Dropdown since this round, and the
-     row around it changed with it: it was a `<label class="field-row">` wrapping
-     the button, which does not label a `<button>` at all — the accessible name
-     fell through to the trigger's own text, so this control announced itself as
-     whichever fassung was in force and never as the question. conventions.md
-     §6.10 names this call site as that latent defect and says it is not a
-     template; the fix is the shared component's `aria-labelledby` pointing at
-     the `.lbl`, and a `<div>` in place of the `<label>` so nothing claims to
-     label something it cannot. Nothing tests this panel — it needs two
-     renderings in a connected METACOM folder — which is why the same conversion
-     in the appointment sheet's Wiederholen carries the e2e cases for both.
+  /* Which fassung of a doubled symbol the search should offer first — in the
+     METACOM card's ⋯, offered by the panel only where the folder holds two or
+     more. Told to the provider and written down, in that order. */
+  const rendering = $derived.by(() => {
+    void stamp;
+    return {
+      current: preferredRendering(),
+      choose: (segment: string | null) => void run(async () => {
+        preferRendering(segment);
+        await saveSettings({ metacomRendering: segment ?? undefined });
+      }, segment ? `Darstellung „${segment}“ wird bevorzugt.` : "Keine Darstellung mehr bevorzugt."),
+    };
+  });
 
-     `field` since design v1.38.1, for the same reason and against the shared
-     component's own note, which says `.btn` is "right for a picker standing on
-     its own in a settings panel". This one is not standing on its own: it has a
-     `.lbl` asking „Darstellung" above it and a `.small.muted` explaining it
-     below, which is a form row wherever it is drawn. What settles it is what it
-     stands under. The four things directly above are real buttons — „Ordner
-     wählen", „ZIP einlesen", „Neu einlesen", „Ordner vergessen" — and a 293px
-     bold `.btn` under that row reads as a fifth command rather than as the
-     panel's one setting. `field` takes the 352px `.opt .field-row` caps it at,
-     in regular 15px on a field's fill, so the setting looks like an answer and
-     the commands stay the commands. Measured against injected markup in the
-     live panel, since the real row needs a folder this product cannot connect
-     headlessly. */
-  let found = $derived.by(() => { void stamp; return renderings(); });
-  const namedRendering = (segment: string | null) => segment === null ? "Keine Vorgabe"
-    : `${segment} · ${found.find(entry => entry.segment === segment)?.count ?? 0} Symbole`;
-  const chooseRendering = (segment: string | null) => () => void run(async () => {
-    /* Told to the provider and written down, in that order. */
-    preferRendering(segment);
-    await saveSettings({ metacomRendering: segment ?? undefined });
-  }, segment ? `Darstellung „${segment}“ wird bevorzugt.` : "Keine Darstellung mehr bevorzugt.");
-
+  /* The provider mutates in place; its own `subscribe` is what moves `ready`
+     when the panel reads, re-reads or forgets a folder. */
+  $effect(() => metacom.subscribe(moved));
   let ready = $derived.by(() => { void stamp; return metacom.isReady(); });
   let connected = $derived.by(() => { void stamp; return isStore(); });
-  let where = $derived.by(() => { void stamp; return ablageStatus(); });
   let cardList = $derived([...shown().cards.values()]);
   let people = $derived(shown().people);
   let namedVoice = $derived(nameOf(voices, chosen));
@@ -379,9 +427,12 @@
   void readAzure();
   void readVoices();
   void readTelling();
-  void sourceInUse;
 </script>
 
+<!--
+  „Aussehen" first and open on arrival — the place „Sprache & Aussehen" has in
+  every Lautstark programme; this one has no language to choose.
+--><Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small faint">Gilt nur in diesem Browser. Das Board bleibt dunkel.</p></Panel>
 <!--
   „Deine Daten", @lautstark/sicherung's DatenPanel: the same panel in every
   Lautstark programme, in place of „Ablage" and „Sicherung" until 2026-10-31.
@@ -409,34 +460,25 @@
     }, ""),
   }}
   wipe={() => void wipe()} /></Panel>
-<Panel section="Symbole" state={symbolsState || "Von ARASAAC"} class="panel__body" bind:open={unfolded.symbole}>{#if !ready}<p class="small">{connected ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage." : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung."}</p>{/if}{#if !ready && connected}<pre class="tree">{[folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"].join("\n")}</pre><p class="small muted">Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz.</p>{/if}{#if looked}<p class="notice bad">{looked.length ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.` : "Der Ordner ist noch leer."}</p>{/if}{#if connected && !ready}<div class="acts"><button class="btn sm primary" type="button" onclick={() => void lookForMetacom()}>Nochmal nachsehen</button></div>{/if}<MetacomPanel
-  {metacom} {say}
-  headline={text => { symbolsState = text || "Von ARASAAC"; }}
-  after={async action => {
-    /* Both of this panel's own scraps of memory are answers to „is METACOM
-       sitting in the Ablage?", and any act on the shared block has just made
-       them stale. `fromFolder` survives „Neu einlesen" alone. */
-    if (action !== "reread") fromFolder = null;
-    looked = null;
-    await load();
-    moved();
-  }} />{#if ready}<p class="small">{fromFolder ? `METACOM liegt in „${folderName(where)}“ — jedes Gerät, das die Ablage erreicht, zeichnet damit.` : "Gezeichnet wird mit METACOM aus einem eigenen Ordner."}</p>{/if}{#if found.length >= 2}<div class="opt"><div class="field-row"><span class="lbl" id="renderingLabel">Darstellung</span><Dropdown field start labelledBy="renderingLabel" label={namedRendering(preferredRendering())} build={add => { const live = preferredRendering(); add(namedRendering(null), chooseRendering(null), { checked: live === null }); for (const entry of found) add(namedRendering(entry.segment), chooseRendering(entry.segment), { checked: live === entry.segment }); }} /></div><p class="small muted">METACOM führt dieselben Symbole mehrfach. Die Vorgabe sortiert die Suche; ausgeschlossen wird nichts.</p></div>{/if}</Panel>
-<Panel section="Stimme" state={!loaded ? "Wird geladen …" : chosen ? namedVoice || "gewählte Stimme fehlt" : "keine gewählt"} class="panel__body" bind:open={unfolded.stimme}><p class="small muted">Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte.</p>{#if refused}<p class="notice bad">Azure nimmt den Schlüssel nicht an ({refused}). Unten stehen nur die Stimmen, die keinen brauchen.</p>{/if}{#if chosen && !namedVoice}<p class="notice">Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert.</p>{/if}{#if loaded}{#if voices.length}<VoicePicker
-  voices={() => voices} current={() => chosen}
+<Panel section="Symbole" state={symbolsState} class="panel__body" bind:open={unfolded.symbole}><SymbolePanel
+  {metacom} current={source} pick={pickSource} say={symbolsSaid}
+  attribution={arasaac.attribution ?? null} {rendering}
+  headline={text => { symbolsState = text; }} />{#if ready && fromFolder}<p class="small faint">METACOM liegt in „{fromFolder}“. Jedes Gerät, das die Ablage benutzt, findet es dort.</p>{:else if connected && !ready}<p class="small faint">Liegt dein METACOM-Ordner in der Ablage, findet der Kalender ihn hier von selbst — auf jedem Gerät, das sie benutzt. Ob du METACOM so teilen darfst, steht in deiner Lizenz.</p>{/if}</Panel>
+<Panel section="Stimme" state={!loaded ? "Wird geladen …" : chosen ? namedVoice || "gewählte Stimme fehlt" : "keine gewählt"} class="panel__body" bind:open={unfolded.stimme}>{#if chosen && loaded && !namedVoice}<p class="notice">Die gewählte Stimme gibt es auf diesem Gerät gerade nicht. Bis eine andere gewählt wird, bleibt sie gespeichert.</p>{/if}{#if loaded}{#if voices.length}<VoicePicker
+  folded voices={() => voices} current={() => chosen}
   pick={id => { if (id && id !== chosen) void choose(id); }}
   hear={async (voice, onProgress) => {
     try { await hearSample(voice.id, onProgress); }
     catch (error) { say(`${labelOf(voice, voices)} konnte nicht sprechen: ${(error as Error)?.message ?? "unbekannter Fehler"}`); }
   }}
-  notes={voice => caveats(voice as Voice)} />{:else}<p class="empty">keine Stimme verfügbar</p>{/if}{/if}</Panel>
-<Panel section="Sprachdienst" state={!azureLoaded ? "Wird geladen …" : azure ? `Schlüssel ••••${azure.key.slice(-4)}` : "Kein Schlüssel"} class="panel__body" bind:open={unfolded.sprachdienst}><AzurePanel
-  id="sprachdienst" probeId="azure-probe" fieldId="azure-key" regionId="azure-region"
-  hintId="azure-hint" saveId="azure-save" forgetId="azure-forget"
-  hasKey={!!azure} placeholder={azure ? `••••${azure.key.slice(-4)}` : ""} region={azure?.region}
+  notes={voice => caveats(voice as Voice)} />{:else}<p class="empty">keine Stimme verfügbar</p>{/if}{/if}<AzureConnection
+  id="azure" formId="azure-form" fieldId="azure-key" regionId="azure-region"
+  saveId="azure-save" forgetId="azure-forget" probeId="azure-probe"
+  hasKey={!!azure} hint={azure?.key.slice(-4) ?? ""} region={azure?.region ?? AZURE_REGION}
+  regionName={code => REGION_NAMES[code] ?? code}
   stored={async () => (await settings()).azure?.key}
   probe={probeAzure} save={keepAzure} forget={forgetAzure}
   words={AZURE_WORDS} announce={say}
-  >{#snippet children()}<p>Kostenpflichtig, braucht ein Konto bei Microsoft. Der Schlüssel bleibt in diesem Browser und geht direkt zu Microsoft.</p><p>Ein Schlüssel für den ganzen Kalender.</p>{/snippet}</AzurePanel></Panel>
+  ><p>Kostet etwas und braucht ein Konto bei Microsoft. Die Wörter gehen von diesem Browser direkt an Microsoft; der Schlüssel bleibt hier und gilt für den ganzen Kalender.</p></AzureConnection><p class="small faint">Eine Stimme für den ganzen Kalender — nicht je Termin oder Karte.</p></Panel>
 <Panel section="Karten" state={`${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`} class="panel__body" bind:open={unfolded.karten}>{#if editingCard}<CardEditor card={editingCard} done={async () => { editingCard = null; await load(); moved(); }} />{:else}<p class="small muted">Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst.</p><div class="rows">{#each cardList as card}<Row title={card.name}>{#snippet lead()}<Picture symbol={card.symbol} name={card.name} />{/snippet}{#snippet state()}{#if card.nfc}<code class="nfc">{card.nfc}</code>{:else}<span class="row__state small muted">keine Nummer</span>{/if}{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingCard = card; }); add("Entfernen", () => void eraseCard(card), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !cardList.length}<p class="empty">noch keine</p>{/if}<button class="btn sm" type="button" onclick={() => { editingCard = { id: uuid(), name: "", updatedAt: 0 }; }}>＋ Neue Karte</button>{/if}</Panel>
 <Panel section="Personen" state={`${people.length} ${people.length === 1 ? "Person" : "Personen"}`} class="panel__body" bind:open={unfolded.personen}>{#if editingPerson}<PersonEditor person={editingPerson} done={async () => { editingPerson = null; await load(); moved(); }} />{:else}<div class="rows">{#each people as person}<Row title={person.name} state={person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag"}>{#snippet lead()}<Face {person} />{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingPerson = person; }); add("Entfernen", () => void erasePerson(person), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !people.length}<p class="empty">noch niemand</p>{/if}<button class="btn sm" type="button" onclick={() => { editingPerson = { id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 }; }}>＋ Neue Person</button>{/if}</Panel>
-<Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>

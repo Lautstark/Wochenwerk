@@ -39,11 +39,18 @@ export const renderings = () => (metacom.isReady() ? metacom.renderings() : []);
 export const preferRendering = (segment: string | null) => metacom.preferRendering(segment);
 export const preferredRendering = () => metacom.preferredRendering;
 
-/* Which source the household draws from. It is derived and never chosen: a
-   connected METACOM folder is the answer, and without one it is ARASAAC. So there
-   is no preference to keep, nothing that can disagree with the folder, and no
-   household that has to pick before it can search. */
-export const sourceInUse = (): ProviderId => (metacom.isReady() ? "metacom" : "arasaac");
+/* Which source the household draws from: METACOM while its folder can be read,
+   unless the household has said ARASAAC in Einstellungen → Symbole. Until
+   2026-10-31 this was derived and never chosen — a connected folder was the
+   answer — and the default still is: `chosen` starts at "metacom", so a
+   household that never opens the panel draws exactly as before. The shared
+   SymbolePanel asks the question as two cards, and an answer that cannot be
+   given is a card that snaps back, so the answer is kept now. It lives in the
+   settings record and is handed over at boot, like the rendering. */
+let chosen: ProviderId = "metacom";
+export const chooseSource = (source: ProviderId) => { chosen = source; };
+export const chosenSource = (): ProviderId => chosen;
+export const sourceInUse = (): ProviderId => (chosen === "metacom" && metacom.isReady() ? "metacom" : "arasaac");
 
 /* The source itself, which is what @lautstark/bildquelle/svelte/SymbolSearch asks
    for: it searches, draws the pictures and derives the attribution from the thing

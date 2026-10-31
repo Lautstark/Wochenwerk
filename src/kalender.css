@@ -236,12 +236,6 @@ a.btn { text-decoration: none; }
    action away from the others, Löschen apart from Sichern, needs it defined
    here or the gap collapses and the two stand side by side. */
 .spacer { flex: 1 1 auto; }
-/* One preference inside a panel: what it is called, the button that answers it,
-   and the sentence saying what the answer does. The control does not stretch —
-   a menu trigger as wide as the dialog reads as a text field. */
-.opt { display: grid; gap: 6px; margin-top: 14px; }
-.opt .field-row { flex: 0 1 auto; max-width: 22rem; }
-.opt p { margin: 0; }
 /* Where @lautstark/bildquelle/svelte/SymbolSearch stands, and the only thing
    this product says about it: the component draws a field, a grid and the
    attribution line and carries no class of its own, because where it sits and
@@ -341,8 +335,9 @@ a.btn { text-decoration: none; }
 .panel > .panel__body { display: grid; gap: 10px; padding: 0 16px 16px; }
 
 /*
- * The Sprachdienst panel, which is `@lautstark/stimmquelle/svelte/AzurePanel`
- * since 2026-09-17 and no longer this product's markup.
+ * The Azure form, `@lautstark/stimmquelle/svelte/AzurePanel` since 2026-09-17,
+ * and since 2026-10-31 unfolded by `AzureConnection`'s one button under the
+ * voices rather than standing as a panel of its own („Sprachdienst").
  *
  * §6.9 is explicit about why there is anything to write here at all: the panel
  * emits only names components.css draws — `.field`, `.btn`, `.acts` — and
@@ -366,10 +361,10 @@ a.btn { text-decoration: none; }
  * arrangement of a panel three products are meant to share. Recorded rather
  * than worked around.
  */
-#sprachdienst > * { margin: 0 0 10px; }
-#sprachdienst > :last-child { margin-bottom: 0; }
-#sprachdienst > label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--text-dim); }
-#sprachdienst > p { font-size: 13.5px; color: var(--text-dim); }
+#azure-form > * { margin: 0 0 10px; }
+#azure-form > :last-child { margin-bottom: 0; }
+#azure-form > label { display: block; margin-bottom: 7px; font-size: 13px; color: var(--text-dim); }
+#azure-form > p { font-size: 13.5px; color: var(--text-dim); }
 /* A line that has not been given anything to say takes no row. The panel holds
    its status <p> for the life of the dialog so a reader is not moved by its
    arrival; empty, it was spending a gap and two margins — 37px of nothing

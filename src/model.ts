@@ -477,4 +477,8 @@ export type Settings = {
       out, so a symbol that exists in one fassung stays reachable and what is
       already in the calendar keeps the picture it has. */
   metacomRendering?: string;
+  /** Which symbols new pictures come from. Absent means METACOM wherever its
+      folder can be read, ARASAAC otherwise — what it was before there was a
+      choice. See `sourceInUse` in symbols.ts. */
+  symbolSource?: "arasaac" | "metacom";
 };

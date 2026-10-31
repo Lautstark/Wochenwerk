@@ -507,7 +507,8 @@ async function openSettings(page: Page): Promise<Locator> {
 /** One of the folding panels, found by its heading, and unfolded. */
 async function panel(sheet: Locator, heading: string): Promise<Locator> {
   const node = sheet.locator("details").filter({ has: sheet.page().getByText(heading, { exact: true }) });
-  await node.locator("> summary").click();
+  /* „Aussehen" stands open on arrival, and a click would fold it. */
+  if (!(await node.evaluate(el => (el as HTMLDetailsElement).open))) await node.locator("> summary").click();
   await expect(node).toHaveJSProperty("open", true);
   return node;
 }
@@ -584,13 +585,60 @@ test("the chosen voice is remembered across a reload", async ({ page }) => {
   await expect(headingOf(sheet, "Stimme")).toContainText("keine gewählt");
   const voice = await panel(sheet, "Stimme");
   await voice.getByRole("radio", { name: /Testa/ }).click();
-  await expect(voice.getByRole("radio", { name: /Testa/ })).toBeChecked();
+  /* The list folds to the chosen voice alone (stimmquelle's `folded`), with
+     „Andere Stimme …" to open it again. */
+  await expect(voice.locator('.voice[aria-current="true"]')).toContainText("Testa");
+  await expect(voice.getByRole("button", { name: "Andere Stimme …" })).toBeVisible();
   await expect(headingOf(sheet, "Stimme")).toContainText("Testa");
   await expect(page.getByRole("status").filter({ hasText: "Der Kalender spricht jetzt mit Testa." })).toHaveCount(1);
 
   await page.reload();
   sheet = await openSettings(page);
   await expect(headingOf(sheet, "Stimme")).toContainText("Testa");
+  const again = await panel(sheet, "Stimme");
+  await again.getByRole("button", { name: "Andere Stimme …" }).click();
+  await expect(again.getByRole("radio", { name: /Testa/ })).toBeChecked();
+});
+
+test("Azure is a box under the voices: not connected, and one button to connect", async ({ page }) => {
+  /* stimmquelle's AzureConnection, in place of the „Sprachdienst" panel since
+     2026-10-31. Connecting itself needs Microsoft; what this calendar owes is
+     the box, its one button, and the form behind it with a way back out. */
+  await openCalendar(page);
+  const sheet = await openSettings(page);
+  await expect(sheet.locator("summary").filter({ hasText: "Sprachdienst" })).toHaveCount(0);
+  const voice = await panel(sheet, "Stimme");
+  const box = voice.locator("#azure");
+  await expect(box.locator(".where")).toContainText("Stimmen von Microsoft Azure · nicht verbunden");
+  await box.getByRole("button", { name: "Verbinden …" }).click();
+  await expect(box.locator("#azure-key")).toBeVisible();
+  /* Frankfurt is where the region starts, as in bildhaft. */
+  await expect(box.locator("#azure-region")).toHaveValue("germanywestcentral");
+  await box.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(box.locator("#azure-key")).toHaveCount(0);
+  await expect(box.getByRole("button", { name: "Verbinden …" })).toBeVisible();
+});
+
+test("Symbole asks one question, and ARASAAC is the answer without a folder", async ({ page }) => {
+  /* bildquelle's SymbolePanel, in place of MetacomPanel, the Ablage tree and
+     „Nochmal nachsehen" since 2026-10-31. */
+  await openCalendar(page);
+  const sheet = await openSettings(page);
+  await expect(headingOf(sheet, "Symbole")).toContainText("ARASAAC");
+  const symbols = await panel(sheet, "Symbole");
+  await expect(symbols.getByRole("radio", { name: /ARASAAC/ })).toBeChecked();
+  await expect(symbols.getByText("nicht eingerichtet")).toBeVisible();
+  await expect(symbols.getByRole("button", { name: "Nochmal nachsehen" })).toHaveCount(0);
+  await symbols.getByRole("button", { name: "Einrichten …" }).click();
+  await expect(symbols.getByRole("button", { name: "Ordner wählen …" })).toBeVisible();
+});
+
+test("„Aussehen“ is the first panel, and open on arrival", async ({ page }) => {
+  await openCalendar(page);
+  const sheet = await openSettings(page);
+  const first = sheet.locator("details").first();
+  await expect(first.locator("> summary")).toContainText("Aussehen");
+  await expect(first).toHaveJSProperty("open", true);
 });
 
 test("the calendar's look is remembered, and applied before the sheet is opened again", async ({ page }) => {

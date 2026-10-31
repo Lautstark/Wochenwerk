@@ -538,12 +538,13 @@ werden so 136.559, und die Hüllen zählt der Symbol-Index mit:
 ssh wochenwerk@<adresse> "find ~/kalender/Lautstark/METACOM_9_Desktop -name '._*' -delete"
 ```
 
-Dann im Kalender **Einstellungen → Symbole → „Nochmal nachsehen"**. Das Indizieren
+Dann im Kalender **Einstellungen → Symbole** aufklappen: der Kalender sieht
+von selbst in der Ablage nach und liest den Ordner ein. Das Indizieren
 von 68.000 Dateien dauert auf einem J4105 ein paar Minuten; danach steht dort
 „67952 Symbole". **Das Board zeigt sie erst nach einem Neuladen** — es hat seine
 Seite geladen, als es den Ordner noch nicht gab.
 
-Zuletzt **Darstellung** auf `PNG_ohne_Rahmen` stellen: METACOM führt dieselben
+Zuletzt im **⋯ der METACOM-Karte** `PNG_ohne_Rahmen` wählen: METACOM führt dieselben
 Symbole vierfach, und der gerahmte Satz bringt einen schwarzen Rand und das
 aufgedruckte Wort mit — beides will ein Board für ein Kind nicht, das noch nicht
 liest. Die Vorgabe sortiert nur die Suche und schließt nichts aus; was schon in

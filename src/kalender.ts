@@ -6,7 +6,7 @@ import { load } from "./store.svelte.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { backup } from "./backup.js";
 import { watchReach } from "./reaching.svelte.js";
-import { metacom, preferRendering, restore } from "./symbols.js";
+import { chooseSource, metacom, preferRendering, restore } from "./symbols.js";
 import Kalender from "./kalender/Kalender.svelte";
 
 /* The boot, and only the boot: the page is kalender/Kalender.svelte, what it shows
@@ -49,6 +49,7 @@ await pullFromFolder().catch(() => undefined);
 /* The package holds the rendering preference for the tab and persists nothing, so
    the household's answer is handed to it once the folder is back. */
 preferRendering((await settings()).metacomRendering ?? null);
+chooseSource((await settings()).symbolSource ?? "metacom");
 await load(0);
 /* Somebody else's edit, arriving as a file that changed under this browser. Only
    once the folder is the store: a folder mid-adoption changes constantly, and all
