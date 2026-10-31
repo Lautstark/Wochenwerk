@@ -11,7 +11,7 @@
   import { standing } from "../announce.js";
   import { hearSample, prepare } from "../speech.js";
   import { dayLabel, type Card, type Person } from "../model.js";
-  import { adoptFolder, carriedOver, clearAll, clearAppointments, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
+  import { adoptFolder, carriedOver, clearAll, countAll, exportAll, importAll, isBackup, removeCard, removePerson, saveAzure, saveSettings, saveVoice, settings, uuid, wipeReaches } from "../db.js";
   import { metacom, preferredRendering, preferRendering, renderings, sourceInUse, useFolder } from "../symbols.js";
   import { caveats, labelOf, nameOf, offered, type Voice } from "../voices.js";
   import { load, shown } from "../store.svelte.js";
@@ -70,7 +70,7 @@
    */
   const unfolded = $state({
     daten: false, symbole: false, stimme: false, sprachdienst: false,
-    karten: false, personen: false, aussehen: false, loeschen: false,
+    karten: false, personen: false, aussehen: false,
   });
 
   /* localStorage, like the three siblings: the scheme has to be readable before
@@ -283,7 +283,7 @@
   };
   /* What goes, counted, and how far it goes. §4.3 asks a destructive confirmation
      to name the count and what does not come back. */
-  const wipe = async (everything: boolean) => {
+  const wipe = async () => {
     const reach = wipeReaches();
     const named = folderName(ablageStatus());
     if (reach === "unreachable") {
@@ -297,24 +297,19 @@
       return;
     }
     const counted = await countAll();
-    const list = everything
-      ? [count(counted.termine, "Termin", "Termine"), count(counted.karten, "Karte", "Karten"),
-         count(counted.personen, "Person", "Personen")].join(", ")
-      : count(counted.termine, "Termin", "Termine");
+    const list = [count(counted.termine, "Termin", "Termine"), count(counted.karten, "Karte", "Karten"),
+      count(counted.personen, "Person", "Personen")].join(", ");
     const far = reach === "folder"
       ? ` Auch im Ordner „${named}“, und damit auf jedem Gerät, das ihn benutzt.`
       : "";
     if (await confirmDialog({
-      title: everything ? "Alle Daten löschen" : "Alle Termine löschen",
-      body: everything
-        ? `${list} werden gelöscht.${far} Das lässt sich nicht rückgängig machen.`
-        : `${list} werden gelöscht. Karten und Personen bleiben.${far}`,
-      confirmLabel: everything ? "Alles löschen" : "Termine löschen", danger: true,
-      /* Only the total asks for a word, and it is the only act in this product
-         that does. */
-      ...(everything ? { requireTyping: "löschen", typingLabel: "Tipp „löschen“, um zu bestätigen" } : {}),
+      title: "Alle Daten löschen",
+      body: `${list} werden gelöscht.${far} Das lässt sich nicht rückgängig machen.`,
+      confirmLabel: "Alles löschen", danger: true,
+      /* The only act in this product that asks for a word. */
+      requireTyping: "löschen", typingLabel: "Tipp „löschen“, um zu bestätigen",
     })) {
-      await run(() => everything ? clearAll() : clearAppointments().then(() => undefined), "Gelöscht.");
+      await run(clearAll, "Gelöscht.");
     }
   };
 
@@ -413,7 +408,7 @@
       say(added ? `${added} Einträge eingelesen.` : "Alles daraus war schon da.");
     }, ""),
   }}
-  wipe={() => void wipe(true)} /></Panel>
+  wipe={() => void wipe()} /></Panel>
 <Panel section="Symbole" state={symbolsState || "Von ARASAAC"} class="panel__body" bind:open={unfolded.symbole}>{#if !ready}<p class="small">{connected ? "Für METACOM legst du deinen lizenzierten Ordner in die Ablage." : "Ohne eigenen Ordner kommen die Symbole von ARASAAC — ohne Einrichtung."}</p>{/if}{#if !ready && connected}<pre class="tree">{[folderName(where) || HOME, `├── METACOM_9_Desktop   ← hier hinein`, "├── termine", "└── personen"].join("\n")}</pre><p class="small muted">Meist heißt er METACOM_9_Desktop. Wer die Ablage teilt, teilt METACOM mit — ob das erlaubt ist, steht in deiner Lizenz.</p>{/if}{#if looked}<p class="notice bad">{looked.length ? `Dort ist kein METACOM-Ordner. Gefunden habe ich: ${looked.join(", ")}.` : "Der Ordner ist noch leer."}</p>{/if}{#if connected && !ready}<div class="acts"><button class="btn sm primary" type="button" onclick={() => void lookForMetacom()}>Nochmal nachsehen</button></div>{/if}<MetacomPanel
   {metacom} {say}
   headline={text => { symbolsState = text || "Von ARASAAC"; }}
@@ -445,6 +440,3 @@
 <Panel section="Karten" state={`${cardList.length} ${cardList.length === 1 ? "Karte" : "Karten"}`} class="panel__body" bind:open={unfolded.karten}>{#if editingCard}<CardEditor card={editingCard} done={async () => { editingCard = null; await load(); moved(); }} />{:else}<p class="small muted">Karten sind das, was zur Wahl steht: ein Bild mit NFC-Tag, das du hinlegst.</p><div class="rows">{#each cardList as card}<Row title={card.name}>{#snippet lead()}<Picture symbol={card.symbol} name={card.name} />{/snippet}{#snippet state()}{#if card.nfc}<code class="nfc">{card.nfc}</code>{:else}<span class="row__state small muted">keine Nummer</span>{/if}{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingCard = card; }); add("Entfernen", () => void eraseCard(card), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !cardList.length}<p class="empty">noch keine</p>{/if}<button class="btn sm" type="button" onclick={() => { editingCard = { id: uuid(), name: "", updatedAt: 0 }; }}>＋ Neue Karte</button>{/if}</Panel>
 <Panel section="Personen" state={`${people.length} ${people.length === 1 ? "Person" : "Personen"}`} class="panel__body" bind:open={unfolded.personen}>{#if editingPerson}<PersonEditor person={editingPerson} done={async () => { editingPerson = null; await load(); moved(); }} />{:else}<div class="rows">{#each people as person}<Row title={person.name} state={person.birthday ? `Geburtstag ${dayLabel(person.birthday)}` : "kein Geburtstag"}>{#snippet lead()}<Face {person} />{/snippet}{#snippet actions()}<Overflow label="Mehr" anchor={false} class="btn icon quiet" build={add => { add("Bearbeiten", () => { editingPerson = person; }); add("Entfernen", () => void erasePerson(person), { danger: true }); }} />{/snippet}</Row>{/each}</div>{#if !people.length}<p class="empty">noch niemand</p>{/if}<button class="btn sm" type="button" onclick={() => { editingPerson = { id: uuid(), name: "", initials: "", tone: "", updatedAt: 0 }; }}>＋ Neue Person</button>{/if}</Panel>
 <Panel section="Aussehen" state={THEME_WORDS[theme]} class="panel__body" bind:open={unfolded.aussehen}><ThemePicker key={THEME_KEY} label={one => THEME_WORDS[one]} ariaLabel="Aussehen" bind:theme /><p class="small muted">Gilt für den Kalender in diesem Browser. Das Board bleibt dunkel.</p></Panel>
-<!-- Only the calendar's own reset is left here. Deleting everything moved into
-     the ⋯ of „Deine Daten" on 2026-10-31, beside the backup it should be
-     weighed against. --><Panel section="Löschen" state="" class="panel__body" bind:open={unfolded.loeschen}><p class="small muted">Den Kalender leeren und von vorn planen. Karten und Personen bleiben.</p><div class="acts"><button class="btn sm" type="button" onclick={() => void wipe(false)}>Alle Termine löschen</button></div></Panel>

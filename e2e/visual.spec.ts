@@ -178,7 +178,6 @@ const HEADINGS: ReadonlyArray<readonly [string, string]> = [
   ["Karten", "0 Karten"],
   ["Personen", "0 Personen"],
   ["Aussehen", "Wie das Gerät"],
-  ["Löschen", ""],
 ];
 
 /* The two left corners, squared for the shot, and this is the mask the config
@@ -323,20 +322,11 @@ test("the Stimme panel, unfolded", async ({ page }) => {
      lands on — which on this machine was none and on the Linux runner was the
      first. That is a real difference between two baselines of the same CSS, and
      it moves again the day a sentence above the list wraps differently. Only
-     this shot needs it: the other four have no row that paints under a pointer.
+     this shot needs it: the other three have no row that paints under a pointer.
      Not `hover: none` on the project, because the hover rule is part of what
      these baselines are here to hold. */
   await page.mouse.move(0, 0);
   await expect(voice).toHaveScreenshot("panel-stimme.png");
-});
-
-test("the Löschen panel, unfolded", async ({ page }) => {
-  await openSettings(page);
-  const data = await open(page, "Löschen");
-  /* Only the calendar's own reset since 2026-10-31; deleting everything is the
-     last row of the ⋯ in „Deine Daten". */
-  await expect(data.getByRole("button", { name: "Alle Termine löschen" })).toBeVisible();
-  await expect(data).toHaveScreenshot("panel-loeschen.png");
 });
 
 /*

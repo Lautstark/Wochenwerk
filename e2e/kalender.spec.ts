@@ -635,19 +635,23 @@ test("„Deine Daten“ is there and says where things are, with everything else
   await expect(rows.last()).toHaveClass("danger");
 });
 
-test("emptying the calendar counts what goes, and keeps the people", async ({ page }) => {
+test("deleting everything counts what goes, and asks for the word", async ({ page }) => {
   await openCalendar(page, {
     appointments: [timed(WEEK[1], "10:00", "11:00", "Turnen"), timed(WEEK[3], "10:00", "11:00", "Logopädie")],
     people: [person("Oma")],
   });
   const sheet = await openSettings(page);
-  const data = await panel(sheet, "Löschen");
-  await data.getByRole("button", { name: "Alle Termine löschen" }).click();
-  const asking = page.getByRole("dialog", { name: "Alle Termine löschen" });
-  await expect(asking.getByText("2 Termine werden gelöscht. Karten und Personen bleiben.")).toBeVisible();
-  await asking.getByRole("button", { name: "Termine löschen" }).click();
+  const data = await panel(sheet, "Deine Daten");
+  await data.getByRole("button", { name: "Mehr" }).click();
+  await data.getByRole("menuitem", { name: "Alles löschen …" }).click();
+  const asking = page.getByRole("dialog", { name: "Alle Daten löschen" });
+  await expect(asking.getByText("2 Termine, keine Karten, 1 Person werden gelöscht.", { exact: false })).toBeVisible();
+  const confirm = asking.getByRole("button", { name: "Alles löschen" });
+  await expect(confirm).toBeDisabled();
+  await asking.getByRole("textbox").fill("löschen");
+  await confirm.click();
   await expect(asking).toBeHidden();
-  await expect(headingOf(sheet, "Personen")).toContainText("1 Person");
+  await expect(headingOf(sheet, "Personen")).toContainText("0 Personen");
   await sheet.getByRole("button", { name: "Fertig" }).click();
   await expect(inWeek(page, "Turnen")).toHaveCount(0);
   await expect(page.getByText("Noch nichts geplant")).toBeVisible();

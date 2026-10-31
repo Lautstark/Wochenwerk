@@ -573,24 +573,6 @@ export async function importAll(backup: Backup): Promise<number> {
   return added;
 }
 
-/** Empty the calendar. Cards and people stay, each with the birthday written
-    on them; the bars those birthdays drew are appointments and go with the rest. */
-export async function clearAppointments(): Promise<number> {
-  const database = await db();
-  const many = await database.count("appointments");
-  await database.clear("appointments");
-  await database.clear("series");
-  /* Through `keep`, one person at a time: the batch a person points at has just
-     gone, and a raw `put` told IndexedDB so and not the folder — which went on
-     holding a person whose `birthdaySeries` names a batch nobody has. */
-  for (const person of await database.getAll("people")) {
-    if (person.birthdaySeries) await keep("people", { ...person, birthdaySeries: undefined, updatedAt: Date.now() });
-  }
-  await mirror("termine", "serien");
-  changed.touched();
-  return many;
-}
-
 /**
  * How far a deletion would reach.
  *
