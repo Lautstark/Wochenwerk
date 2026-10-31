@@ -4,6 +4,7 @@ import { mount } from "svelte";
 import { pullFromFolder, settings } from "./db.js";
 import { load } from "./store.svelte.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
+import { backup } from "./backup.js";
 import { watchReach } from "./reaching.svelte.js";
 import { metacom, preferRendering, restore } from "./symbols.js";
 import Kalender from "./kalender/Kalender.svelte";
@@ -37,6 +38,14 @@ await restore().catch(() => false);
    a folder was chosen at all. */
 await ablage.restore().catch(() => null);
 await pullFromFolder().catch(() => undefined);
+/* The daily copies go into the same folder as the calendar — beside its
+   compartment, as flat files — and nowhere else. Until 2026-10-31 nothing
+   here told the backup about the folder, so after a reload there were no
+   automatic copies at all. Never prompts: there is no gesture here. */
+{
+  const held = ablage.handle();
+  if (held) void backup.useFolder(held).catch(() => undefined);
+}
 /* The package holds the rendering preference for the tab and persists nothing, so
    the household's answer is handed to it once the folder is back. */
 preferRendering((await settings()).metacomRendering ?? null);

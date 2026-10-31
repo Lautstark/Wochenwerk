@@ -628,7 +628,6 @@ test("„Deine Daten“ is there and says where things are, with everything else
   await expect(data.getByRole("button", { name: "Ordner wählen …" })).toBeVisible();
   await data.getByRole("button", { name: "Mehr" }).click();
   const rows = data.getByRole("menuitem");
-  await expect(rows.filter({ hasText: "Automatisch sichern in …" })).toBeVisible();
   await expect(rows.filter({ hasText: "Sicherung herunterladen" })).toBeVisible();
   await expect(rows.filter({ hasText: "Sicherung einlesen …" })).toBeVisible();
   await expect(rows.last()).toHaveText("Alles löschen …");
