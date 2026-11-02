@@ -48,7 +48,7 @@ jobs:
       - name: Record
         run: npx playwright test e2e/visual.spec.ts --update-snapshots
       - name: Hand them back
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-baselines-linux
           path: e2e/visual.spec.ts-snapshots/*-linux.png
