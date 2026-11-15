@@ -755,3 +755,38 @@ describe("a stretch away from home", () => {
     expect(said.some(line => line.includes("fahren wir weg"))).toBe(false);
   });
 });
+
+describe("a sentence of the household's own", () => {
+  const own = { now: "Jetzt gehen wir turnen.", ending: "Gleich ist Turnen vorbei", soon: "Gleich holt dich Oma zum Turnen ab.", after: "Danach geht es in die Halle." };
+  const turnen = (extra: Partial<Appointment> = {}) => appointment("10:00", "11:00", { title: "Turnen", said: own, ...extra });
+
+  it("replaces the built sentence in each of the four moments", () => {
+    expect(said([turnen()], at("10:10"), house())[1]).toBe("Jetzt gehen wir turnen.");
+    /* A sentence typed without its full stop is given one, as a word is. */
+    expect(said([turnen()], at("10:50"), house())[1]).toBe("Gleich ist Turnen vorbei.");
+    expect(said([turnen()], at("09:50"), house())[1]).toBe("Gleich holt dich Oma zum Turnen ab.");
+    const kitaFirst = appointment("08:00", "09:55", { title: "Kita" });
+    expect(said([kitaFirst, turnen()], at("09:30"), house())[2]).toBe("Danach geht es in die Halle.");
+  });
+
+  it("stands in for the address too, and is one clip of the household's", () => {
+    const mia = person("mia", "Mia");
+    const line = announce([turnen({ people: ["mia"] })], at("10:10"), house([], [mia]))[1]!;
+    expect(line.text).toBe("Jetzt gehen wir turnen.");
+    expect(line.parts).toEqual([{ say: "Jetzt gehen wir turnen.", own: true }]);
+  });
+
+  it("leaves a moment it was not written for to the frames", () => {
+    expect(said([turnen({ said: { soon: own.soon } })], at("10:10"), house())[1]).toBe("Jetzt ist Turnen.");
+  });
+
+  it("is not said once a choice decided what the slot became", () => {
+    const home = house([card("rad", "Laufrad")]);
+    expect(said([turnen({ options: ["rad"], chosen: "rad" })], at("10:10"), home)[1]).toBe("Jetzt ist Laufrad. Das hast du ausgesucht.");
+  });
+
+  it("is offered for exactly the four timed moments", () => {
+    expect(couldSay("Turnen").map(line => line.moment)).toEqual(["now", "ending", "soon", "after"]);
+    expect(couldSay("Heute ist Ferientag.", { allDay: true, date: TUESDAY }).every(line => !line.moment)).toBe(true);
+  });
+});

@@ -7,9 +7,14 @@ export const board = { from: "07:00", to: "20:30", snap: 15 };
 /* A symbol is named, never embedded. For METACOM the name is the path relative to
    the household's own licensed folder, which is what `bildquelle` indexes by; for
    ARASAAC it is the pictogram number. The files of a licensed collection, an index
-   of one and a count of it never travel — a reference does. See ADR 002. */
-export type Source = "metacom" | "arasaac";
-export type SymbolRef = { source: Source; id: string; label: string };
+   of one and a count of it never travel — a reference does. See ADR 002.
+
+   A household's own photo is the one picture that is embedded: it belongs to
+   nobody else, so there is no collection to name it in. It is cropped and shrunk
+   before it is kept, and travels in `image` as a data URL, the way a person's
+   face does. */
+export type Source = "metacom" | "arasaac" | "photo";
+export type SymbolRef = { source: Source; id: string; label: string; image?: string };
 
 /* An ordinary appointment carries its symbols directly. It needs nothing else: it
    is written once — as a series, usually — and a picture is all the board asks of
@@ -56,6 +61,11 @@ export type Appointment = {
      practice, a surname. `speech` is the word said instead where those come
      apart, and it is empty everywhere else. */
   speech?: string;
+  /* A sentence of the household's own where the proposed one is not what they
+     would say, one per moment the board speaks about a timed appointment — the
+     whole sentence, not a word inside it. Absent where the proposal stands. An
+     all-day appointment has one sentence and it is `speech`; see `dayFact`. */
+  said?: Said;
   /** What happens: the symbols this appointment shows. */
   symbols: SymbolRef[];
   /** Or what may happen: the cards offered, and which one an input picked. */
@@ -81,6 +91,9 @@ export type Appointment = {
   updatedAt: number;
 };
 export const allDay = (appointment: Appointment) => !appointment.start;
+/** The moments the board says something about a timed appointment. */
+export type Moment = "now" | "ending" | "soon" | "after";
+export type Said = Partial<Record<Moment, string>>;
 /** A day the household spends somewhere else. */
 export const notAtHome = (appointment: Appointment) => allDay(appointment) && !!appointment.away;
 
@@ -147,6 +160,7 @@ export const samePattern = (a: Pattern, b: Pattern): boolean =>
    what it is compared against is the one somebody is looking at. It is what lets a
    reshape say not only how many appointments it removes but how many of them
    somebody had already touched. */
+const sayings = (item: Appointment) => JSON.stringify(Object.entries(item.said ?? {}).sort());
 export function strays(appointment: Appointment, like: Appointment): boolean {
   const alike = (a: string[], b: string[]) => a.length === b.length && a.every((item, index) => item === b[index]);
   const marks = (item: Appointment) => item.symbols.map(symbol => `${symbol.source}:${symbol.id}`);
@@ -154,6 +168,7 @@ export function strays(appointment: Appointment, like: Appointment): boolean {
     || appointment.start !== like.start || appointment.end !== like.end
     || appointment.chosen !== like.chosen || appointment.showPeople !== like.showPeople
     || !!appointment.away !== !!like.away
+    || (appointment.speech ?? "") !== (like.speech ?? "") || sayings(appointment) !== sayings(like)
     || !alike(marks(appointment), marks(like)) || !alike(appointment.options, like.options)
     || !alike(appointment.people, like.people);
 }

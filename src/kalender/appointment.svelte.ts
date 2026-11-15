@@ -1,4 +1,4 @@
-import { addDays, allDay, clock, iso, minute, titleOf, type Appointment, type Series, type SymbolRef } from "../model.js";
+import { addDays, allDay, clock, iso, minute, titleOf, type Appointment, type Said, type Series, type SymbolRef } from "../model.js";
 import { uuid } from "../db.js";
 import { shown } from "../store.svelte.js";
 import { birthdayOf, birthdaySheet } from "./birthday.svelte.js";
@@ -60,7 +60,11 @@ export class Editing {
   title = $state.raw(""); speech = $state.raw(""); date = $state.raw(""); from = $state.raw(""); to = $state.raw("");
   spanTo = $state.raw(""); until = $state.raw("");
   whole = $state.raw(false); notHome = $state.raw(false); showPeople = $state.raw(false);
-  searching = $state.raw(false); making = $state.raw(false); foldOpen = $state.raw(false);
+  making = $state.raw(false); foldOpen = $state.raw(false);
+  /* The household's own sentences, as the Ansage fold keeps them. */
+  said = $state.raw<Said>({});
+  /* Whether Fertig was pressed once: what is missing is said from then on. */
+  tried = $state.raw(false);
   /* What the other half was holding, so that flipping can be flipped back. */
   priorSymbols = $state.raw<SymbolRef[]>([]); priorOptions = $state.raw<string[]>([]);
   /* Set by the body, pressed by the foot. */
@@ -90,6 +94,7 @@ export class Editing {
       : [(new Date(`${draft.date}T00:00`).getDay() + 6) % 7];
     this.title = draft.title ?? "";
     this.speech = draft.speech ?? "";
+    this.said = { ...draft.said };
     this.date = draft.date;
     this.from = draft.start ?? "09:00";
     this.to = draft.end ?? "09:30";
@@ -105,9 +110,6 @@ export class Editing {
     this.whole = allDay(draft);
     this.notHome = !!draft.away;
     this.showPeople = draft.showPeople;
-    /* Arriving at a choice is the other way into that state, and there the list is
-       the whole of the block — so it stands open rather than as a summary of itself. */
-    this.foldOpen = draft.options.length > 0 && !draft.chosen;
     this.priorSymbols = [...draft.symbols];
     this.priorOptions = [...draft.options];
   }

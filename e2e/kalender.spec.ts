@@ -33,9 +33,11 @@ async function newAppointment(page: Page): Promise<Locator> {
   return sheet;
 }
 
-/** Picks a symbol out of the search — the one thing a timed appointment cannot be saved without. */
+/** Picks a symbol out of the chooser — the one thing a timed appointment cannot
+    be saved without. The chooser folds away once something is picked, so each
+    pick opens it again from the ＋ at the end of the row. */
 async function pickSymbol(sheet: Locator, word: string): Promise<void> {
-  await sheet.getByRole("button", { name: "＋ Symbol" }).click();
+  await sheet.getByRole("button", { name: "Bild hinzufügen" }).click();
   await sheet.getByLabel("Symbol suchen").fill(word);
   await sheet.getByRole("button", { name: word, exact: true }).click();
 }
@@ -154,15 +156,21 @@ test("the sheet says how long it lasts while the times are typed", async ({ page
   await expect(sheet.getByText("45 Min")).toBeVisible();
 });
 
-test("without a picture the sheet refuses to save, and says why", async ({ page }) => {
+test("without a picture the sheet refuses to save, and says why once asked", async ({ page }) => {
   await openCalendar(page);
   const sheet = await newAppointment(page);
   await titleOf(sheet).fill("Turnen");
   await withTimes(sheet, "10:00", "11:00");
-  await expect(sheet.getByRole("button", { name: "Fertig" })).toBeDisabled();
-  await expect(sheet.getByText("Such ein Symbol aus, sonst bleibt die Karte am Board leer.")).toBeVisible();
+  const why = sheet.getByText("Noch ein Bild, sonst bleibt die Karte am Board leer.");
+  /* Nothing is wrong with a sheet still being filled in, so nothing says so yet. */
+  await expect(why).toBeHidden();
+  await sheet.getByRole("button", { name: "Fertig" }).click();
+  await expect(sheet).toBeVisible();
+  await expect(why).toBeVisible();
   await pickSymbol(sheet, "Turnen");
-  await expect(sheet.getByRole("button", { name: "Fertig" })).toBeEnabled();
+  await expect(why).toBeHidden();
+  await sheet.getByRole("button", { name: "Fertig" }).click();
+  await expect(sheet).toBeHidden();
 });
 
 /* ## The order the symbols stand in
@@ -187,7 +195,7 @@ test("without a picture the sheet refuses to save, and says why", async ({ page 
  * about here. Role and name would find the same buttons, but the empty slot at
  * the end is a button too, and the order they come back in is the whole
  * question. */
-const chosen = (sheet: Locator) => sheet.locator("[data-move]");
+const chosen = (sheet: Locator) => sheet.locator("[data-move] > .picker__item");
 
 /** A sheet with two symbols already in it, standing in the order they were picked. */
 async function twoSymbols(page: Page): Promise<Locator> {
@@ -204,8 +212,6 @@ async function twoSymbols(page: Page): Promise<Locator> {
 test("→ on a chosen symbol carries it past its neighbour, and the focus goes with it", async ({ page }) => {
   await openCalendar(page);
   const sheet = await twoSymbols(page);
-  /* The sheet says both ways are there as soon as there are two to order. */
-  await expect(sheet.getByText("Zieh sie in die Reihenfolge, in der sie am Board stehen — oder ← und →.")).toBeVisible();
   const row = chosen(sheet);
   await row.nth(0).focus();
   await page.keyboard.press("ArrowRight");
@@ -243,7 +249,7 @@ test("arrows in the search results do not reorder the chosen row", async ({ page
   await openCalendar(page);
   const sheet = await twoSymbols(page);
   const row = chosen(sheet);
-  await sheet.getByRole("button", { name: "＋ Symbol" }).click();
+  await sheet.getByRole("button", { name: "Bild hinzufügen" }).click();
   await sheet.getByLabel("Symbol suchen").fill("Schwimmen");
   const hit = sheet.getByRole("button", { name: "Schwimmen", exact: true });
   await expect(hit).toBeVisible();
@@ -251,8 +257,7 @@ test("arrows in the search results do not reorder the chosen row", async ({ page
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowLeft");
   /* Untouched, and still two: an arrow that had reached reorder.ts would have
-     swapped them, and one that had reached the tile's own click would have
-     taken a symbol off. */
+     swapped them. */
   await expect(row.nth(0)).toHaveAccessibleName("Turnen");
   await expect(row.nth(1)).toHaveAccessibleName("Judo");
   await expect(row).toHaveCount(2);
@@ -283,9 +288,9 @@ test("a chosen symbol dragged past its neighbour swaps with it, and is not taken
   await dragOnto(page, row.nth(0), row.nth(1));
   await expect(row.nth(0)).toHaveAccessibleName("Judo");
   await expect(row.nth(1)).toHaveAccessibleName("Turnen");
-  /* A tile is also the button that takes its symbol off again, and a drag ends
-     over one with the pointer going up — which is a click as far as the browser
-     is concerned. Both symbols are still here, so that click was swallowed. */
+  /* A drag ends over a tile with the pointer going up — a click as far as the
+     browser is concerned, and the × beside it is one tile away. Both symbols
+     are still here. */
   await expect(row).toHaveCount(2);
 });
 

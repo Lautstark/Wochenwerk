@@ -63,7 +63,10 @@ export const sourceInUse = (): ProviderId => (chosen === "metacom" && metacom.is
    Einstellungen sheet, and no picker is on screen while that one is open. */
 export const providerInUse = (): SymbolProvider => getProvider(sourceInUse());
 export const refFor = (source: ProviderId, candidate: Candidate): SymbolRef => ({ source, id: candidate.id, label: candidate.label });
-export const owed = (refs: SymbolRef[]) => attributionsFor(refs.map(ref => ref.source));
+/* A photo of the household's own owes nobody a credit. */
+export const owed = (refs: SymbolRef[]) =>
+  attributionsFor(refs.flatMap(ref => ref.source === "photo" ? [] : [ref.source]));
+export const photoRef = (label: string, image: string): SymbolRef => ({ source: "photo", id: crypto.randomUUID(), label, image });
 
 const key = (ref: SymbolRef) => `${ref.source}:${ref.id}`;
 
@@ -81,6 +84,7 @@ const key = (ref: SymbolRef) => `${ref.source}:${ref.id}`;
    which is the one failure this preference exists to prevent. */
 const stem = (id: string) => id.replace(/\.[a-z0-9]+$/i, "");
 async function urlFor(ref: SymbolRef): Promise<string | null> {
+  if (ref.source === "photo") return ref.image ?? null;
   const provider = getProvider(ref.source);
   const exact = await provider.getImageUrl(ref.id);
   if (exact || ref.source !== "metacom") return exact;

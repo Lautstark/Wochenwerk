@@ -363,26 +363,32 @@ async function openAppointment(page: Page): Promise<Locator> {
 
 test("the people fold in an appointment, closed", async ({ page }) => {
   const sheet = await openAppointment(page);
-  const fold = sheet.locator("details.more");
+  const fold = sheet.locator("details.more").first();
   /* The two words this holds, asserted for HEADINGS' reason. „niemand" is what
      an empty draft says, and it is the whole of what the `.state` rule is
      drawing — so a failure should name it rather than hand over a picture of
      one line of text. */
-  await expect(fold.locator("summary .section")).toHaveText("Personen");
+  await expect(fold.locator("summary .section")).toHaveText("Wer ist dabei");
   await expect(fold.locator("summary .state")).toHaveText("niemand");
   await expect(fold).toHaveScreenshot("termin-personen.png");
 });
 
-test("the Ansage row in an appointment", async ({ page }) => {
+/* The Ansage fold, opened on an empty all-day draft: one sentence of the
+   household's own to write after the day, empty and showing an example, and the
+   one question an all-day appointment adds. Nothing in it is a date — the day
+   word the sentence follows is not drawn here — so it is shot as it stands. */
+test("the Ansage fold in an appointment", async ({ page }) => {
   const sheet = await openAppointment(page);
-  const row = sheet.locator(".speech-row");
-  /* Empty, and saying what would be said instead — which for a draft with no
-     name yet is that nothing would be. The placeholder is the only text in this
-     shot and it is a function of the draft rather than of the day. */
-  await expect(row.locator(".field")).toHaveValue("");
-  await expect(row.locator(".field")).toHaveAttribute("placeholder", "Ohne Namen wird nichts gesagt");
-  await expect(row.locator(".btn")).toBeVisible();
-  await expect(row).toHaveScreenshot("termin-ansage.png");
+  const fold = sheet.locator("details.more").nth(1);
+  await expect(fold.locator("summary .section")).toHaveText("Ansage");
+  await expect(fold.locator("summary .state")).toHaveText("nichts");
+  await fold.locator("summary").click();
+  const line = fold.getByRole("textbox", { name: "Satz über den Tag" });
+  await expect(line).toHaveValue("");
+  await expect(line).toHaveAttribute("placeholder", "z. B. Heute fahren wir zu Oma.");
+  await expect(fold.getByLabel("Vorher sagen: „Bald fahren wir weg.“")).not.toBeChecked();
+  await page.mouse.move(0, 0);
+  await expect(fold).toHaveScreenshot("termin-ansage.png");
 });
 
 /*
@@ -443,10 +449,14 @@ test("the Ansage row in an appointment", async ({ page }) => {
  * sees it. Saying so is the whole of what this suite can do about it.
  */
 
-/** The block „Wiederholen" is in. By the label the trigger is named from, not
-    by where it sits: `.stack` is four different things in this dialog, and the
-    outer one is the whole form. */
-const repeating = (sheet: Locator) => sheet.locator(".stack:has(> .row-of #repeatLabel)");
+/** The block „Wiederholen" is in. Since the 2026-11 redesign that is the rows
+    of When — Ganztägig, Tag, Uhrzeit, Wiederholen and what it asks after — the
+    way a calendar app lays them out: the question on the left, the answer as
+    wide as itself on the right. The 854/422 measurements the paragraphs above
+    are about belonged to the column layout that replaced the pill, and went
+    with it; the trigger is a value at the end of a line now, beside no other
+    control, which is the shape those numbers were arguing for. */
+const repeating = (sheet: Locator) => sheet.locator(".lines:has(#repeatLabel)");
 
 test("the Wiederholen row in an appointment, einmalig", async ({ page }) => {
   await at(page, "09:00");
@@ -458,15 +468,8 @@ test("the Wiederholen row in an appointment, einmalig", async ({ page }) => {
      the same control the same way and says the longer version of why. */
   const trigger = sheet.getByLabel("Wiederholen");
   await expect(trigger).toHaveText("einmalig");
-  /* The figure the conversion is about, asserted as a number as well as
-     photographed. A failure reading 108 where it wanted 854 names the
-     regression; the pixel diff of it is a row that got shorter for reasons
-     somebody then has to work out. */
-  expect((await trigger.boundingBox())!.width, "the trigger takes the whole column").toBe(854);
-  /* Nothing repeats, so there is no rule to end and no day to pick. Both are
-     `hidden` rather than unmounted — kalender.css's `[hidden]` is what takes
-     them out of the column — so both are asked rather than assumed. */
-  await expect(repeat.getByLabel("Bis")).toBeHidden();
+  /* Nothing repeats, so there is no rule to end and no day to pick. */
+  await expect(repeat.getByLabel("Endet am")).toBeHidden();
   await expect(repeat.locator(".picker__grid")).toBeHidden();
   /* Nothing to settle before the shutter, unlike the shot below: a fresh draft
      opens with its name field focused, and the press that opened the sheet left
@@ -485,12 +488,7 @@ test("the Wiederholen row in an appointment, wöchentlich", async ({ page }) => 
   await trigger.click();
   await sheet.getByRole("menuitemradio", { name: "wöchentlich" }).click();
   await expect(trigger).toHaveText("wöchentlich");
-  const until = repeat.getByLabel("Bis");
-  /* Half the column each, which is the whole of §6.10's argument drawn: two
-     controls of one row sharing its width, where the pill used to stop after
-     its word beside a full-width date field. */
-  expect((await trigger.boundingBox())!.width, "the trigger, beside the end date").toBe(422);
-  expect((await until.boundingBox())!.width, "the end of the rule").toBe(422);
+  const until = repeat.getByLabel("Endet am");
   /* The only date this suite photographs, and it is pinned rather than masked:
      the draft's day plus 55, and the draft's day is the seeded Tuesday. */
   await expect(until).toHaveValue("2026-10-26");

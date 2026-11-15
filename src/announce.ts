@@ -1,5 +1,5 @@
 import { allDay, board, bornOn, cardSays, dayFact, daypartTimes, iso, minute, notAtHome, reading, snapped, spokenName, undecided,
-  type Appointment, type Card, type Person } from "./model.js";
+  type Appointment, type Card, type Moment, type Person } from "./model.js";
 
 /* The week, one moment, and what is said out loud about it. See docs/speech.md
    for the catalogue and for why none of it carries a clock time or a date.
@@ -157,6 +157,16 @@ const stopped = (parts: Part[]): Part[] => /[.!?]$/.test(parts.at(-1)?.say ?? ".
    same question at the same moment — which is most of what makes an announcement
    legible to somebody who cannot yet follow a sentence on its own. */
 const about = (appointment: Appointment, line: Utterance): Utterance => ({ ...line, about: appointment.id });
+
+/* The household's own sentence for this moment, where it wrote one. A whole
+   sentence and one clip: it replaces what the frames would have built, address
+   and all, and is never spliced into them. Not for a choice that was decided —
+   what is said then is the card's word, and the record's own sentence was
+   written about something else. */
+const ownSentence = (appointment: Appointment, moment: Moment): Utterance | undefined => {
+  const said = appointment.chosen ? undefined : appointment.said?.[moment]?.trim();
+  return said ? utter(own(said)) : undefined;
+};
 
 const byStart = (a: Appointment, b: Appointment) => snapped(a.start!) - snapped(b.start!) || snapped(a.end!) - snapped(b.end!);
 const timedOn = (week: Appointment[], date: string) => week.filter(item => item.date === date && !allDay(item)).sort(byStart);
@@ -387,6 +397,9 @@ function nowLine(running: Appointment[], now: string, household: Household, addr
 }
 
 function nowFor(running: Appointment, now: string, household: Household, address: boolean): Utterance[] {
+  const ending = minute(running.end!) - minute(now) <= board.snap;
+  const written = ownSentence(running, ending ? "ending" : "now");
+  if (written) return [about(running, written)];
   const said = spokenName(running, household.cards);
   if (!said) return [];
   /* Addressed by name where the appointment concerns exactly one person: that is
@@ -395,7 +408,7 @@ function nowFor(running: Appointment, now: string, household: Household, address
      would be the board meaning one child at the other two. */
   const people = peopleOn(running, household);
   const who = address && people.length === 1 ? own(people[0]!.name) : undefined;
-  if (minute(running.end!) - minute(now) <= board.snap)
+  if (ending)
     return [about(running, utter(...(who ? [who, fixed(FRAMES.comma)] : []), own(said), fixed(FRAMES.ending)))];
   const decided = running.chosen ? [fixed(FRAMES.decided)] : [];
   return [about(running, utter(...(who ? [who, fixed(FRAMES.nowFor)] : [fixed(FRAMES.now)]), own(said), ...decided))];
@@ -476,6 +489,8 @@ function nextLine(week: Appointment[], at: Date, now: string, running: Appointme
           ...listing(offered, fixed(FRAMES.or)), fixed(FRAMES.stop), fixed(FRAMES.asking))
       : utter(fixed(soon ? FRAMES.soonChoose : FRAMES.afterChoose)))];
   }
+  const written = ownSentence(next, soon ? "soon" : "after");
+  if (written) return [about(next, written)];
   const said = spokenName(next, household.cards);
   if (!said) return [];
   /* Not *soon* means something is running — the line above has sent every gap
@@ -527,7 +542,9 @@ export const refused = (word: string | undefined, offered: string[]): Utterance 
    commit. It is also an honest preview of what a household would have to record:
    the fixed half of each line is a clip that exists once for everything, and only
    the word in it is theirs. See docs/speech.md. */
-export type Possible = { text: string; when: string };
+/* `moment` marks the sentences a household may rewrite as its own: the four a
+   timed appointment is spoken in. */
+export type Possible = { text: string; when: string; moment?: Moment };
 export type Shape = {
   /** The one person it concerns, where it concerns exactly one. */
   who?: string;
@@ -634,10 +651,10 @@ export function couldSay(word: string, shape: Shape = {}): Possible[] {
 
   const possible: Possible[] = [];
   possible.push(
-    { text: who ? line(who, fixed(FRAMES.nowFor), w, ...tail) : line(fixed(FRAMES.now), w, ...tail), when: "während er läuft" },
-    { text: who ? line(who, fixed(FRAMES.comma), w, fixed(FRAMES.ending)) : line(w, fixed(FRAMES.ending)), when: "in der letzten Viertelstunde" },
-    { text: line(fixed(FRAMES.soon), w, ...tail), when: "bis 20 Minuten vorher" },
-    { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft" },
+    { text: who ? line(who, fixed(FRAMES.nowFor), w, ...tail) : line(fixed(FRAMES.now), w, ...tail), when: "während er läuft", moment: "now" },
+    { text: who ? line(who, fixed(FRAMES.comma), w, fixed(FRAMES.ending)) : line(w, fixed(FRAMES.ending)), when: "in der letzten Viertelstunde", moment: "ending" },
+    { text: line(fixed(FRAMES.soon), w, ...tail), when: "bis 20 Minuten vorher", moment: "soon" },
+    { text: line(fixed(FRAMES.after), w, ...tail), when: "wenn etwas anderes läuft", moment: "after" },
   );
   /* Only a card can be the answer to a question: an appointment's own word is
      never laid at the slot, so it is never said back. */
