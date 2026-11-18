@@ -37,6 +37,8 @@ function readyPiper() {
    is how a button becomes something you have to wait out. */
 let generation = 0;
 let playing: HTMLAudioElement | null = null;
+/** Whether a sentence is being played right now. */
+export const speaking = () => playing !== null;
 function stop() {
   generation++;
   playing?.pause();

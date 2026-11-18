@@ -8,8 +8,10 @@ import { watchReach } from "./reaching.svelte.js";
 import { preferRendering, restore } from "./symbols.js";
 import { listen } from "./reader.js";
 import Board from "./board/Board.svelte";
-import { draw, pressed, reads, redraw, trouble, view, wire } from "./board/board.svelte.js";
+import { askedLasts, draw, pressed, reads, redraw, trouble, view, wire } from "./board/board.svelte.js";
 import { everyMinute } from "./minutes.js";
+import { entryOf, watchVersion } from "./fresh.js";
+import { speaking } from "./speech.js";
 
 /* The board's own file is board/Board.svelte, and what it holds between draws is
    board/board.svelte.ts. This is the boot: the page, the doors input comes
@@ -40,6 +42,21 @@ addEventListener("leser", event => {
 });
 
 addEventListener("keydown", pressed);
+
+/* A deploy reaches the wall on its own — see fresh.ts. Quiet is a minute with
+   nothing in it: no sentence playing, no press, no card laid or taken back, no
+   question standing over the slot. */
+let touched = Date.now();
+addEventListener("keydown", () => { touched = Date.now(); });
+addEventListener("karte", () => { touched = Date.now(); });
+watchVersion({
+  running: entryOf(document.documentElement.outerHTML),
+  quiet: () => {
+    const now = Date.now();
+    return !speaking() && !view.lit && now - touched > 60_000 && now - view.taken.at > 60_000
+      && now - view.asked.at > askedLasts;
+  },
+});
 
 await restore().catch(() => false);
 /* Where a folder is the store, it is read before anything is drawn, and watched
