@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { at, bars, board, card, cards, column, offline, openBoard, screen, spoken, stubScreen, stubSpeech, timed, tray, VOICE, WEEK, wholeDay, type Seed } from "./seed.js";
+import type { Series } from "../src/model.js";
+import { at, bars, board, card, cards, column, offline, openBoard, person, screen, symbol, spoken, stubScreen, stubSpeech, timed, tray, VOICE, WEEK, wholeDay, type Seed } from "./seed.js";
 
 /*
  * The board, as a child sees it and a parent hears it.
@@ -176,6 +177,62 @@ test("a second press starts again rather than queueing", async ({ page }) => {
   await page.keyboard.press("Space");
   await expect.poll(() => spoken(page)).toHaveLength(6);
   expect((await spoken(page)).slice(3)).toEqual(["Es ist Dienstagmorgen.", "Jetzt ist Kindergarten.", "Danach kommt Turnen."]);
+});
+
+/* What is said is what grows. The stub above lets every sentence end on its
+   own a moment later; these hold each one until they have looked, the way a
+   real voice holds the board for the seconds a sentence takes. */
+async function holdSpeech(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const held: (() => void)[] = [];
+    (window as unknown as { __next: () => void }).__next = () => held.shift()?.();
+    window.speechSynthesis.speak = (utterance: SpeechSynthesisUtterance) => {
+      window.__spoken!.push(utterance.text);
+      held.push(() => utterance.onend?.({} as SpeechSynthesisEvent));
+    };
+  });
+}
+const next = (page: Page) => page.evaluate(() => (window as unknown as { __next: () => void }).__next());
+const widthOf = async (node: Locator) => (await box(node)).width;
+
+test("a birthday said out loud grows the head of its day, and the day widens", async ({ page }) => {
+  await holdSpeech(page);
+  const mia = person("Mia", "2023-09-01");
+  await openBoard(page, { people: [mia], settings: { voice: VOICE },
+    appointments: [kita(WEEK[1]), wholeDay(WEEK[1], "Geburtstag", { people: [mia.id] })] });
+  const di = column(page, "DI");
+  const quiet = await widthOf(di);
+  await page.keyboard.press("Space");
+  await expect.poll(() => spoken(page)).toHaveLength(1);
+  await expect(di).toHaveClass(/head-lit/);
+  await expect(di.locator(".pill")).toHaveClass(/saying/);
+  await expect.poll(() => widthOf(di)).toBeGreaterThan(quiet * 1.5);
+  /* The next sentence is about the Kita: the head lets go, the day stays wide. */
+  await next(page);
+  await expect.poll(() => spoken(page)).toHaveLength(2);
+  await expect(di).not.toHaveClass(/head-lit/);
+  await expect(cards(di).first()).toHaveClass(/saying/);
+  await expect.poll(() => widthOf(di)).toBeGreaterThan(quiet * 1.5);
+});
+
+test("a stretch away said out loud grows its bar over the days it covers", async ({ page }) => {
+  await holdSpeech(page);
+  const trip: Series = { id: "urlaub", pattern: { kind: "daily" }, from: WEEK[4], until: WEEK[6], allDay: true,
+    skipped: [], createdAt: 0, updatedAt: 0,
+    shape: { title: "Urlaub", symbols: [symbol("Urlaub")], options: [], people: [], showPeople: false, away: true } };
+  await openBoard(page, { series: [trip], settings: { voice: VOICE }, appointments: [kita(WEEK[1])] });
+  await expect(bars(page)).toHaveCount(1);
+  const fr = column(page, "FR");
+  const quiet = await widthOf(fr);
+  await page.keyboard.press("Space");
+  /* It is the last sentence; the ones before it are let go one by one. */
+  await expect.poll(async () => {
+    const lines = await spoken(page);
+    if (lines.at(-1) !== "Bald fahren wir weg.") await next(page);
+    return lines.at(-1);
+  }).toBe("Bald fahren wir weg.");
+  await expect(bars(page)).toHaveClass(/saying/);
+  await expect.poll(() => widthOf(fr)).toBeGreaterThan(quiet * 1.2);
 });
 
 test("without a voice the board says so — quietly, for whoever sets it up", async ({ page }) => {

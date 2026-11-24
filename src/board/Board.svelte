@@ -31,15 +31,40 @@
   const current = (b: Built, a: Appointment) => a.date === iso(new Date()) && a.start! <= b.now && b.now < a.end!;
 
   /* Parallel appointments are allowed to overlap a little rather than being cut
-     into exact shares — two side by side stay wide enough to carry a symbol. */
+     into exact shares — two side by side stay wide enough to carry a symbol.
+     Top and height go over as variables rather than as the box itself, so the
+     stylesheet can grow a spoken card from them without fighting an inline style. */
   const boxOf = ({ top, height, lane, lanes }: ReturnType<typeof place>[number]) => {
     const width = lanes > 1 ? 100 / lanes + 22 / lanes : 100;
     const left = lanes > 1 ? (lane * (100 - width)) / (lanes - 1) : 0;
-    return `top:${top}%;height:calc(${height}% - 5px);left:calc(${left}% + 3px);width:calc(${width}% - 6px);z-index:${1 + lane}`;
+    return `--t:${top}%;--h:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px);z-index:${1 + lane}`;
   };
 
   const column = (b: Built, index: number) => index + 1 + (index >= b.todayIndex ? 1 : 0);
   let lanes = $derived(built?.runs.length ? Math.max(...built.runs.map(run => run.lane)) + 1 : 0);
+  /* What the voice is on, and the days it covers: one day for an appointment or a
+     birthday, every day of the stretch for one that runs over several. Those
+     columns widen while it is said and the others make room.
+
+     A stretch is found by its series as well as by its id, because the sentence
+     names the record of the day it starts on and the bar is drawn from whichever
+     day of it the week begins with. */
+  let litApp = $derived(built?.appointments.find(item => item.id === view.lit));
+  let litRun = $derived(built && litApp && allDay(litApp)
+    ? built.runs.find(run => run.appointment.id === litApp!.id || (run.days.includes(litApp!.date) && !!litApp!.series && run.appointment.series === litApp!.series))
+    : undefined);
+  let liftedDays = $derived(new Set(litRun ? litRun.days : litApp ? [litApp.date] : []));
+  let track = $derived.by(() => {
+    const b = built;
+    if (!b) return "";
+    if (!liftedDays.size) return b.track.join(" ");
+    /* Shares, not sizes: one day takes about half the board, a stretch splits
+       that between its days but never drops below today's usual width. */
+    const wide = Math.max(2.05, 4.4 / liftedDays.size);
+    const columns = b.dates.map(date => liftedDays.has(date) ? `${wide}fr` : ".55fr");
+    columns.splice(b.todayIndex, 0, "var(--rail)");
+    return columns.join(" ");
+  });
   let grown = $derived(lanes ? ` --band:${(lanes * 1.95 + 0.3).toFixed(2)}rem; --head:calc(var(--head-day) + var(--band))` : "");
 </script>
 
@@ -70,7 +95,7 @@
   {#if !b.appointments.length}
     <p class="nothing">Diese Woche ist noch nichts geplant.<br /><small>Im Kalender anlegen — <code>{import.meta.env.BASE_URL}kalender</code></small></p>
   {:else}
-    <div class="week" style="grid-template-columns:{b.track.join(" ")};{grown}">
+    <div class="week" style="grid-template-columns:{track};{grown}">
       {#each b.dates as date, index}
         {#if index === b.todayIndex}
           <aside class="rail day-{b.todayIndex + 1}" aria-hidden="true" style="--now:{reached(b.now)}"><div class="rail-head"><span class="season" data-season={seasons[b.season]!.name}>{@html seasons[b.season]!.icon}</span></div><div class="rail-track">
@@ -79,13 +104,14 @@
         {/if}
         {@const own = b.appointments.filter(appointment => appointment.date === date)}
         {@const today = index === b.todayIndex}
-        <section class="day day-{index + 1} {today ? "today" : index < b.todayIndex ? "gone" : "ahead"}" data-date={date} style={today ? `--now:${reached(b.now)}` : undefined}>
-          <header><span class="name"><b>{weekdays[index]}</b><time>{dayLabel(date)}</time>{#if today}<small>{b.now}</small>{/if}</span><span class="marks">{#each own.filter(item => allDay(item) && b.birthday(item)) as appointment}{@const first = drawnSymbols(appointment, b.cards)[0]}{#if first || appointment.people.length}<span class="pill">{#if first}<span class="badge">{@render picture(b, first)}</span>{/if}{#if appointment.people.length}{@render faces(b, appointment.people, date)}{/if}</span>{/if}{/each}</span></header>
+        {@const headLit = own.some(item => allDay(item) && b.birthday(item) && item.id === view.lit)}
+        <section class="day day-{index + 1} {today ? "today" : index < b.todayIndex ? "gone" : "ahead"}{liftedDays.has(date) ? " lifted" : ""}{headLit ? " head-lit" : ""}" data-date={date} style={today ? `--now:${reached(b.now)}` : undefined}>
+          <header><span class="name"><b>{weekdays[index]}</b><time>{dayLabel(date)}</time>{#if today}<small>{b.now}</small>{/if}</span><span class="marks">{#each own.filter(item => allDay(item) && b.birthday(item)) as appointment}{@const first = drawnSymbols(appointment, b.cards)[0]}{#if first || appointment.people.length}<span class="pill{view.lit === appointment.id ? " saying" : ""}">{#if first}<span class="badge">{@render picture(b, first)}</span>{/if}{#if appointment.people.length}{@render faces(b, appointment.people, date)}{/if}</span>{/if}{/each}</span></header>
           <div class="calendar"><div class="track">{#each place(own.filter(appointment => !allDay(appointment))) as placed (placed.appointment.id)}{@render card(b, placed)}{/each}</div></div>
         </section>
       {/each}
       {#if b.runs.length}
-        <div class="band" style="grid-template-columns:{b.track.join(" ")}">
+        <div class="band" style="grid-template-columns:{track}">
           {#each b.runs as run}
             {@const first = column(b, b.dates.indexOf(run.days[0]))}
             {@const last = column(b, b.dates.indexOf(run.days[run.days.length - 1]))}
@@ -93,7 +119,7 @@
             {@const over = run.days[run.days.length - 1] < b.dates[b.todayIndex]}
             {@const todayColumn = column(b, b.todayIndex)}
             {@const cut = todayColumn > first && todayColumn <= last ? todayColumn - first + 1 : 0}
-            <div class="span{run.before ? " span--from" : ""}{run.after ? " span--into" : ""}{over ? " gone" : ""}" style="grid-column:{first} / span {last - first + 1}; grid-row:{run.lane + 1}">
+            <div class="span{run === litRun ? " saying" : ""}{run.before ? " span--from" : ""}{run.after ? " span--into" : ""}{over ? " gone" : ""}" style="grid-column:{first} / span {last - first + 1}; grid-row:{run.lane + 1}">
               <span class="span__what">
                 {#if symbol}<span class="badge">{@render picture(b, symbol)}</span>{/if}
                 {#if run.appointment.people.length}{@render faces(b, run.appointment.people, run.days[0])}{/if}

@@ -506,10 +506,12 @@ A press interrupts whatever is speaking and starts again; a second press is a
 repeat, not a queue.
 
 **The card is lit for exactly as long as the sentence about it.** Every sentence
-knows which appointment it is about, or that it is about none — the day sentence
-is about none, and so is *heute ist nichts mehr geplant* — and the board follows that
-from one sentence to the next: nothing, then the running card, then the one that
-is coming. A card still lit under the following sentence would point at the wrong
+knows which appointment it is about, or that it is about none — *heute ist nichts
+mehr geplant* is about none — and the board follows that from one sentence to the
+next: the day, then the running card, then the one that is coming. The day sentence
+is about the birthday where there is one, otherwise the day fact it says or the
+guest it names, and about nothing where it says only *Es ist Dienstagmorgen*.
+*Bald fahren wir weg* is about the stretch away, where this week holds it. A card still lit under the following sentence would point at the wrong
 thing, which is worse than pointing at nothing.
 
 That is also what makes two *now* sentences readable rather than confusing. Two
@@ -519,15 +521,25 @@ both at once. The sound says which child, the ring says which card, and they say
 it in the same moment — which is most of how a child who cannot yet follow a
 sentence finds out what it was about.
 
+**And what is lit grows.** The day it is on widens and the other days make
+room; on it, the card takes the room it was given, and a short one grows to a
+floor over its hushed neighbours, around its own time. A birthday grows the head
+of its day until the face and the cake are as large as the cards under it, and a
+stretch away grows its bar down over the days it covers. Nothing is laid over the
+week: the week itself moves for the length of the sentence and moves back, so
+what is large is still standing where it always stands. A large copy of the card
+in the middle of the screen was the other way to do it, and larger still — but
+it says nothing about *where*, and the child who is told *Jetzt ist Kita* while
+the Kita card itself grows learns the board rather than the copy.
+
 A ring rather than a fill, because the card's own colour is already saying
 whether it is over, now or ahead and must not have to give that up. The ring is
 the day's own colour darkened, the way an undecided card draws its dashed edge
 and the rail draws its marks — a neutral grey belonged to nothing on a board
 where every column is a colour, and read as chrome laid over the week rather
-than as part of it. It breathes,
-because a still outline on a board full of pictures is not what pulls a
-two-year-old's eye, and it holds still for anyone whose system asks for less
-motion. This is the pairing [hardware.md](hardware.md) sketches for its
+than as part of it. It holds still: what pulls the eye now is the rest of the
+week stepping back and the lit thing growing, and neither depends on motion that
+somebody's system has asked to be without. This is the pairing [hardware.md](hardware.md) sketches for its
 information cards: a spoken cue and a temporary visual focus, together.
 
 Build it as one function, and give the button, a keypress and a card UID the

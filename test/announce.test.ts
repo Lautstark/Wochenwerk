@@ -53,6 +53,19 @@ describe("the day sentence", () => {
     expect(lines[0]).toBe("Es ist Dienstagmorgen. Heute ist der Geburtstag von Mia. Mia wird drei Jahre alt.");
   });
 
+  it("points the board at the birthday while the day sentence is said", () => {
+    /* The board grows the head of the day while this sentence lasts, and it
+       can only do that if the sentence names what it is about. The birthday
+       first, ahead of a day fact said in the same breath: it is what the day is
+       about. A plain *Es ist Dienstagmorgen* is about nothing on the board. */
+    const born = appointment(undefined, undefined, { id: "geburtstag", symbols: [], people: ["b"] });
+    const ferien = appointment(undefined, undefined, { id: "ferien", symbols: [], title: "Ferientag" });
+    const mia = house([], [person("b", "Mia", "2023-09-01")]);
+    expect(announce([ferien, born], at("09:00"), mia)[0]!.about).toBe("geburtstag");
+    expect(announce([ferien], at("09:00"), mia)[0]!.about).toBe("ferien");
+    expect(announce([], at("09:00"), mia)[0]!.about).toBeUndefined();
+  });
+
   it("leaves the age out rather than guessing at one it has no word for", () => {
     const week = [appointment(undefined, undefined, { symbols: [], people: ["b"] })];
     const lines = said(week, at("09:00"), house([], [person("b", "Oma", "1955-09-01")]));
@@ -684,6 +697,15 @@ describe("a stretch away from home", () => {
     expect(lines[0]).toBe("Es ist Dienstagmorgen.");
     expect(lines[1]).toBe("Jetzt ist Kita.");
     expect(lines.at(-1)).toBe("Bald fahren wir weg.");
+  });
+
+  it("points the board at the stretch it is about, where the week holds it", () => {
+    /* The bar grows while the sentence lasts. Past Sunday there is nothing on
+       the wall to point at, and the sentence is said all the same. */
+    const trip = appointment(undefined, undefined, { id: "urlaub", date: days(3), away: true, title: "Urlaub" });
+    const lines = announce([trip], at("09:00"), house(), days(3));
+    expect(lines.at(-1)).toMatchObject({ text: "Bald fahren wir weg.", about: "urlaub" });
+    expect(announce([], at("09:00"), house(), days(3)).at(-1)!.about).toBeUndefined();
   });
 
   it("still says it on the last day of the horizon", () => {

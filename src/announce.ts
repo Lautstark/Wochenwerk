@@ -293,7 +293,7 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
   return [dayLine(week, at, now, household),
     ...(yields ? [] : nowLine(running, now, household, together)),
     ...coming,
-    ...awayLine(elsewhere ? undefined : awayFrom, today)];
+    ...awayLine(week, elsewhere ? undefined : awayFrom, today)];
 }
 
 /* The one sentence that reaches past today, and it is last on purpose.
@@ -307,11 +307,15 @@ export function announce(week: Appointment[], at: Date, household: Household, aw
  * Derived from two dates and nothing else, so two presses a minute apart say the
  * same thing. On the day itself there is no sentence: the day is then the
  * subject, and `dayFact` has said it in the household's own words. */
-function awayLine(awayFrom: string | undefined, today: string): Utterance[] {
+function awayLine(week: Appointment[], awayFrom: string | undefined, today: string): Utterance[] {
   if (!awayFrom || awayFrom <= today) return [];
   const days = Math.round((Date.parse(`${awayFrom}T00:00`) - Date.parse(`${today}T00:00`)) / 86400000);
   if (days > AHEAD) return [];
-  return [utter(fixed(days === 1 ? FRAMES.awayTomorrow : FRAMES.away))];
+  const line = utter(fixed(days === 1 ? FRAMES.awayTomorrow : FRAMES.away));
+  /* The stretch it is about, where it is in this week: the board lifts it while
+     the sentence lasts. Past Sunday there is nothing on the wall to point at. */
+  const stretch = week.find(item => item.date === awayFrom && notAtHome(item));
+  return [stretch ? about(stretch, line) : line];
 }
 
 /* Es ist Dienstagmorgen — plus at most one clause, because an all-day
@@ -339,7 +343,14 @@ function dayLine(week: Appointment[], at: Date, now: string, household: Househol
   const parts = [fixed(FRAMES.day), fixed(dayWord), ...(guests.length ? [fixed(FRAMES.and), ...guests] : [])];
   if (born.length) parts.push(...stopped(parts), ...born);
   if (named) parts.push(...stopped(parts), own(named));
-  return utter(...parts);
+  /* What the sentence is about, so the board can lift it while it is said: the
+     birthday first, since it is what the day is about, then a named fact, then
+     a guest. A plain *Es ist Dienstagmorgen* is about nothing on the board. */
+  const subject = (born.length && facts.find(fact => peopleOn(fact, household).some(person => bornOn(person, fact.date))))
+    || (named && facts.find(fact => dayFact(fact)))
+    || (guests.length && facts.find(fact => !fact.symbols.length && peopleOn(fact, household).length))
+    || undefined;
+  return subject ? about(subject, utter(...parts)) : utter(...parts);
 }
 
 /* Whose birthday it is, and how old they are turning — the age from the person's
