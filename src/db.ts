@@ -219,22 +219,63 @@ export const onChanged = changed.onChanged;
 const KIND = { appointments: "termine", cards: "karten", people: "personen", series: "serien" } as const;
 type Kept = keyof typeof KIND;
 
+/* A save is done when the browser has it and the folder is owed it. The folder
+   is delivered to afterwards, which on a share across the house was the seconds
+   a sheet stood open after Fertig. ADR 005. */
 async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
   await synced();
   await (await db()).put(store as never, record as never);
-  await settled(KIND[store], record.id, false, await file(KIND[store], record as never));
+  await owe(KIND[store], record.id, false);
   changed.touched();
 }
 async function dropRecord(store: Kept, id: string): Promise<void> {
   await synced();
   await (await db()).delete(store as never, id as never);
-  await settled(KIND[store], id, true, await unfile(KIND[store], id));
+  await owe(KIND[store], id, true);
   changed.touched();
 }
 
-/* What a write owes the folder afterwards, which is either nothing or a row. Both
-   funnels end here, so there is no edit anywhere in the product that can reach
-   IndexedDB without the folder either having it or being owed it. */
+/* The row first, then the delivery: whatever stops the delivery — a tab closed,
+   a share gone — leaves the row, and `settleUp` pays it like any other. */
+async function owe(kind: Kind, record: string, gone: boolean): Promise<void> {
+  /* Never the same time twice: two changes to one record inside a millisecond
+     would leave a row the first delivery takes for its own and pays. */
+  const at = stamp = Math.max(Date.now(), stamp + 1);
+  await (await db()).put("waiting", { id: `${kind}/${record}`, kind, record, gone, at });
+  outbox = outbox.then(() => deliver(kind, record)).catch(() => undefined);
+}
+
+let stamp = 0;
+
+/* One queue, so the folder gets changes in the order they were made. */
+let outbox: Promise<void> = Promise.resolve();
+/** Wait until every change made so far has been delivered or is owed. */
+export async function delivered(): Promise<void> {
+  /* A loop, because a delivery may be queued while the last one is awaited. */
+  for (let last; last !== outbox;) { last = outbox; await last; }
+}
+
+/* The record as the browser holds it *now*, not as it was when it was queued:
+   three quick edits deliver the last, and an edit then a deletion delivers the
+   deletion. The row is paid only if it is still the one read before the record —
+   an edit made meanwhile left a newer row, and its own delivery pays that. */
+async function deliver(kind: Kind, record: string): Promise<void> {
+  const row = await (await db()).get("waiting", `${kind}/${record}`);
+  if (!row) return;
+  const mine = await oneOf(kind, record);
+  if (await (mine ? file(kind, mine) : unfile(kind, record))) await paid(row);
+}
+async function paid(row: Waiting): Promise<void> {
+  const writing = (await db()).transaction("waiting", "readwrite");
+  if ((await writing.store.get(row.id))?.at === row.at) await writing.store.delete(row.id);
+  await writing.done;
+}
+
+/* What a batch owes the folder afterwards, which is either nothing or a row. The
+   funnels owe first and deliver after (`owe`); a batch pushes a whole kind and
+   owes it only where that did not land. Either way there is no edit anywhere in
+   the product that can reach IndexedDB without the folder either having it or
+   being owed it. */
 async function settled(kind: Kind, record: string, gone: boolean, landed: boolean): Promise<void> {
   const database = await db();
   if (landed) await database.delete("waiting", `${kind}/${record}`);
@@ -289,6 +330,8 @@ export const allPeople = async () => (await db()).getAll("people");
 const allAppointments = async () => (await db()).getAll("appointments");
 /** Mirror what a batch left behind. Cheap where no folder is connected. */
 const mirror = async (...kinds: ("termine" | "serien")[]) => {
+  /* A delivery still on its way would land in the middle of the push. ADR 005. */
+  await delivered();
   for (const kind of kinds) {
     const landed = await pushKind(kind, kind === "termine" ? await allAppointments() : await allSeries());
     /* The whole kind rather than the records it touched: a batch removes files as
@@ -436,6 +479,9 @@ const oneOf = async (kind: Kind, id: string) => (await db()).get(STORE[kind] as 
 export async function settleUp(): Promise<{ sent: number; clashed: Waiting[] }> {
   const clashed: Waiting[] = [];
   let sent = 0;
+  /* Our own deliveries first: a row they are about to pay is not one to pay
+     twice, and the read that follows a settling must find them there. ADR 005. */
+  await delivered();
   if (!isStore() || isStale() || !(await adopted())) return { sent, clashed };
   const database = await db();
   /* Whole kinds first. One of them carries every record under it, so a kind that
@@ -455,12 +501,12 @@ export async function settleUp(): Promise<{ sent: number; clashed: Waiting[] }> 
        from this browser too is nothing to write — its own deletion has a row. */
     if (row.gone ? theirs !== undefined && theirs > row.at : !mine || (theirs !== undefined && theirs > mine.updatedAt)) {
       if (mine || row.gone) clashed.push(row);
-      await database.delete("waiting", row.id);
+      await paid(row);
       continue;
     }
     const landed = row.gone ? await unfile(row.kind, row.record) : await file(row.kind, mine!);
     if (!landed) return { sent, clashed };
-    await database.delete("waiting", row.id);
+    await paid(row);
     sent += 1;
   }
   return { sent, clashed };
@@ -493,6 +539,7 @@ async function pull(): Promise<void> {
    which one they got. */
 export async function adoptFolder(): Promise<"pushed" | "pulled" | "incomplete"> {
   carried = 0;
+  await delivered();
   if (await adopted()) {
     /* Everything this browser holds that the folder has never heard of goes over
        first. Without this line the read below was a deletion: on 2026-09-21 a

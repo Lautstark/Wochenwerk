@@ -81,6 +81,7 @@ ends „Noch nichts geplant" is not known to be true.
   file, and the sheet closes when both are done. Closing it after IndexedDB and
   writing the file afterwards is a separate change to the order inside the
   funnels, with the `waiting` row written first; it is not part of this one.
+  *ADR 005 made that change the same day.*
 - **The board** (`main.ts`) boots the old way. It is a display that is reloaded
   rarely and nobody plans on it; the same order would suit it and can follow.
 - **The folder is still read whole.** Reading only the files whose stamps

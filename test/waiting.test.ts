@@ -15,6 +15,10 @@ type Kind = keyof typeof there;
 let away = false;
 /* Held shut to keep a sync running for as long as a test needs it to. */
 let reading: Promise<void> = Promise.resolve();
+/* And one for writes: held shut, a delivery stands in the middle of its write. */
+let writing: Promise<void> = Promise.resolve();
+/* Titles the folder will not take, for a write that fails on its own. */
+const refused = new Set<string>();
 
 const put_ = (kind: Kind, record: Record_) => {
   const at = there[kind].findIndex(item => item.id === record.id);
@@ -27,7 +31,12 @@ vi.mock("../src/folder.js", () => ({
   isStale: () => away,
   adopted: async () => !away,
   adopt: async () => ({ adopted: true, written: 0 }),
-  file: async (kind: Kind, record: Record_) => { if (away) return false; put_(kind, record); return true; },
+  file: async (kind: Kind, record: Record_) => {
+    await writing;
+    if (away || refused.has(record.title ?? "")) return false;
+    put_(kind, record);
+    return true;
+  },
   unfile: async (kind: Kind, id: string) => {
     if (away) return false;
     there[kind] = there[kind].filter(item => item.id !== id);
@@ -43,8 +52,14 @@ vi.mock("../src/folder.js", () => ({
   reconnect: async () => undefined,
 }));
 
-const { adoptFolder, carriedOver, clearAll, exportAll, importAll, onChanged, onSyncing, owed, owing, pullFromFolder, put, remove,
-  settleUp, uuid, week } = await import("../src/db.js");
+const { adoptFolder, carriedOver, clearAll, delivered, exportAll, importAll, onChanged, onSyncing, owed, owing, pullFromFolder,
+  put: saved, remove: removed, settleUp, uuid, week } = await import("../src/db.js");
+
+/* A save returns once the browser has it and delivers to the folder afterwards
+   (ADR 005). These cases are about what the folder is owed once that delivery has
+   been tried, so they wait for it; the cases at the end are about the delivery. */
+const put = async (...args: Parameters<typeof saved>) => { await saved(...args); await delivered(); };
+const remove = async (...args: Parameters<typeof removed>) => { await removed(...args); await delivered(); };
 const { iso } = await import("../src/model.js");
 
 const monday = new Date("2026-08-31T00:00");
@@ -53,6 +68,8 @@ const appointment = (title: string, updatedAt = 1) =>
 
 beforeEach(async () => {
   away = false;
+  writing = Promise.resolve();
+  refused.clear();
   for (const kind of Object.keys(there) as Kind[]) there[kind] = [];
   await clearAll();
   /* Emptying the calendar is itself something the folder is owed, and a test that
@@ -229,11 +246,11 @@ describe("a write while the folder is being read", () => {
     let open!: () => void;
     reading = new Promise(resolve => { open = resolve; });
     const pulling = pullFromFolder();
-    const writing = put(appointment("Waffeln backen"));
+    const saving = put(appointment("Waffeln backen"));
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(there.termine).toEqual([]);
     open();
-    await Promise.all([pulling, writing]);
+    await Promise.all([pulling, saving]);
     reading = Promise.resolve();
     expect((await week(monday)).map(item => item.title)).toEqual(["Waffeln backen"]);
     expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen"]);
@@ -245,5 +262,58 @@ describe("a write while the folder is being read", () => {
     await pullFromFolder();
     stop();
     expect(heard).toEqual([true, false]);
+  });
+});
+
+/* A save is done when the browser has it; the folder is delivered to afterwards,
+   and owed it until then. ADR 005. */
+describe("delivering to the folder after the save", () => {
+  const held = () => { let open!: () => void; writing = new Promise(resolve => { open = resolve; }); return open; };
+
+  it("returns before the folder has it, and owes it until it does", async () => {
+    const open = held();
+    await saved(appointment("Waffeln backen"));
+    expect((await week(monday)).map(item => item.title)).toEqual(["Waffeln backen"]);
+    expect([there.termine.length, await owed()]).toEqual([0, 1]);
+    open();
+    await delivered();
+    expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen"]);
+    expect(await owed()).toBe(0);
+  });
+
+  it("delivers the last of three quick edits, and a deletion as a deletion", async () => {
+    const one = appointment("Waffeln");
+    for (const title of ["Waffeln", "Waffeln backen", "Waffeln backen mit Oma"]) await saved({ ...one, title });
+    await delivered();
+    expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen mit Oma"]);
+    await saved({ ...one, title: "Pfannkuchen" });
+    await removed(one.id);
+    await delivered();
+    expect([there.termine, await owed()]).toEqual([[], 0]);
+  });
+
+  it("is not paid off by a delivery that was under way when it was made", async () => {
+    const one = appointment("Waffeln backen");
+    const open = held();
+    await saved(one);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    /* The first delivery has read the record and stands in its write. The edit
+       made now is one the folder will refuse, so only its row says it is owed. */
+    refused.add("Pfannkuchen");
+    await saved({ ...one, title: "Pfannkuchen" });
+    open();
+    await delivered();
+    expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen"]);
+    expect((await owing()).map(row => row.record)).toEqual([one.id]);
+    refused.clear();
+    await settleUp();
+    expect([there.termine.map(item => item.title), await owed()]).toEqual([["Pfannkuchen"], 0]);
+  });
+
+  it("keeps owing a delivery that did not land", async () => {
+    away = true;
+    await saved(appointment("Waffeln backen"));
+    await delivered();
+    expect(await owed()).toBe(1);
   });
 });
