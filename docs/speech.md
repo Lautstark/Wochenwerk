@@ -521,8 +521,12 @@ both at once. The sound says which child, the ring says which card, and they say
 it in the same moment — which is most of how a child who cannot yet follow a
 sentence finds out what it was about.
 
-**And what is lit grows.** The day it is on widens and the other days make
-room; on it, the card takes the room it was given, and a short one grows to a
+**And what is lit grows.** Today widens with the first word and the other
+days make room, because the announcement is about today from its first word —
+even a day sentence that names nothing on the board — and stays wide to the
+last, giving the room up only to a stretch on other days. The spoken card is
+whole at once rather than fading up as it grows: half-faded, it was a pane of
+glass over the card behind it. On the day, the card takes the room it was given, and a short one grows to a
 floor over its hushed neighbours, around its own time. A birthday grows the head
 of its day until the face and the cake are as large as the cards under it, and a
 stretch away grows its bar down over the days it covers. Nothing is laid over the

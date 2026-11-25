@@ -563,7 +563,12 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    other is not on offer to be counted — it is a third of itself, behind. */
 .day.lifted .card.saying { --tall: max(calc(var(--h) - 5px), 26vh);
   height: var(--tall); top: clamp(0%, calc(var(--t) - (var(--tall) - var(--h) + 5px) / 2), calc(100% - var(--tall)));
-  transition: opacity .28s ease, box-shadow .28s ease, height .45s ease, top .45s ease; }
+  transition: box-shadow .28s ease, height .45s ease, top .45s ease; }
+/* The spoken card is whole at once. It used to fade up from hushed while it was
+   growing, and for that half second it was a pane of glass laid over the card
+   above it — which read as something broken, and was the one moment the room
+   was asked to look. The others may still fade out; only this one comes in. */
+.card.saying { transition: box-shadow .28s ease; }
 /* The same light as a spoken card, outward, because a pill and a bar have no
    paper of their own to draw a frame into: they are all paper. */
 .pill, .span { transition: opacity .28s ease, box-shadow .28s ease; }

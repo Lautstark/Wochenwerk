@@ -25,6 +25,11 @@ export const view = $state({
      this the light would go out mid-word, at a moment that has nothing to do with
      the announcement. */
   lit: undefined as string | undefined,
+  /* Whether an announcement is under way at all, lit card or not. Today widens
+     for the whole of it, from the first word: the day sentence is about today
+     even where it names nothing on the board, and a day that only grew at the
+     second sentence was growing late. */
+  announcing: false,
   /* A card that answers nothing: nothing is saved, and the refusal is visible from
      across the room. It is shown on the bar rather than on the card, because the bar
      is where the question is — and where there is no question the bar itself says no. */
@@ -239,6 +244,7 @@ export async function reads(uid: string | null): Promise<void> {
    does, at the driver — the volume moves whatever this file says, and the fix has
    to be made there. Under Chromium in kiosk, which is what the wall runs, there
    is no desktop above the browser to take them first. */
+let presses = 0;
 const PRESS = new Set(["Space", "AudioVolumeMute", "VolumeMute"]);
 const TURN = new Set(["AudioVolumeUp", "AudioVolumeDown", "VolumeUp", "VolumeDown"]);
 export function pressed(event: KeyboardEvent): void {
@@ -250,10 +256,15 @@ export function pressed(event: KeyboardEvent): void {
   /* Cleared before rather than after: a sentence takes seconds to speak, and a
      line about what went wrong last time is still on the wall for all of them. */
   trouble();
+  /* Counted, because a second press starts again while the first one's promise
+     is still settling, and that one must not end the announcement it replaced. */
+  const mine = ++presses;
+  view.announcing = true;
   void announceAt(new Date(), id => {
     view.lit = id;
     /* The moment the voice reaches the question on the tray, the tray grows: what
        is being asked stands at full size over the place the answer goes. */
     if (id && id === view.built?.open?.id) ask(id);
-  }).then(said => trouble(said.trouble));
+  }).then(said => trouble(said.trouble))
+    .finally(() => { if (mine === presses) view.announcing = false; });
 }

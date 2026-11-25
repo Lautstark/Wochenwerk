@@ -222,9 +222,13 @@ test("a stretch away said out loud grows its bar over the days it covers", async
     shape: { title: "Urlaub", symbols: [symbol("Urlaub")], options: [], people: [], showPeople: false, away: true } };
   await openBoard(page, { series: [trip], settings: { voice: VOICE }, appointments: [kita(WEEK[1])] });
   await expect(bars(page)).toHaveCount(1);
-  const fr = column(page, "FR");
-  const quiet = await widthOf(fr);
+  const fr = column(page, "FR"), di = column(page, "DI");
+  const quiet = await widthOf(fr), today = await widthOf(di);
   await page.keyboard.press("Space");
+  /* The day sentence names nothing on the board, and today widens all the same:
+     the announcement is about today from its first word. */
+  await expect.poll(() => spoken(page)).toEqual(["Es ist Dienstagmorgen."]);
+  await expect.poll(() => widthOf(di)).toBeGreaterThan(today * 1.3);
   /* It is the last sentence; the ones before it are let go one by one. */
   await expect.poll(async () => {
     const lines = await spoken(page);
@@ -233,6 +237,9 @@ test("a stretch away said out loud grows its bar over the days it covers", async
   }).toBe("Bald fahren wir weg.");
   await expect(bars(page)).toHaveClass(/saying/);
   await expect.poll(() => widthOf(fr)).toBeGreaterThan(quiet * 1.2);
+  /* And when the last sentence has been said, the week is the week again. */
+  await next(page);
+  await expect.poll(() => widthOf(di)).toBeLessThan(today * 1.05);
 });
 
 test("without a voice the board says so — quietly, for whoever sets it up", async ({ page }) => {

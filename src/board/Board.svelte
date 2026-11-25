@@ -53,7 +53,11 @@
   let litRun = $derived(built && litApp && allDay(litApp)
     ? built.runs.find(run => run.appointment.id === litApp!.id || (run.days.includes(litApp!.date) && !!litApp!.series && run.appointment.series === litApp!.series))
     : undefined);
-  let liftedDays = $derived(new Set(litRun ? litRun.days : litApp ? [litApp.date] : []));
+  /* Between the lit things, and under a sentence about nothing on the board,
+     the announcement is still about today: today stays wide from the first word
+     to the last, and gives the room up only to a stretch on other days. */
+  let liftedDays = $derived(new Set(litRun ? litRun.days : litApp ? [litApp.date]
+    : view.announcing && built ? [built.dates[built.todayIndex]!] : []));
   let track = $derived.by(() => {
     const b = built;
     if (!b) return "";
