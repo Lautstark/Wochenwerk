@@ -8,6 +8,7 @@
   import { load, shown, type Week } from "../store.svelte.js";
   import { allow } from "../folder.js";
   import { look, reaching, settled } from "../reaching.svelte.js";
+  import { syncing } from "../syncing.svelte.js";
   import { owed } from "../symbols.js";
   import WeekGrid from "./WeekGrid.svelte";
   import { blankAppointment, editAppointment } from "./appointment.svelte.js";
@@ -63,6 +64,16 @@
   }
   const reload = () => void load();
 
+  /* While the folder is being read the week on screen is the mirror, and a sheet
+     opened on it may hold yesterday's version of somebody else's appointment —
+     saving it would put yesterday back. So nothing opens until the folder has
+     answered, and a click says why rather than doing nothing. Stepping through
+     weeks and Einstellungen stay open: neither plans against this week. ADR 004. */
+  let busy = $derived(syncing());
+  const WAIT = "Einen Moment — der Kalender wird gerade mit dem Ordner abgeglichen.";
+  const unlessBusy = <A extends unknown[]>(open: (...args: A) => void) =>
+    (...args: A) => { if (busy) say(WAIT); else open(...args); };
+
   /* Which legal page is open, or nothing. Held here rather than in a module,
      because the footer that opens it and the dialog that draws it are both in
      this file and nothing else on the page asks. */
@@ -105,8 +116,8 @@
 
 <div class="shell">
   <header class="topbar">
-    <div class="topbar__nav"><button class="btn quiet icon" type="button" onclick={() => void step(-1)}>‹</button><button class="btn quiet icon" type="button" onclick={() => void step(1)}>›</button><button class="btn quiet sm" type="button" onclick={() => void step(0)}>Heute</button><b>{label}</b></div>
-    <div class="topbar__nav"><a class="btn quiet sm" href={import.meta.env.BASE_URL} target="_blank" rel="noopener">Symbolansicht ↗</a><button class="btn quiet sm" type="button" onclick={() => openSettings(say)}>Einstellungen</button><button class="btn primary sm" type="button" onclick={() => editAppointment(blankAppointment(dayInView()), false, reload)}>＋ Termin</button></div>
+    <div class="topbar__nav"><button class="btn quiet icon" type="button" onclick={() => void step(-1)}>‹</button><button class="btn quiet icon" type="button" onclick={() => void step(1)}>›</button><button class="btn quiet sm" type="button" onclick={() => void step(0)}>Heute</button><b>{label}</b>{#if busy}<span class="syncing" role="status">Abgleich mit dem Ordner …</span>{/if}</div>
+    <div class="topbar__nav"><a class="btn quiet sm" href={import.meta.env.BASE_URL} target="_blank" rel="noopener">Symbolansicht ↗</a><button class="btn quiet sm" type="button" onclick={() => openSettings(say)}>Einstellungen</button><button class="btn primary sm" type="button" disabled={busy} title={busy ? WAIT : undefined} onclick={() => editAppointment(blankAppointment(dayInView()), false, reload)}>＋ Termin</button></div>
   </header>
   <!-- The page's work, and the only element on it that is. The mount point used
        to be the `<main>` and everything was inside it, including what is now the
@@ -142,10 +153,12 @@
     {:else if reach.waiting}
       <p class="notice">{many(reach.waiting)} werden gerade nachgereicht.</p>
     {/if}
-    <p class="empty" hidden={current.appointments.length > 0}><b>Noch nichts geplant</b><small>Leg den ersten Termin an — oder klick in eine Spalte.</small></p>
+    <!-- Not while the folder is being read: until it has answered, „nichts
+         geplant" is not known to be true. -->
+    <p class="empty" hidden={current.appointments.length > 0 || busy}><b>Noch nichts geplant</b><small>Leg den ersten Termin an — oder klick in eine Spalte.</small></p>
     <WeekGrid visible={narrow ? [current.dates[day]!] : null}
-      onopen={appointment => editAppointment(appointment, true, reload)}
-      oncreate={(date, start) => editAppointment(blankAppointment(date, start), false, reload)} />
+      onopen={unlessBusy(appointment => editAppointment(appointment, true, reload))}
+      oncreate={unlessBusy((date, start) => editAppointment(blankAppointment(date, start), false, reload))} />
   </main>
   <!--
     The status line, and it is no longer a `<footer>`.

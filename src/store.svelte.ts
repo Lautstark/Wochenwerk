@@ -40,23 +40,35 @@ let current = $state.raw<Week>(empty);
 
 export const shown = (): Week => current;
 
+/* Which `load()` is the latest. A week stepped away from may still be resolving
+   its pictures, and it must not draw them — or itself — over the one now shown. */
+let asked = 0;
+
 /** Read the week at an offset from this one and tell everybody watching. */
+/* Twice: once with the pictures already known, so the week is on screen as soon
+   as IndexedDB has answered, and once more when the rest are resolved. Waiting for
+   the pictures first meant that with METACOM connected as a ZIP the first picture
+   unpacked the whole archive while the page showed an empty week. ADR 004. */
 export async function load(offset = current.offset): Promise<Week> {
+  const mine = ++asked;
   const monday = addDays(mondayOf(new Date()), offset * 7);
   const [appointments, people, cardList, seriesList] = await Promise.all([
     week(monday), allPeople(), allCards(), allSeries(),
   ]);
+  if (mine !== asked) return current;
   current = {
     offset, monday,
     dates: sevenFrom(monday),
     appointments, people,
     cards: new Map(cardList.map(card => [card.id, card])),
     series: new Map(seriesList.map(item => [item.id, item])),
-    pictures: await pictures([
-      ...appointments.flatMap(appointment => appointment.symbols),
-      ...cardList.map(card => card.symbol).filter(Boolean) as SymbolRef[],
-    ]),
+    pictures: current.pictures,
   };
+  const found = await pictures([
+    ...appointments.flatMap(appointment => appointment.symbols),
+    ...cardList.map(card => card.symbol).filter(Boolean) as SymbolRef[],
+  ]);
+  if (mine === asked) current = { ...current, pictures: found };
   return current;
 }
 

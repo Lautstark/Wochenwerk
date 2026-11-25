@@ -95,6 +95,12 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .topbar__nav { display: flex; align-items: center; gap: 8px; }
 .topbar__nav b { font-size: 16px; margin-left: 6px; }
+/* The folder being read (ADR 004). It appears only after a moment: a sync that
+   finishes before anybody could have read the words — a household with no folder,
+   a poll that found nothing new — should not flicker past. Visibility rather than
+   opacity alone, so the words are not announced before they are shown. */
+.syncing { margin-left: 6px; font-size: 13.5px; color: var(--text-dim); animation: syncing-shows 0s .4s both; }
+@keyframes syncing-shows { from { visibility: hidden; } to { visibility: visible; } }
 a.btn { text-decoration: none; }
 .line { margin: 0; min-height: 1.2em; font-size: 13.5px; color: var(--text-dim); }
 /* The banner's remedy button, in the banner's own colours. `destructive` hovers

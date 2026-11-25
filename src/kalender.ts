@@ -6,6 +6,7 @@ import { load } from "./store.svelte.js";
 import { ablage, adopted, watchFolder } from "./folder.js";
 import { backup } from "./backup.js";
 import { watchReach } from "./reaching.svelte.js";
+import { booted } from "./syncing.svelte.js";
 import { chooseSource, metacom, preferRendering, restore } from "./symbols.js";
 import Kalender from "./kalender/Kalender.svelte";
 
@@ -30,14 +31,21 @@ import Kalender from "./kalender/Kalender.svelte";
 initTheme("wochenwerk.theme");
 
 mount(Kalender, { target: document.querySelector<HTMLElement>("#app")! });
+/* The mirror first: it is what the folder held when this browser last read it,
+   and it is in IndexedDB now. Everything below reaches for something slower and
+   used to be waited on before the week was drawn at all. The page says that a
+   sync is running and lets nobody plan until it has ended. ADR 004. */
+void load(0);
 metacom.subscribe(() => void load());
 
 await restore().catch(() => false);
-/* Where a folder is the store, it is read before anything is drawn, and watched
+/* Where a folder is the store, it is read before anybody may plan, and watched
    afterwards: another household member editing on another machine is the reason
-   a folder was chosen at all. */
+   a folder was chosen at all. The week drawn above is the mirror; the one drawn
+   below is the folder's. */
 await ablage.restore().catch(() => null);
 await pullFromFolder().catch(() => undefined);
+booted();
 /* The daily copies go into the same folder as the calendar — beside its
    compartment, as flat files — and nowhere else. Until 2026-10-31 nothing
    here told the backup about the folder, so after a reload there were no

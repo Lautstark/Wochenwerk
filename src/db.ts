@@ -220,11 +220,13 @@ const KIND = { appointments: "termine", cards: "karten", people: "personen", ser
 type Kept = keyof typeof KIND;
 
 async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
+  await synced();
   await (await db()).put(store as never, record as never);
   await settled(KIND[store], record.id, false, await file(KIND[store], record as never));
   changed.touched();
 }
 async function dropRecord(store: Kept, id: string): Promise<void> {
+  await synced();
   await (await db()).delete(store as never, id as never);
   await settled(KIND[store], id, true, await unfile(KIND[store], id));
   changed.touched();
@@ -375,9 +377,36 @@ export async function pullFromFolder(): Promise<boolean> {
      `pull` replaces these four stores with what the folder holds, so a record the
      folder has never been told about is a record this line is about to delete.
      That is how a week planned on a laptop away from the house disappeared. */
-  await settleUp();
-  await pull();
+  await syncing(async () => { await settleUp(); await pull(); });
   return true;
+}
+
+/* The time between drawing the mirror and knowing it is the folder's. ADR 004.
+
+   One sync at a time, and every route to one comes through `pullFromFolder` —
+   the boot, the poll, coming home, the permission click — so it is said here
+   and nowhere else. The two funnels wait on it: `pull` empties four stores and
+   fills them again, and a write landing between the two was a write the second
+   half deleted. Neither `settleUp` nor `pull` goes through the funnels, which is
+   why waiting in them cannot wait on itself. */
+let sync: Promise<void> | null = null;
+const syncWatchers = new Set<(busy: boolean) => void>();
+/** Hear when a sync starts and ends. Returns the way to stop hearing it. */
+export const onSyncing = (watch: (busy: boolean) => void) => {
+  syncWatchers.add(watch);
+  return () => { syncWatchers.delete(watch); };
+};
+async function syncing(work: () => Promise<void>): Promise<void> {
+  while (sync) await sync.catch(() => undefined);
+  const tell = (busy: boolean) => { for (const watch of syncWatchers) watch(busy); };
+  tell(true);
+  sync = work().finally(() => { sync = null; tell(false); });
+  await sync;
+}
+/* A loop rather than one await: a second sync may have begun in the moment
+   between the first one ending and this write going ahead. */
+async function synced(): Promise<void> {
+  while (sync) await sync.catch(() => undefined);
 }
 
 /** Which store each kind of record lives in. The mirror of `KIND`. */

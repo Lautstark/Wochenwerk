@@ -13,6 +13,8 @@ type Record_ = { id: string; updatedAt: number; title?: string };
 const there = { termine: [] as Record_[], karten: [] as Record_[], personen: [] as Record_[], serien: [] as Record_[] };
 type Kind = keyof typeof there;
 let away = false;
+/* Held shut to keep a sync running for as long as a test needs it to. */
+let reading: Promise<void> = Promise.resolve();
 
 const put_ = (kind: Kind, record: Record_) => {
   const at = there[kind].findIndex(item => item.id === record.id);
@@ -37,11 +39,11 @@ vi.mock("../src/folder.js", () => ({
     return true;
   },
   stamps: async (kind: Kind) => new Map(there[kind].map(item => [item.id, item.updatedAt])),
-  readKind: async (kind: Kind) => there[kind],
+  readKind: async (kind: Kind) => { await reading; return there[kind]; },
   reconnect: async () => undefined,
 }));
 
-const { adoptFolder, carriedOver, clearAll, exportAll, importAll, onChanged, owed, owing, pullFromFolder, put, remove,
+const { adoptFolder, carriedOver, clearAll, exportAll, importAll, onChanged, onSyncing, owed, owing, pullFromFolder, put, remove,
   settleUp, uuid, week } = await import("../src/db.js");
 const { iso } = await import("../src/model.js");
 
@@ -216,5 +218,32 @@ describe("the bulk writes", () => {
       await clearAll();
       expect(heard).toHaveBeenCalled();
     } finally { stop(); }
+  });
+});
+
+/* The mirror is drawn before the folder is read, so somebody can press something
+   while the read is under way. `pull` empties the stores and fills them again; a
+   write between the two halves used to be a write the second half deleted. ADR 004. */
+describe("a write while the folder is being read", () => {
+  it("waits for the read and is not wiped by it", async () => {
+    let open!: () => void;
+    reading = new Promise(resolve => { open = resolve; });
+    const pulling = pullFromFolder();
+    const writing = put(appointment("Waffeln backen"));
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(there.termine).toEqual([]);
+    open();
+    await Promise.all([pulling, writing]);
+    reading = Promise.resolve();
+    expect((await week(monday)).map(item => item.title)).toEqual(["Waffeln backen"]);
+    expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen"]);
+  });
+
+  it("says when the read starts and when it ends", async () => {
+    const heard: boolean[] = [];
+    const stop = onSyncing(busy => heard.push(busy));
+    await pullFromFolder();
+    stop();
+    expect(heard).toEqual([true, false]);
   });
 });
