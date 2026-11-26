@@ -65,6 +65,19 @@ export async function unfile(kind: Kind, id: string): Promise<boolean> {
 export const stamps = async (kind: Kind): Promise<Map<string, number>> =>
   new Map((await ablage.list(kind)).map(item => [item.id, item.updatedAt]));
 
+/** One record as the folder holds it, or `null` where it holds none. */
+/* What a delivery reads before it writes, so that a change somebody else saved
+   meanwhile is merged rather than overwritten (ADR 006). `null` is also the
+   answer for a folder that cannot be read; the caller asks `isStale` after.
+   The shape number the folder writes into every file is not part of the record. */
+export async function readOne(kind: Kind, id: string): Promise<Filed | null> {
+  if (!isStore() || isStale()) return null;
+  const found = await ablage.read(kind, id) as (Filed & { v?: number }) | null;
+  if (!found) return null;
+  const { v: _shape, ...record } = found;
+  return record as Filed;
+}
+
 /* Reaching for a folder that went away. It never prompts — the handle and its
    permission are both already held — so this is a thing a timer may do, which is
    what makes coming home enough on its own. A folder the package still believes in

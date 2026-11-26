@@ -36,6 +36,7 @@ vi.mock("../src/folder.js", () => ({
   pushKind: async (kind: keyof typeof there, records: any[]) =>
     { there[kind] = refuse ? records.slice(0, refuse) : records; return true; },
   readKind: async (kind: keyof typeof there) => there[kind],
+  readOne: async (kind: keyof typeof there, id: string) => there[kind].find(item => item.id === id) ?? null,
 }));
 
 const { adoptFolder, clearAll, pullFromFolder, put, uuid, week } = await import("../src/db.js");

@@ -49,10 +49,11 @@ vi.mock("../src/folder.js", () => ({
   },
   stamps: async (kind: Kind) => new Map(there[kind].map(item => [item.id, item.updatedAt])),
   readKind: async (kind: Kind) => { await reading; return there[kind]; },
+  readOne: async (kind: Kind, id: string) => (away ? null : there[kind].find(item => item.id === id) ?? null),
   reconnect: async () => undefined,
 }));
 
-const { adoptFolder, carriedOver, clearAll, delivered, exportAll, importAll, onChanged, onSyncing, owed, owing, pullFromFolder,
+const { adoptFolder, carriedOver, clearAll, createSeries, delivered, onMet, exportAll, importAll, onChanged, onSyncing, owed, owing, pullFromFolder,
   put: saved, remove: removed, settleUp, uuid, week } = await import("../src/db.js");
 
 /* A save returns once the browser has it and delivers to the folder afterwards
@@ -154,8 +155,10 @@ describe("when the same record was changed on both sides", () => {
     /* Their edit is the older one: ours was typed after it. */
     put_("termine", { ...one, title: "Pfannkuchen", updatedAt: 30 });
     away = false;
+    /* Both changed the title, so it is a clash and said as one (ADR 006) — but
+       ours was typed later, so ours is the one that stands. */
     const { clashed } = await settleUp();
-    expect(clashed).toEqual([]);
+    expect(clashed).toHaveLength(1);
     expect(there.termine.map(item => item.title)).toEqual(["Waffeln backen mit Oma"]);
   });
 
@@ -315,5 +318,88 @@ describe("delivering to the folder after the save", () => {
     await saved(appointment("Waffeln backen"));
     await delivered();
     expect(await owed()).toBe(1);
+  });
+});
+
+/* Two changes to one record, made on two devices before either saw the other's.
+   The folder is the other device; `put_` is it saving. ADR 006. */
+describe("two changes to one record", () => {
+  const theirs = (record: Record_ & Record<string, unknown>) => put_("termine", { ...record, updatedAt: Date.now() + 60_000 });
+  const heard = () => { const met: { what?: string; name: string }[] = []; const stop = onMet(item => met.push(item)); return { met, stop }; };
+
+  it("keeps both where they changed different things", async () => {
+    const one = appointment("Turnen");
+    await put(one);
+    const [stored] = await week(monday);
+    theirs({ ...stored, title: "Schwimmen" });
+    await put({ ...stored, speech: "Heute ist Turnen in der Halle." });
+    const [folder] = there.termine as (Record_ & { speech?: string })[];
+    expect([folder.title, folder.speech]).toEqual(["Schwimmen", "Heute ist Turnen in der Halle."]);
+    const [here] = await week(monday);
+    expect([here.title, here.speech]).toEqual(["Schwimmen", "Heute ist Turnen in der Halle."]);
+    expect(await owed()).toBe(0);
+  });
+
+  it("says so where both changed the same thing, and the later one stands", async () => {
+    const { met, stop } = heard();
+    await put(appointment("Turnen"));
+    const [stored] = await week(monday);
+    theirs({ ...stored, title: "Schwimmen" });
+    await put({ ...stored, title: "Turnen mit Oma" });
+    stop();
+    expect(there.termine.map(item => item.title)).toEqual(["Schwimmen"]);
+    expect(met).toEqual([expect.objectContaining({ what: "both", name: "Schwimmen" })]);
+  });
+
+  it("keeps a change made there over a deletion made here, and says so", async () => {
+    const { met, stop } = heard();
+    const one = appointment("Turnen");
+    await put(one);
+    const [stored] = await week(monday);
+    theirs({ ...stored, title: "Schwimmen" });
+    await remove(one.id);
+    stop();
+    expect((await week(monday)).map(item => item.title)).toEqual(["Schwimmen"]);
+    expect(met.map(item => item.what)).toEqual(["kept"]);
+  });
+
+  it("brings back what was deleted there when it was changed here", async () => {
+    const one = appointment("Turnen");
+    await put(one);
+    const [stored] = await week(monday);
+    there.termine = [];
+    await put({ ...stored, title: "Turnen mit Oma" });
+    expect(there.termine.map(item => item.title)).toEqual(["Turnen mit Oma"]);
+  });
+
+  it("merges a save from a sheet that was open while the newer version came in", async () => {
+    const one = appointment("Turnen");
+    await put(one);
+    /* The sheet opened on this version… */
+    const [opened] = await week(monday);
+    /* …the other device saved, and the poll brought it here… */
+    theirs({ ...opened, title: "Schwimmen" });
+    await pullFromFolder();
+    expect((await week(monday)).map(item => item.title)).toEqual(["Schwimmen"]);
+    /* …and the sheet is saved with only its own change in it. */
+    await put({ ...opened, speech: "Heute ist Turnen in der Halle." });
+    const [here] = await week(monday);
+    expect([here.title, here.speech]).toEqual(["Schwimmen", "Heute ist Turnen in der Halle."]);
+  });
+});
+
+describe("two devices taking days out of one series", () => {
+  it("takes out both, rather than the second putting the first back", async () => {
+    const id = await createSeries({ kind: "weekly", weekdays: [0, 2] }, iso(monday), iso(new Date("2026-09-30T00:00")),
+      { symbols: [], options: [], people: [], showPeople: false, title: "Kita" } as never);
+    await delivered();
+    const [rule] = there.serien as (Record_ & { skipped: string[] })[];
+    /* The other device takes Wednesday out… */
+    put_("serien", { ...rule, skipped: ["2026-09-02"], updatedAt: Date.now() + 60_000 } as Record_);
+    /* …and this one Monday, before it has seen that. */
+    await removed(`${id}@2026-08-31`);
+    await delivered();
+    const [merged] = there.serien as (Record_ & { skipped: string[] })[];
+    expect(merged.skipped).toEqual(["2026-08-31", "2026-09-02"]);
   });
 });

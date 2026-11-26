@@ -7,6 +7,7 @@
   import { addDays, dayLabel, drawnSymbols, iso, weekdays, type SymbolRef } from "../model.js";
   import { load, shown, type Week } from "../store.svelte.js";
   import { allow } from "../folder.js";
+  import { onMet, type Met } from "../db.js";
   import { look, reaching, settled } from "../reaching.svelte.js";
   import { syncing } from "../syncing.svelte.js";
   import { owed } from "../symbols.js";
@@ -106,12 +107,27 @@
     const done = settled();
     if (!done || done.at === told) return;
     told = done.at;
-    if (done.clashed.length) {
-      say(`${many(done.clashed.length)} von hier wurden nicht übernommen — sie waren anderswo schon neuer geplant.`);
-    } else if (done.sent) {
-      say(`${many(done.sent)} an die Wand nachgereicht.`);
-    }
+    /* A clash is said record by record, below, as it happens. */
+    if (done.sent) say(`${many(done.sent)} an die Wand nachgereicht.`);
   });
+
+  /* Two changes to one record met — one made here, one on another device before
+     this one had seen it — and were merged into this browser's copy (ADR 006).
+     The week is drawn again either way. Where something had to give way, it is
+     said by its name, because that is the one thing a person can go and look at. */
+  const SUBJECT = { termine: "Ein Termin", serien: "Eine Serie", karten: "Eine Karte", personen: "Eine Person" } as const;
+  function met({ kind, name, what }: Met): string | null {
+    const subject = name ? `„${name}“` : SUBJECT[kind];
+    if (what === "both") return `${subject} wurde gleichzeitig woanders geändert. Wo ihr dasselbe geändert habt, gilt die spätere Änderung.`;
+    if (what === "kept") return `${subject} wurde woanders geändert und bleibt deshalb stehen.`;
+    if (what === "back") return `${subject} war woanders gelöscht. Deine Änderung hat das zurückgeholt.`;
+    return null;
+  }
+  $effect(() => onMet(item => {
+    void load();
+    const words = met(item);
+    if (words) say(words);
+  }));
 </script>
 
 <div class="shell">

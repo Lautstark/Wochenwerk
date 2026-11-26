@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { adopt, adopted, file, type Filed, isStale, isStore, type Kind, KINDS, pushKind, readKind, stamps, unfile } from "./folder.js";
+import { adopt, adopted, file, type Filed, isStale, isStore, type Kind, KINDS, pushKind, readKind, readOne, stamps, unfile } from "./folder.js";
+import { equal, merge3 } from "./merge.js";
 import { addDays, cameFrom, expand, iso, isDerived, notAtHome, occurrences, type Card, type Appointment, type Pattern, type Person, type Series, type Settings, type Shape, type SymbolRef } from "./model.js";
 import { changes } from "@lautstark/werkzeuge/changed";
 
@@ -37,7 +38,12 @@ interface Wochenwerk extends DBSchema {
  * a batch also *removes* files, and which ones can only be worked out against a
  * folder that is there — so it is redone whole rather than replayed.
  */
-export type Waiting = { id: string; kind: Kind; record: string; gone: boolean; at: number };
+export type Waiting = { id: string; kind: Kind; record: string; gone: boolean; at: number;
+  /* What the record was before the change — what the folder still holds, as far
+     as this browser knows — so that a delivery finding something else there knows
+     what both sides changed (ADR 006). `null` for a record that did not exist;
+     absent on a row written before that, and on a whole kind. */
+  base?: Filed | null };
 
 /* Version 2 dropped the separate visit/birthday record. Both are ordinary all-day
    appointments now: the person hangs off the appointment like on any other, and a
@@ -221,27 +227,54 @@ type Kept = keyof typeof KIND;
 
 /* A save is done when the browser has it and the folder is owed it. The folder
    is delivered to afterwards, which on a share across the house was the seconds
-   a sheet stood open after Fertig. ADR 005. */
-async function keep<T extends { id: string; updatedAt: number }>(store: Kept, record: T): Promise<void> {
+   a sheet stood open after Fertig. ADR 005.
+
+   `from` is the version the change was made to, where the caller had one in
+   hand: a sheet opened before this browser took a newer version from the folder
+   is merged against that newer one rather than replacing it. ADR 006. */
+async function keep<T extends Filed>(store: Kept, record: T, from?: number): Promise<void> {
   await synced();
-  await (await db()).put(store as never, record as never);
-  await owe(KIND[store], record.id, false);
+  const database = await db();
+  const before = await database.get(store as never, record.id as never) as Filed | undefined;
+  const saving = from !== undefined && before && before.updatedAt !== from
+    ? overtaken(KIND[store], record, before, from) : record;
+  await database.put(store as never, saving as never);
+  await owe(KIND[store], record.id, false, before ?? null);
   changed.touched();
 }
 async function dropRecord(store: Kept, id: string): Promise<void> {
   await synced();
-  await (await db()).delete(store as never, id as never);
-  await owe(KIND[store], id, true);
+  const database = await db();
+  const before = await database.get(store as never, id as never) as Filed | undefined;
+  await database.delete(store as never, id as never);
+  await owe(KIND[store], id, true, before ?? null);
   changed.touched();
 }
 
+/* A save made to a version this browser has since replaced with a newer one
+   from the folder. `pull` remembers what it replaced; where it does not have
+   the version the save started from, the save goes in as it always did. The
+   save is the newer change — somebody just made it — so it wins a field both
+   changed, and says so. */
+function overtaken<T extends Filed>(kind: Kind, mine: T, theirs: Filed, from: number): T {
+  const base = superseded.get(`${kind}/${mine.id}@${from}`);
+  if (!base) return mine;
+  const { merged, clashed } = merge3(base, mine as Filed, theirs, true);
+  if (clashed.length) tell({ kind, record: mine.id, name: nameOf(merged), what: "both" });
+  return { ...merged, updatedAt: mine.updatedAt } as T;
+}
+
 /* The row first, then the delivery: whatever stops the delivery — a tab closed,
-   a share gone — leaves the row, and `settleUp` pays it like any other. */
-async function owe(kind: Kind, record: string, gone: boolean): Promise<void> {
+   a share gone — leaves the row, and `settleUp` pays it like any other. A row
+   still waiting keeps its base: the folder has not had the change in between. */
+async function owe(kind: Kind, record: string, gone: boolean, base: Filed | null): Promise<void> {
   /* Never the same time twice: two changes to one record inside a millisecond
      would leave a row the first delivery takes for its own and pays. */
   const at = stamp = Math.max(Date.now(), stamp + 1);
-  await (await db()).put("waiting", { id: `${kind}/${record}`, kind, record, gone, at });
+  const writing = (await db()).transaction("waiting", "readwrite");
+  const waiting = await writing.store.get(`${kind}/${record}`);
+  await writing.store.put({ id: `${kind}/${record}`, kind, record, gone, at, base: waiting ? waiting.base : base });
+  await writing.done;
   outbox = outbox.then(() => deliver(kind, record)).catch(() => undefined);
 }
 
@@ -255,19 +288,104 @@ export async function delivered(): Promise<void> {
   for (let last; last !== outbox;) { last = outbox; await last; }
 }
 
-/* The record as the browser holds it *now*, not as it was when it was queued:
-   three quick edits deliver the last, and an edit then a deletion delivers the
-   deletion. The row is paid only if it is still the one read before the record —
-   an edit made meanwhile left a newer row, and its own delivery pays that. */
 async function deliver(kind: Kind, record: string): Promise<void> {
   const row = await (await db()).get("waiting", `${kind}/${record}`);
   if (!row) return;
-  const mine = await oneOf(kind, record);
-  if (await (mine ? file(kind, mine) : unfile(kind, record))) await paid(row);
+  const { met } = await reconcile(row);
+  if (met) tell(met);
 }
-async function paid(row: Waiting): Promise<void> {
+
+/**
+ * Two changes to one record, met. ADR 006.
+ *
+ * `what` is what the person is told: `both` changed one field differently and
+ * the newer won it, `kept` is a deletion here that a change there outlived,
+ * `back` a change here to something deleted there, which brings it back.
+ * Absent where the two were simply merged and nothing of anybody's was lost.
+ */
+export type Met = { kind: Kind; record: string; name: string; what?: "both" | "kept" | "back" };
+const meetings = new Set<(met: Met) => void>();
+/** Hear when a change met another one and this browser's copy was merged. */
+export const onMet = (listen: (met: Met) => void) => {
+  meetings.add(listen);
+  return () => { meetings.delete(listen); };
+};
+const tell = (met: Met) => { for (const listen of meetings) listen(met); };
+const nameOf = (record: Filed | null | undefined): string => {
+  const loose = (record ?? {}) as Partial<Appointment & Card & Series>;
+  return loose.title || loose.name || loose.shape?.title || loose.speech || "";
+};
+
+/* What one row comes to, against the folder's copy read just now. The record
+   is the browser's *now*, not as it was when the row was written: three quick
+   edits deliver the last, and an edit then a deletion delivers the deletion.
+
+   Where the folder's copy is still the row's base, nobody else wrote and ours
+   goes in as it is. Where it is not, the two are merged — and the merge is
+   written to both sides, so the folder and this browser agree again. */
+async function reconcile(row: Waiting): Promise<{ landed: boolean; wrote: boolean; met?: Met }> {
+  const { kind, record } = row;
+  const mine = (await oneOf(kind, record)) ?? null;
+  if (!isStore()) { await paid(row, mine); return { landed: true, wrote: false }; }
+  const theirs = await readOne(kind, record);
+  if (isStale()) return { landed: false, wrote: false };
+  const { result, what } = decide(row, mine, theirs);
+  let landed = true, wrote = false;
+  if (result === null) { if (theirs) { landed = await unfile(kind, record); wrote = true; } }
+  else if (!theirs || !equal(result, theirs)) { landed = await file(kind, result); wrote = true; }
+  if (!landed) return { landed, wrote: false };
+  if (!equal(result, mine) && await takeOver(kind, record, mine, result)) {
+    changed.touched();
+    if (!what) tell({ kind, record, name: nameOf(result) });
+  }
+  await paid(row, result);
+  return { landed, wrote, met: what ? { kind, record, name: nameOf(result ?? mine ?? theirs), what } : undefined };
+}
+
+function decide(row: Waiting, mine: Filed | null, theirs: Filed | null): { result: Filed | null; what?: Met["what"] } {
+  const base = row.base;
+  /* A row from before ADR 006 knows no base: the later stamp wins the whole
+     record, which is the rule those rows were written under. */
+  if (base === undefined) {
+    if (!row.gone && !mine) return { result: theirs };
+    const newer = !!theirs && theirs.updatedAt > (row.gone ? row.at : mine!.updatedAt);
+    return newer ? { result: theirs, what: "both" } : { result: mine };
+  }
+  if ((theirs?.updatedAt ?? null) === (base?.updatedAt ?? null)) return { result: mine };
+  if (!mine && !theirs) return { result: null };
+  /* An edit outlives a deletion, from either side: one that stays by mistake is
+     deleted again in two clicks, one gone by mistake is gone. */
+  if (!mine) return { result: theirs, what: "kept" };
+  if (!theirs) return { result: mine, what: "back" };
+  const { merged, clashed } = merge3(base ?? ({} as Filed), mine, theirs, mine.updatedAt >= theirs.updatedAt);
+  return {
+    result: { ...merged, updatedAt: Math.max(Date.now(), mine.updatedAt + 1, theirs.updatedAt + 1) },
+    what: clashed.length ? "both" : undefined,
+  };
+}
+
+/* The merge into this browser — unless somebody here changed the record again
+   while the folder was being read, in which case that change has a row of its
+   own and its own delivery merges it. */
+async function takeOver(kind: Kind, record: string, expected: Filed | null, result: Filed | null): Promise<boolean> {
+  const writing = (await db()).transaction(STORE[kind] as never, "readwrite");
+  const store = writing.objectStore(STORE[kind] as never);
+  const now = await store.get(record as never) as Filed | undefined;
+  const still = (now?.updatedAt ?? null) === (expected?.updatedAt ?? null);
+  if (still) await (result ? store.put(result as never) : store.delete(record as never));
+  await writing.done;
+  return still;
+}
+
+/* The row is paid only if it is still the one read before the record — an edit
+   made meanwhile left a newer row, and its own delivery pays that. That row's
+   base moves on to what was just written, because that is what the folder now
+   holds. */
+async function paid(row: Waiting, written: Filed | null): Promise<void> {
   const writing = (await db()).transaction("waiting", "readwrite");
-  if ((await writing.store.get(row.id))?.at === row.at) await writing.store.delete(row.id);
+  const now = await writing.store.get(row.id);
+  if (now?.at === row.at) await writing.store.delete(row.id);
+  else if (now && now.base !== undefined) await writing.store.put({ ...now, base: written });
   await writing.done;
 }
 
@@ -368,7 +486,7 @@ export async function put(appointment: Appointment): Promise<void> {
   const was = isDerived(appointment.id) ? cameFrom(appointment.id).date
     : (await (await db()).get("appointments", appointment.id))?.date;
   if (record.series && was && was !== record.date) await moving(record.series, record.id, was, record.date);
-  await keep("appointments", { ...record, updatedAt: Date.now() });
+  await keep("appointments", { ...record, updatedAt: Date.now() }, isDerived(appointment.id) ? undefined : appointment.updatedAt);
 }
 
 /* What a move owes the batch, both ends of it.
@@ -491,32 +609,35 @@ export async function settleUp(): Promise<{ sent: number; clashed: Waiting[] }> 
     for (const other of await owing()) if (other.kind === row.kind) await database.delete("waiting", other.id);
     sent += 1;
   }
-  const there = new Map<Kind, Map<string, number>>();
+  /* One row at a time, each against the folder's copy of its record, through
+     the same meeting a delivery goes through (ADR 006). Where somebody else's
+     change was there first the two are merged, and the person is told where
+     something of either had to give way. */
   for (const row of await owing()) {
-    if (!there.has(row.kind)) there.set(row.kind, await stamps(row.kind));
-    const theirs = there.get(row.kind)!.get(row.record);
-    const mine = row.gone ? undefined : await oneOf(row.kind, row.record);
-    /* Deleted here and edited there, or edited here and edited later there: the
-       folder's copy is the newer one and it stays. A record that has since gone
-       from this browser too is nothing to write — its own deletion has a row. */
-    if (row.gone ? theirs !== undefined && theirs > row.at : !mine || (theirs !== undefined && theirs > mine.updatedAt)) {
-      if (mine || row.gone) clashed.push(row);
-      await paid(row);
-      continue;
-    }
-    const landed = row.gone ? await unfile(row.kind, row.record) : await file(row.kind, mine!);
+    const { landed, wrote, met } = await reconcile(row);
     if (!landed) return { sent, clashed };
-    await paid(row);
-    sent += 1;
+    if (met) { clashed.push(row); tell(met); } else if (wrote) sent += 1;
   }
   return { sent, clashed };
 }
+/* What `pull` replaced, by `kind/id@updatedAt`, for as long as this tab is open:
+   the version a sheet opened before the pull was showing, which a save from that
+   sheet is merged from. ADR 006. */
+const superseded = new Map<string, Filed>();
+
 async function pull(): Promise<void> {
   const database = await db();
   const [appointments, cards, people, series] = await Promise.all([
     readKind<Appointment>("termine"), readKind<Card>("karten"),
     readKind<Person>("personen"), readKind<Series>("serien"),
   ]);
+  const coming: Record<Kind, Filed[]> = { termine: appointments, karten: cards, personen: people, serien: series };
+  for (const kind of KINDS) {
+    const now = new Map(coming[kind].map(record => [record.id, record.updatedAt]));
+    for (const old of await ofKind(kind)) {
+      if (now.get(old.id) !== old.updatedAt) superseded.set(`${kind}/${old.id}@${old.updatedAt}`, old);
+    }
+  }
   const writing = database.transaction(["appointments", "cards", "people", "series"], "readwrite");
   await Promise.all([
     writing.objectStore("appointments").clear(), writing.objectStore("cards").clear(),
@@ -724,10 +845,10 @@ export const saveVoice = async (voice: string) => { await saveSettings({ voice }
  */
 export const saveAzure = async (azure: Settings["azure"]) => { await saveSettings({ azure }); };
 
-export const putPerson = async (person: Person) => { await keep("people", { ...person, updatedAt: Date.now() }); };
+export const putPerson = async (person: Person) => { await keep("people", { ...person, updatedAt: Date.now() }, person.updatedAt); };
 export const removePerson = (id: string) => dropRecord("people", id);
 export const allCards = async () => (await db()).getAll("cards");
-export const putCard = async (card: Card) => { await keep("cards", { ...card, updatedAt: Date.now() }); };
+export const putCard = async (card: Card) => { await keep("cards", { ...card, updatedAt: Date.now() }, card.updatedAt); };
 export const removeCard = (id: string) => dropRecord("cards", id);
 
 /* Setting a birthday writes the appointments it produces — a century of all-day
