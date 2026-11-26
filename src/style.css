@@ -224,7 +224,7 @@ header { height: var(--head-day); display: flex; align-items: center; justify-co
    what is on them has to be too. Both of the card's sides come from the style
    attribute — the height from the duration, the width from the lane — so nothing
    inside it can feed back into its size and the containment costs nothing. */
-.card { position: absolute; z-index: 1; top: var(--t); height: calc(var(--h) - 5px); display: flex; align-items: center; justify-content: center;
+.card { position: absolute; z-index: var(--lane, 1); top: var(--t); height: calc(var(--h) - 5px); display: flex; align-items: center; justify-content: center;
   overflow: hidden; padding: .2rem; border: 0; border-radius: .7rem; background: var(--paper);
   container-type: size;
   box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .16); }

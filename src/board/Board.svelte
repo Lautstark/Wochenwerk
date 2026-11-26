@@ -32,12 +32,15 @@
 
   /* Parallel appointments are allowed to overlap a little rather than being cut
      into exact shares — two side by side stay wide enough to carry a symbol.
-     Top and height go over as variables rather than as the box itself, so the
-     stylesheet can grow a spoken card from them without fighting an inline style. */
+     Top, height and the lane's place in the stack go over as variables rather
+     than as the box itself, so the stylesheet can grow a spoken card and lift it
+     and the running one above their neighbours without fighting an inline style.
+     The stack was inline once, and it quietly won over both: a card growing down
+     over the next one was drawn underneath it. */
   const boxOf = ({ top, height, lane, lanes }: ReturnType<typeof place>[number]) => {
     const width = lanes > 1 ? 100 / lanes + 22 / lanes : 100;
     const left = lanes > 1 ? (lane * (100 - width)) / (lanes - 1) : 0;
-    return `--t:${top}%;--h:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px);z-index:${1 + lane}`;
+    return `--t:${top}%;--h:${height}%;left:calc(${left}% + 3px);width:calc(${width}% - 6px);--lane:${1 + lane}`;
   };
 
   const column = (b: Built, index: number) => index + 1 + (index >= b.todayIndex ? 1 : 0);

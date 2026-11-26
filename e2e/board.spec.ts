@@ -215,6 +215,31 @@ test("a birthday said out loud grows the head of its day, and the day widens", a
   await expect.poll(() => widthOf(di)).toBeGreaterThan(quiet * 1.5);
 });
 
+test("a short card said out loud grows over the one after it, and stays in front of it", async ({ page }) => {
+  /* The lane's place in the stack was written inline once, and it won over the
+     stylesheet: the card growing down over the next appointment was drawn under
+     it, because the next one comes later in the page. */
+  await holdSpeech(page);
+  await openBoard(page, { settings: { voice: VOICE }, appointments: [
+    kita(WEEK[1]), timed(WEEK[1], "12:15", "12:45", "Turnen"), timed(WEEK[1], "12:45", "14:00", "Mittagessen")] });
+  const di = column(page, "DI");
+  const turnen = di.locator(".card").nth(1), lunch = di.locator(".card").nth(2);
+  await page.keyboard.press("Space");
+  await expect.poll(async () => {
+    const lines = await spoken(page);
+    if (lines.at(-1) !== "Danach kommt Turnen.") await next(page);
+    return lines.at(-1);
+  }).toBe("Danach kommt Turnen.");
+  await expect(turnen).toHaveClass(/saying/);
+  /* Wait for it to have grown into the lunch below it, then ask the page what
+     lies on top where the two overlap. */
+  await expect.poll(async () => (await box(turnen)).y + (await box(turnen)).height).toBeGreaterThan((await box(lunch)).y + 10);
+  const grown = await box(turnen), below = await box(lunch);
+  const x = grown.x + grown.width / 2, y = (below.y + grown.y + grown.height) / 2;
+  const onTop = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest(".card")?.classList.contains("saying"), { x, y });
+  expect(onTop, "the spoken card is in front of the next one").toBe(true);
+});
+
 test("a stretch away said out loud grows its bar over the days it covers", async ({ page }) => {
   await holdSpeech(page);
   const trip: Series = { id: "urlaub", pattern: { kind: "daily" }, from: WEEK[4], until: WEEK[6], allDay: true,
